@@ -1,0 +1,469 @@
+spec_title: Deterministic Evidence Layer + Agent Reasoning Layer
+status: draft
+delivery_phase: initial_vertical_slices
+implementation_status: names_tool_implemented_for_python
+intent:
+  summary: >
+    Shift from LLM-first extraction to evidence-first reasoning so deterministic questions are answered by tools,
+    and LLM reasoning is reserved for interpretation and judgment.
+  guiding_principle:
+    text: Reason only where reasoning adds value. Everything else should be evidence supplied by deterministic tools.
+    expected_effects:
+      - lower_token_consumption
+      - lower_hallucination_risk
+
+architecture:
+  layers:
+    - name: deterministic_evidence_layer
+      responsibilities:
+        - answer_what_exists
+        - answer_what_changed
+        - answer_what_repeats
+        - answer_dependencies
+        - answer_cooccurrence
+        - answer_history_predictions
+      output_contract:
+        - structured_reports
+        - counts
+        - ranked_lists
+        - hotspots
+        - cooccurrence_sets
+    - name: agent_reasoning_layer
+      responsibilities:
+        - infer_implications_from_evidence
+        - propose_representation_experiments
+        - estimate_likelihood_of_virtue_improvement
+        - interpret_neighborhoods_as_concepts_or_concept_clusters
+      input_contract:
+        - consume_evidence_outputs_only
+        - avoid_re-deriving_deterministic_facts_when_available
+
+core_abstractions:
+  primary_evidence_unit: neighborhood
+  concept_handling:
+    rule: evidence_layer_does_not_assert_semantic_concept_identity
+    interpretation_owner: agent_reasoning_layer
+    interpretation_examples:
+      - one_neighborhood_maps_to_one_concept
+      - one_neighborhood_contains_multiple_intertwined_concepts
+      - one_concept_is_split_across_multiple_representations
+
+project_constraints:
+  project_type: local_git_python_project
+  cli_framework: typer
+  runtime_language: python
+  package_manager: uv
+  distribution_targets:
+    - macos
+    - linux
+  portability_requirements:
+    - no_hard_coded_absolute_paths
+    - all_paths_resolved_relative_to_runtime_context_or_repo_root
+  workflow_assumptions:
+    - local_repository_workflow_no_pull_requests_required
+    - small_incremental_changes_preferred
+    - git_is_always_expected_in_target_projects
+  implementation_policy:
+    - command_line_descriptions_define_expected_behavior_not_required_execution_mechanism
+    - python_native_implementations_preferred_when_convenient_and_efficient
+    - shell_out_allowed_when_practicality_or_performance_justifies_it
+    - implementation_should_preserve_observable_behavior_contracts
+  initial_implementation_scope:
+    - uv_managed_fastmcp_server
+    - python_ast_identifier_evidence
+    - exact_and_lexical_family_name_search
+
+quality_strategy:
+  quality_gates:
+    - ruff_must_pass
+    - pytest_must_pass
+  required_for_completion_of_implementation_work:
+    - linting_and_tests_green
+    - evidence_outputs_verified_against_expected_shapes
+  validation_scope_for_future_implementation:
+    - unit_tests_for_custom_logic
+    - cli_contract_tests_for_core_commands
+    - parser_or_adapter_tests_for_each_supported_evidence_source
+    - packaging_validation_on_macos_and_linux
+    - relocatability_checks_no_absolute_path_dependencies
+    - onboarding_checks_for_required_tooling_and_python_version
+
+deterministic_query_targets:
+  - files_changed_together_over_time
+  - functions_manipulating_same_fields
+  - duplicated_helpers
+  - similar_parameter_groups
+  - switch_statements_discriminating_same_enum
+  - files_contributing_majority_of_edits
+  - frequently_cooccurring_identifiers
+  - module_fan_in_fan_out_hotspots
+  - repeated_literals
+  - repeatedly_growing_branches
+
+command_surface:
+  - command: kr names <term>
+    purpose: Find all identifiers related to a concept (types, methods, variables, modules, tests).
+    typical_implementation:
+      - ripgrep
+      - tree-sitter
+  - command: kr hotspots
+    purpose: Rank files/modules/functions by historical change frequency and churn.
+    typical_implementation:
+      - git_log
+      - custom_scripts
+  - command: kr cochange
+    purpose: Show files or symbols that historically change together.
+    typical_implementation:
+      - git_history_mining
+    scoring_source:
+      - git_history_intimacy_algorithm
+    query_modes:
+      - global_ranking
+      - scoped_to_single_file
+      - scoped_to_specific_file_pair
+  - command: kr ownership <symbol>
+    purpose: Identify the apparent owner(s) of a concept and places where ownership is split.
+    typical_implementation:
+      - ast
+      - call_graph
+  - command: kr enum-spread <enum>
+    purpose: Find every switch, if-chain, pattern match, or lookup involving an enum/type.
+    typical_implementation:
+      - tree-sitter
+      - semgrep
+  - command: kr repeated-params
+    purpose: Detect repeated parameter lists or recurring field groups that suggest a missing abstraction.
+    typical_implementation:
+      - ast_analysis
+  - command: kr helper-duplicates
+    purpose: Find duplicated private helpers and near-duplicate algorithms.
+    typical_implementation:
+      - ast_similarity
+      - clone_detection
+  - command: kr literals
+    purpose: Find repeated literals, magic values, and duplicated constants.
+    typical_implementation:
+      - ripgrep
+      - ast
+  - command: kr duplication
+    purpose: Report duplicated code and duplicated knowledge candidates.
+    typical_implementation:
+      - jscpd
+      - semgrep
+  - command: kr coupling
+    purpose: Show which types/modules/functions are most strongly coupled.
+    typical_implementation:
+      - git_history_intimacy_algorithm
+      - dependency_graph
+    query_modes:
+      - global_ranking
+      - scoped_to_single_file
+      - scoped_to_specific_file_pair
+  - command: kr dependencies
+    purpose: Display import/reference graph and dependency cycles.
+    typical_implementation:
+      - dependency-cruiser
+      - pydeps
+      - roslyn
+      - equivalent_dependency_tools
+  - command: kr complexity
+    purpose: Report cyclomatic complexity, nesting, long methods, execution paths.
+    typical_implementation:
+      - lizard
+      - radon
+      - roslyn
+  - command: kr tests <symbol>
+    purpose: Show which tests exercise a concept and identify gaps.
+    typical_implementation:
+      - test_discovery
+      - coverage
+  - command: kr neighborhood <seed>
+    purpose: Grow a deterministic, weighted evidence neighborhood from a seed (file, symbol, function, or identifier).
+    typical_implementation:
+      - multi_pass_graph_expansion
+      - identifier_index
+      - structural_index
+      - git_history_mining
+      - call_graph
+      - test_mapping
+  - command: kr concept <term>
+    purpose: Derived report that summarizes neighborhood evidence for a candidate concept label.
+    typical_implementation:
+      - neighborhood_report_projection
+      - orchestrates_other_commands
+  - command: kr pressure
+    purpose: Report representation pressure including hotspots, duplication, branching growth, ownership splits, and helper proliferation.
+    typical_implementation:
+      - composite_report
+  - command: kr review <files>
+    purpose: Generate a deterministic evidence package for an LLM reviewing a change.
+    typical_implementation:
+      - composite_report
+  - command: kr evolve <term>
+    purpose: Produce evidence aimed at suggesting representation improvements for a concept.
+    typical_implementation:
+      - composite_report
+
+git_history_intimacy_algorithm:
+  purpose: >
+    Language-agnostic coupling and affinity signal based on historical co-change intimacy between files.
+  scope_control:
+    commit_window:
+      required_flag: --since
+      behavior: limit_commit_walk_to_requested_time_horizon
+    target_scope:
+      supported_modes:
+        - full_repository
+        - focus_file
+        - focus_file_pair
+      behavior:
+        - in_focus_file_mode_return_ranked_partners_for_the_focus_file
+        - in_focus_file_pair_mode_return_pair_score_plus_context_metrics
+  inputs:
+    - commit_stream_with_changed_source_files
+    - rename_history_when_available
+  filtering_rules:
+    - ignore_commits_with_fewer_than_two_source_files
+  accumulation_model:
+    pair_score_storage:
+      structure: defaultdict
+      key: sorted_file_pair_tuple
+      value: float_score
+    local_commit_factor:
+      formula: 1_over_N
+      N_definition: number_of_source_files_in_commit
+    update_rule:
+      description: for_each_unique_file_pair_in_commit_add_local_commit_factor_to_pair_score
+  rename_handling:
+    required: true
+    behavior:
+      - track_file_identity_across_renames_during_commit_walk
+      - merge_scores_for_historical_and_current_paths_of_same_file_identity
+      - avoid_splitting_intimacy_scores_due_to_path_renames
+    implementation_notes:
+      - use_git_rename_detection_or_equivalent_history_following_capability
+      - maintain_canonical_identity_mapping_for_paths_seen_in_history
+  interpretation:
+    - lower_file_count_commits_produce_higher_pair_intimacy_signal
+    - large_mass_change_commits_contribute_smaller_per_pair_weight
+    - final_ranked_pairs_indicate_historical_coupling_without_language_specific_analysis
+  outputs:
+    - ranked_file_pairs_by_intimacy_score_desc
+    - optional_per_file_rollup_of_top_partners
+    - optional_normalized_scores_for_reporting
+    - scoped_file_partner_rankings
+    - scoped_file_pair_intimacy_report
+  notes:
+    - intended_to_reduce_false_coupling_from_mass_reformats_or_bulk_mechanical_changes
+    - serves_as_primary_coupling_signal_even_without_static_dependency_links
+
+neighborhood_expansion_model:
+  purpose: Build deterministic evidence neighborhoods through ordered, increasingly expensive passes.
+  seed_types:
+    - identifier_text
+    - file_path
+    - type_name
+    - function_or_method_name
+    - variable_or_field_name
+  ordered_passes:
+    - level: 0
+      name: exact_symbol
+      description: exact identifier lookup across names in code and tests
+    - level: 1
+      name: lexical_family
+      description: identifier decomposition across camelCase, PascalCase, snake_case, kebab-case, and ALL_CAPS
+    - level: 2
+      name: identifier_roots
+      description: programming-aware lexical normalization of identifier word roots
+    - level: 3
+      name: structural_neighborhood
+      description: repeated co-occurrence and structural adjacency independent of naming
+    - level: 4
+      name: historical_neighborhood
+      description: git-based co-change relationships
+    - level: 5
+      name: behavioral_neighborhood
+      description: call graph, shared field manipulation, and shared enum/switch behavior
+  expansion_flow:
+    - start_from_seed
+    - collect_edges_per_pass
+    - merge_nodes_by_identity
+    - continue_until_stop_condition
+  stop_conditions:
+    - max_depth_or_budget_reached
+    - neighborhood_stabilizes_with_no_material_new_edges
+  output_contract:
+    - neighborhood_nodes
+    - weighted_edges_with_provenance
+    - per_pass_discovery_summary
+    - ranked_neighbors
+
+neighborhood_edge_strengths:
+  policy: default_weights_are_evidence_strength_hints_not_semantic_judgments
+  defaults:
+    exact_symbol_match: 1.0
+    identifier_decomposition_match: 0.9
+    same_type: 0.9
+    direct_reference: 0.9
+    shared_field_access: 0.8
+    same_call_graph_component: 0.8
+    same_file: 0.7
+    historical_cochange: 0.7
+    same_tests: 0.6
+    english_stem_match: 0.4
+  requirements:
+    - emit_edge_weight_with_edge_reason
+    - keep_weight_table_configurable
+    - do_not_interpret_weights_inside_evidence_layer
+
+evidence_packet_example:
+  symbol: PaymentType
+  appears_in:
+    methods: 12
+    switch_statements: 4
+    enums: 2
+    duplicated_helper_functions: 3
+  historical_edits:
+    hotspot_file: PaymentService.cs
+    hotspot_share_percent: 82
+  strong_cooccurrence:
+    - PaymentMethod
+    - Currency
+    - Authorization
+    - Settlement
+
+skill_design_guidance:
+  current_direction: >
+    Skills should request evidence categories (names, ownership, multiplicity, coupling, change history, representations)
+    rather than instructing direct AST searching by the LLM.
+  documentation_guidance:
+    - docstrings_may_describe_equivalent_cli_behavior_for_reader_orientation
+    - documentation_should_help_readers_map_expected_outputs_to_code_paths
+    - docs_must_not_imply_shell_execution_is_required
+  required_behavior:
+    - collect_evidence_describing_names
+    - collect_evidence_describing_ownership
+    - collect_evidence_describing_multiplicity
+    - collect_evidence_describing_coupling
+    - collect_evidence_describing_change_history
+    - collect_evidence_describing_existing_representations
+  non_requirement:
+    - evidence_collection_implementation_details_are_hidden_from_skill_interface
+
+deterministic_source_mapping:
+  repeated_names:
+    - ripgrep
+    - tree-sitter
+  change_history:
+    - git
+  coupling:
+    - CodeQL
+  ownership:
+    - ast
+    - call_graph
+  repeated_helpers:
+    - tree-sitter
+    - similarity_analysis
+  existing_representation:
+    - symbol_index
+  zom_multiplicity:
+    - ast_query
+  representation_pressure:
+    - historical_metrics
+    - structure_metrics
+
+future_state_hypothesis:
+  tool_name: kr-evidence
+  scope: local_cli
+  implementation_stack:
+    language: python
+    cli: typer
+    git_integration:
+      library_required_for_repo_detection: gitpython
+      required_behavior:
+        - locate_repository_root_via_git_library
+        - fail_fast_with_clear_message_when_not_in_git_repo
+        - prefer_operating_from_detected_repo_root_for_project_analysis
+      rationale:
+        - validates_git_repository_presence
+        - ensures_consistent_project_relative_resolution
+  packaging_strategy:
+    standards:
+      - pyproject_toml_pep621_metadata
+      - wheel_and_sdist_builds
+    install_experience:
+      - pip_install_from_index_or_artifact
+      - pipx_install_for_cli_usage
+    compatibility_expectation:
+      - installable_with_python_on_macos_and_linux
+  modules:
+    - names
+    - ownership
+    - multiplicity
+    - history
+    - coupling
+    - duplication
+    - helpers
+    - representations
+  explicit_non_goals:
+    - perform_refactoring
+    - perform_high_level_design_judgment
+  operational_requirements:
+    onboarding:
+      script_required: true
+      checks:
+        - python_version_is_supported
+        - required_cli_tools_present
+        - git_available
+      behavior:
+        - report_missing_dependencies_with_install_guidance
+        - non_zero_exit_when_requirements_not_met
+  downstream_use:
+    - llm_interprets_evidence
+    - llm_proposes_representation_experiment
+
+acceptance_criteria_candidates:
+  - deterministic_questions_are_answered_without_llm_inference
+  - evidence_outputs_are_machine_readable_and_stable
+  - llm_prompts_reference_evidence_reports_instead_of_raw_repository_scans
+  - token_usage_for_analysis_flows_reduces_over_baseline
+  - inferred_recommendations_are_traceable_to_specific_evidence_entries
+  - at_least_one_existing_skill_can_be_reduced_to_read_report_instead_of_discover_pattern
+  - ruff_and_pytest_are_required_quality_gates_for_implementation_completion
+  - tool_is_relocatable_across_macos_and_linux_without_path_rewrites
+  - onboarding_script_detects_missing_cli_tools_and_invalid_python_versions
+  - repository_root_detection_uses_git_library_not_shell_path_assumptions
+  - cochange_and_coupling_reports_use_1_over_N_weighted_git_intimacy_scoring
+  - cochange_and_coupling_support_file_scoped_and_file_pair_scoped_queries
+  - rename_history_is_resolved_so_scores_follow_file_identity_across_path_changes
+  - neighborhood_reports_support_seed_types_beyond_text_terms
+  - neighborhood_growth_uses_ordered_multi_level_passes_with_provenance
+  - edge_strengths_are_reported_deterministically_with_configurable_defaults
+  - concept_reports_are_derived_from_neighborhood_evidence_not_assumed_by_evidence_layer
+
+planning_readiness:
+  next_artifact: implementation_plan
+  plan_focus_areas:
+    - uv_project_layout_and_dependency_management_strategy
+    - packaging_and_release_strategy_for_cross_machine_python_install
+    - python_library_first_design_per_feature_with_shell_fallback_rules
+    - relocatable_path_resolution_strategy
+    - onboarding_script_design_and_dependency_checks
+    - git_root_discovery_and_repository_precondition_handling
+    - command_surface_for_kr_evidence
+    - neighborhood_api_contract_and_seed_type_handling
+    - neighborhood_expansion_pass_design_and_stop_conditions
+    - weighted_edge_model_and_configuration_strategy
+    - output_schema_definition_for_each_evidence_module
+    - source_adapter_boundaries_and_fallback_rules
+    - baseline_metrics_and_success_measurement
+    - test_strategy_and_quality_gate_enforcement
+  sequencing_guidance:
+    - define_contracts_before_tool_adapters
+    - research_standard_python_libraries_before_selecting_shell_based_approaches
+    - implement_minimum_viable_evidence_modules_first
+    - add_reasoning_layer_integration_only_after_evidence_contracts_are_stable
+  deferred_beyond_initial_slice:
+    - git_history_analysis
+    - multi_language_analysis
+    - neighborhood_expansion
