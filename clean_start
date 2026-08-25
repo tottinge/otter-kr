@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "clean_start: working tree is not clean; save or remove changes first" >&2
+  git status --short >&2
+  exit 1
+fi
+
+uv sync --refresh
+./full_test
+echo "clean_start: repository is clean and verified"

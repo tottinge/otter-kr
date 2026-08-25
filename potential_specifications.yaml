@@ -187,22 +187,32 @@ command_surface:
       - call_graph
       - test_mapping
   - command: kr concept <term>
-    purpose: Derived report that summarizes neighborhood evidence for a candidate concept label.
+    purpose: Evidence projection that organizes neighborhood observations under a supplied seed label.
     typical_implementation:
       - neighborhood_report_projection
       - orchestrates_other_commands
+    non_responsibilities:
+      - assert semantic concept identity
+      - infer implications
+      - recommend refactoring
   - command: kr pressure
-    purpose: Report representation pressure including hotspots, duplication, branching growth, ownership splits, and helper proliferation.
+    purpose: Inventory deterministic signals including hotspots, duplication candidates, branching growth, ownership observations, and helper proliferation.
     typical_implementation:
       - composite_report
+    non_responsibilities:
+      - judge virtue quality
+      - recommend representation changes
   - command: kr review <files>
     purpose: Generate a deterministic evidence package for an LLM reviewing a change.
     typical_implementation:
       - composite_report
   - command: kr evolve <term>
-    purpose: Produce evidence aimed at suggesting representation improvements for a concept.
+    purpose: Produce a traceable evidence packet about one term for a consuming testing or refactoring workflow.
     typical_implementation:
       - composite_report
+    non_responsibilities:
+      - suggest or apply a representation improvement
+      - claim that a term is a semantic concept
 
 git_history_intimacy_algorithm:
   purpose: >
@@ -230,10 +240,13 @@ git_history_intimacy_algorithm:
       key: sorted_file_pair_tuple
       value: float_score
     local_commit_factor:
-      formula: 1_over_N
+      formula: 1_over_pair_count
       N_definition: number_of_source_files_in_commit
+      pair_count_formula: N_times_(N_minus_1)_divided_by_2
+      per_pair_formula: 2_divided_by_N_times_(N_minus_1)
+      invariant: each_eligible_commit_contributes_one_total_pair_affinity_mass
     update_rule:
-      description: for_each_unique_file_pair_in_commit_add_local_commit_factor_to_pair_score
+      description: for_each_unique_file_pair_in_commit_add_one_over_pair_count_to_pair_score
   rename_handling:
     required: true
     behavior:
@@ -246,6 +259,7 @@ git_history_intimacy_algorithm:
   interpretation:
     - lower_file_count_commits_produce_higher_pair_intimacy_signal
     - large_mass_change_commits_contribute_smaller_per_pair_weight
+    - each_eligible_commit_contributes_one_total_pair_intimacy_mass
     - final_ranked_pairs_indicate_historical_coupling_without_language_specific_analysis
   outputs:
     - ranked_file_pairs_by_intimacy_score_desc
@@ -433,7 +447,7 @@ acceptance_criteria_candidates:
   - tool_is_relocatable_across_macos_and_linux_without_path_rewrites
   - onboarding_script_detects_missing_cli_tools_and_invalid_python_versions
   - repository_root_detection_uses_git_library_not_shell_path_assumptions
-  - cochange_and_coupling_reports_use_1_over_N_weighted_git_intimacy_scoring
+  - cochange_and_coupling_reports_use_1_over_pair_count_weighted_git_intimacy_scoring
   - cochange_and_coupling_support_file_scoped_and_file_pair_scoped_queries
   - rename_history_is_resolved_so_scores_follow_file_identity_across_path_changes
   - neighborhood_reports_support_seed_types_beyond_text_terms
