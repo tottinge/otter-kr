@@ -7,6 +7,7 @@ from mcp.types import ToolAnnotations
 
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.python_complexity import analyze_python_complexity
+from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_imports import import_python
 from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
@@ -163,6 +164,32 @@ def create_server() -> FastMCP:
         if operation == "python.literals":
             try:
                 report = find_repeated_literals(Path(repository_root)).to_dict()
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
+            except GitFileSourceError as error:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root},
+                    "error": {
+                        "code": "repository_access_failed",
+                        "message": str(error),
+                        "command": list(error.command),
+                        "returncode": error.returncode,
+                        "stderr": error.stderr,
+                    },
+                }
+            return {
+                "schema_version": "1",
+                "status": "ok",
+                "operation": operation,
+                "query": {"repository_root": repository_root},
+                "data": report,
+            }
+        if operation == "python.groups":
+            try:
+                report = find_repeated_groups(Path(repository_root)).to_dict()
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
