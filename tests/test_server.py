@@ -568,6 +568,41 @@ def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> No
     assert [item["member"] for item in report["data"]["comparisons"]] == ["OPEN", "CLOSED"]
 
 
+def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "tests/test_service.py",
+        (
+            "from app.service import collect_payment\n\n"
+            "def test_collect_payment_path():\n"
+            "    collect_payment()\n"
+        ),
+    )
+    git_repository(tmp_path, "tests")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "python.tests",
+                    "term": "collect_payment",
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.tests"
+    assert report["query"]["term"] == "collect_payment"
+    assert [item["qualified_name"] for item in report["data"]["candidates"]] == [
+        "test_collect_payment_path"
+    ]
+
+
 def test_research_tool_rejects_python_discriminations_without_term() -> None:
     server = create_server()
 
@@ -584,4 +619,23 @@ def test_research_tool_rejects_python_discriminations_without_term() -> None:
     assert rejection["error"] == {
         "code": "invalid_query",
         "message": "A term is required for python.discriminations.",
+    }
+
+
+def test_research_tool_rejects_python_tests_without_term() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "python.tests"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A term is required for python.tests.",
     }

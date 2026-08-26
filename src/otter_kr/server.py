@@ -14,6 +14,37 @@ from otter_kr.python_imports import import_python
 from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
+from otter_kr.python_tests import find_tests_for_symbol
+
+
+def _query(repository_root: str, term: str | None = None) -> dict:
+    query = {"repository_root": repository_root}
+    if term is not None:
+        query["term"] = term
+    return query
+
+
+def _success(operation: str, repository_root: str, data: dict, term: str | None = None) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "ok",
+        "operation": operation,
+        "query": _query(repository_root, term),
+        "data": data,
+    }
+
+
+def _invalid_query(operation: str, repository_root: str, message: str) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": operation,
+        "query": _query(repository_root),
+        "error": {
+            "code": "invalid_query",
+            "message": message,
+        },
+    }
 
 
 def _not_a_repository(operation: str, repository_root: str, error: ValueError) -> dict:
@@ -21,10 +52,31 @@ def _not_a_repository(operation: str, repository_root: str, error: ValueError) -
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": {"repository_root": repository_root},
+        "query": _query(repository_root),
         "error": {
             "code": "not_a_repository",
             "message": str(error),
+        },
+    }
+
+
+def _repository_access_failed(
+    operation: str,
+    repository_root: str,
+    error: GitFileSourceError,
+    term: str | None = None,
+) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": operation,
+        "query": _query(repository_root, term),
+        "error": {
+            "code": "repository_access_failed",
+            "message": str(error),
+            "command": list(error.command),
+            "returncode": error.returncode,
+            "stderr": error.stderr,
         },
     }
 
@@ -56,233 +108,91 @@ def create_server() -> FastMCP:
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         if operation == "python.names":
             if term is None:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "invalid_query",
-                        "message": "A term is required for python.names.",
-                    },
-                }
+                return _invalid_query(
+                    operation, repository_root, "A term is required for python.names."
+                )
             try:
                 report = find_names(Path(repository_root), term)
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root, "term": term},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root, "term": term},
-                "data": report.to_dict(),
-            }
+                return _repository_access_failed(operation, repository_root, error, term)
+            return _success(operation, repository_root, report.to_dict(), term)
         if operation == "python.discriminations":
             if term is None:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "invalid_query",
-                        "message": "A term is required for python.discriminations.",
-                    },
-                }
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A term is required for python.discriminations.",
+                )
             try:
                 report = find_type_discriminations(Path(repository_root), term)
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root, "term": term},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root, "term": term},
-                "data": report.to_dict(),
-            }
+                return _repository_access_failed(operation, repository_root, error, term)
+            return _success(operation, repository_root, report.to_dict(), term)
+        if operation == "python.tests":
+            if term is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A term is required for python.tests.",
+                )
+            try:
+                report = find_tests_for_symbol(Path(repository_root), term)
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
+            except GitFileSourceError as error:
+                return _repository_access_failed(operation, repository_root, error, term)
+            return _success(operation, repository_root, report.to_dict(), term)
         if operation == "python.imports":
             try:
                 report = import_python(Path(repository_root)).to_dict()
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         if operation == "python.complexity":
             try:
                 report = analyze_python_complexity(Path(repository_root)).to_dict()
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         if operation == "python.literals":
             try:
                 report = find_repeated_literals(Path(repository_root)).to_dict()
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         if operation == "python.groups":
             try:
                 report = find_repeated_groups(Path(repository_root)).to_dict()
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         if operation == "python.duplicates":
             try:
                 report = find_duplicate_helpers(Path(repository_root)).to_dict()
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
-                return {
-                    "schema_version": "1",
-                    "status": "rejected",
-                    "operation": operation,
-                    "query": {"repository_root": repository_root},
-                    "error": {
-                        "code": "repository_access_failed",
-                        "message": str(error),
-                        "command": list(error.command),
-                        "returncode": error.returncode,
-                        "stderr": error.stderr,
-                    },
-                }
-            return {
-                "schema_version": "1",
-                "status": "ok",
-                "operation": operation,
-                "query": {"repository_root": repository_root},
-                "data": report,
-            }
+                return _repository_access_failed(operation, repository_root, error)
+            return _success(operation, repository_root, report)
         return {
             "schema_version": "1",
             "status": "rejected",
             "operation": operation,
-            "query": {"repository_root": repository_root},
+            "query": _query(repository_root),
             "error": {
                 "code": "not_implemented",
                 "message": "No repository research capabilities have been admitted yet.",
