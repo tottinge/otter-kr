@@ -138,7 +138,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Still rejected:** language-specific execution-cost claims, performance diagnosis, and a global
   “badness” judgment.
 
-#### KR-007 — Find repeated literals and constants
+#### KR-007 — Find repeated literals and constants *(shipped in this slice)*
 
 - **Admits:** repeated non-trivial literals in Python code, grouped by normalized value and source
   locations.

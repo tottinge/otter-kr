@@ -453,3 +453,32 @@ def test_research_tool_rejects_missing_repository_root() -> None:
             "message": "Repository is not a directory: /repo/missing",
         },
     }
+
+
+def test_research_tool_reports_repeated_python_literals(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "app.py",
+        'def first():\n    return "retry", 42\n\ndef second():\n    return "retry", 42\n',
+    )
+    git_repository(tmp_path, "app.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.literals"},
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.literals"
+    assert [
+        (item["kind"], item["value"], item["count"]) for item in report["data"]["literals"]
+    ] == [
+        ("integer", "42", 2),
+        ("string", "retry", 2),
+    ]
