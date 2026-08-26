@@ -7,6 +7,7 @@ from mcp.types import ToolAnnotations
 
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.python_inventory import inventory_python
+from otter_kr.python_names import find_names
 
 
 def create_server() -> FastMCP:
@@ -28,7 +29,7 @@ def create_server() -> FastMCP:
             openWorldHint=False,
         ),
     )
-    def research(repository_root: str, operation: str) -> dict:
+    def research(repository_root: str, operation: str, term: str | None = None) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
             try:
@@ -53,6 +54,41 @@ def create_server() -> FastMCP:
                 "operation": operation,
                 "query": {"repository_root": repository_root},
                 "data": report,
+            }
+        if operation == "python.names":
+            if term is None:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root},
+                    "error": {
+                        "code": "invalid_query",
+                        "message": "A term is required for python.names.",
+                    },
+                }
+            try:
+                report = find_names(Path(repository_root), term)
+            except GitFileSourceError as error:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root, "term": term},
+                    "error": {
+                        "code": "repository_access_failed",
+                        "message": str(error),
+                        "command": list(error.command),
+                        "returncode": error.returncode,
+                        "stderr": error.stderr,
+                    },
+                }
+            return {
+                "schema_version": "1",
+                "status": "ok",
+                "operation": operation,
+                "query": {"repository_root": repository_root, "term": term},
+                "data": report.to_dict(),
             }
         return {
             "schema_version": "1",

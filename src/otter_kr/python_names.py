@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+
+from otter_kr.git_files import GitCliFileSource, TrackedFileSource
 
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _SEPARATORS = re.compile(r"[^A-Za-z0-9]+")
@@ -35,6 +37,14 @@ class NameReport:
     files_scanned: int
     occurrences: tuple[NameOccurrence, ...]
     parse_failures: tuple[ParseFailure, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "language": self.language,
+            "files_scanned": self.files_scanned,
+            "occurrences": [asdict(occurrence) for occurrence in self.occurrences],
+            "parse_failures": [asdict(failure) for failure in self.parse_failures],
+        }
 
 
 def _identifier_words(identifier: str) -> tuple[str, ...]:
@@ -87,15 +97,9 @@ class _NameCollector(ast.NodeVisitor):
         self._record(node.id, node, kind)
 
 
-def _python_files(repository: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in repository.rglob("*.py")
-        if not any(part.startswith(".") for part in path.relative_to(repository).parts)
-    )
-
-
-def find_names(repository: Path, query: str) -> NameReport:
+def find_names(
+    repository: Path, query: str, file_source: TrackedFileSource | None = None
+) -> NameReport:
     """Find exact or lexical-family identifier occurrences in a Python repository."""
     repository = repository.resolve()
     if not repository.is_dir():
@@ -105,7 +109,7 @@ def find_names(repository: Path, query: str) -> NameReport:
 
     occurrences: list[NameOccurrence] = []
     failures: list[ParseFailure] = []
-    python_files = _python_files(repository)
+    python_files = (file_source or GitCliFileSource()).python_files(repository)
     for path in python_files:
         relative_path = path.relative_to(repository).as_posix()
         try:

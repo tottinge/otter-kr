@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 from otter_kr.python_names import find_names
@@ -9,12 +10,18 @@ def write_python(repository: Path, relative_path: str, source: str) -> None:
     target.write_text(source)
 
 
+def git_repository(repository: Path, *paths: str) -> None:
+    subprocess.run(["git", "init", "-q", str(repository)], check=True)
+    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
+
+
 def test_finds_exact_definition_and_reference(tmp_path: Path) -> None:
     write_python(
         tmp_path,
         "payments/service.py",
         "def collect_payment(payment):\n    return payment\n",
     )
+    git_repository(tmp_path, "payments")
 
     report = find_names(tmp_path, "collect_payment")
 
@@ -30,6 +37,7 @@ def test_finds_lexical_family_across_identifier_styles(tmp_path: Path) -> None:
         "payments.py",
         "class PaymentProcessor:\n    pass\n\npayment_processor = PaymentProcessor()\n",
     )
+    git_repository(tmp_path, "payments.py")
 
     report = find_names(tmp_path, "payment")
 
@@ -43,6 +51,7 @@ def test_finds_lexical_family_across_identifier_styles(tmp_path: Path) -> None:
 def test_reports_syntax_failures_without_losing_valid_evidence(tmp_path: Path) -> None:
     write_python(tmp_path, "valid.py", "customer_id = 1\n")
     write_python(tmp_path, "broken.py", "def nope(:\n")
+    git_repository(tmp_path, "valid.py", "broken.py")
 
     report = find_names(tmp_path, "customer")
 
@@ -56,6 +65,7 @@ def test_ignores_hidden_and_environment_directories(tmp_path: Path) -> None:
     write_python(tmp_path, "app.py", "visible_name = 1\n")
     write_python(tmp_path, ".hidden/secret.py", "visible_name = 2\n")
     write_python(tmp_path, ".venv/library.py", "visible_name = 3\n")
+    git_repository(tmp_path, "app.py")
 
     report = find_names(tmp_path, "visible")
 

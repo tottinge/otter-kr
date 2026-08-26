@@ -126,13 +126,13 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
             )
             return result.data
 
-    first = asyncio.run(call_research("/repo/one", "python.names"))
+    first = asyncio.run(call_research("/repo/one", "python.imports"))
     second = asyncio.run(call_research("/repo/two", "git.affinity"))
 
     assert first == {
         "schema_version": "1",
         "status": "rejected",
-        "operation": "python.names",
+        "operation": "python.imports",
         "query": {"repository_root": "/repo/one"},
         "error": {
             "code": "not_implemented",
@@ -196,6 +196,55 @@ def test_research_tool_admits_python_inventory(tmp_path) -> None:
     assert report["status"] == "ok"
     assert report["operation"] == "python.inventory"
     assert report["data"]["files"][0]["path"] == "module.py"
+
+
+def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
+    write_text(tmp_path, "orders.py", "class OrderBook:\n    pass\n")
+    git_repository(tmp_path, "orders.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "python.names",
+                    "term": "order",
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report["status"] == "ok"
+    assert report["query"]["term"] == "order"
+    assert report["data"]["occurrences"][0] == {
+        "path": "orders.py",
+        "line": 1,
+        "column": 0,
+        "name": "OrderBook",
+        "kind": "class",
+    }
+
+
+def test_research_tool_rejects_python_names_without_term() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "python.names"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A term is required for python.names.",
+    }
 
 
 def test_research_tool_reports_git_failure_evidence(tmp_path: Path) -> None:
