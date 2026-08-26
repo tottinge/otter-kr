@@ -6,8 +6,22 @@ from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from otter_kr.git_files import GitFileSourceError
+from otter_kr.python_imports import import_python
 from otter_kr.python_inventory import inventory_python
 from otter_kr.python_names import find_names
+
+
+def _not_a_repository(operation: str, repository_root: str, error: ValueError) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": operation,
+        "query": {"repository_root": repository_root},
+        "error": {
+            "code": "not_a_repository",
+            "message": str(error),
+        },
+    }
 
 
 def create_server() -> FastMCP:
@@ -34,6 +48,8 @@ def create_server() -> FastMCP:
         if operation == "python.inventory":
             try:
                 report = inventory_python(Path(repository_root)).to_dict()
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
                 return {
                     "schema_version": "1",
@@ -69,6 +85,8 @@ def create_server() -> FastMCP:
                 }
             try:
                 report = find_names(Path(repository_root), term)
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:
                 return {
                     "schema_version": "1",
@@ -89,6 +107,32 @@ def create_server() -> FastMCP:
                 "operation": operation,
                 "query": {"repository_root": repository_root, "term": term},
                 "data": report.to_dict(),
+            }
+        if operation == "python.imports":
+            try:
+                report = import_python(Path(repository_root)).to_dict()
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
+            except GitFileSourceError as error:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root},
+                    "error": {
+                        "code": "repository_access_failed",
+                        "message": str(error),
+                        "command": list(error.command),
+                        "returncode": error.returncode,
+                        "stderr": error.stderr,
+                    },
+                }
+            return {
+                "schema_version": "1",
+                "status": "ok",
+                "operation": operation,
+                "query": {"repository_root": repository_root},
+                "data": report,
             }
         return {
             "schema_version": "1",

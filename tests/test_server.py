@@ -126,13 +126,13 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
             )
             return result.data
 
-    first = asyncio.run(call_research("/repo/one", "python.imports"))
+    first = asyncio.run(call_research("/repo/one", "python.complexity"))
     second = asyncio.run(call_research("/repo/two", "git.affinity"))
 
     assert first == {
         "schema_version": "1",
         "status": "rejected",
-        "operation": "python.imports",
+        "operation": "python.complexity",
         "query": {"repository_root": "/repo/one"},
         "error": {
             "code": "not_implemented",
@@ -228,6 +228,56 @@ def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
     }
 
 
+def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "pkg/service.py",
+        "import os\nfrom pkg.helpers import helper\n",
+    )
+    write_text(tmp_path, "pkg/helpers.py", "def helper():\n    return 1\n")
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.imports"},
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report == {
+        "schema_version": "1",
+        "status": "ok",
+        "operation": "python.imports",
+        "query": {"repository_root": str(tmp_path)},
+        "data": {
+            "language": "python",
+            "edges": [
+                {
+                    "path": "pkg/service.py",
+                    "source_module": "pkg.service",
+                    "target_module": "os",
+                    "imported_names": [],
+                    "relative_level": 0,
+                    "line": 1,
+                },
+                {
+                    "path": "pkg/service.py",
+                    "source_module": "pkg.service",
+                    "target_module": "pkg.helpers",
+                    "imported_names": ["helper"],
+                    "relative_level": 0,
+                    "line": 2,
+                },
+            ],
+            "warnings": [],
+        },
+    }
+
+
 def test_research_tool_rejects_python_names_without_term() -> None:
     server = create_server()
 
@@ -264,3 +314,28 @@ def test_research_tool_reports_git_failure_evidence(tmp_path: Path) -> None:
     assert rejection["error"]["code"] == "repository_access_failed"
     assert rejection["error"]["returncode"] != 0
     assert rejection["error"]["command"][:2] == ["git", "-C"]
+
+
+def test_research_tool_rejects_missing_repository_root() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo/missing", "operation": "python.imports"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "python.imports",
+        "query": {"repository_root": "/repo/missing"},
+        "error": {
+            "code": "not_a_repository",
+            "message": "Repository is not a directory: /repo/missing",
+        },
+    }
