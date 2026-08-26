@@ -499,7 +499,8 @@ cannot answer all of those questions. Use three deliberately different corpus cl
    whether reports are viable to inspect.
 3. **Blind discovery targets** — repositories selected without tailoring queries to expected
    answers. These test whether the evidence is useful when nobody has pre-written the story. The
-   consumer records hypotheses separately from MCP output and may not edit the evidence report.
+   first target is `boxed/mutmut`; the consumer records hypotheses separately from MCP output and
+   may not edit the evidence report.
 
 Do not choose between a well-known codebase and pure discovery: calibrate on planted fixtures,
 triangulate on mature references, then run blind discovery. Treat every interpretation as a
@@ -530,7 +531,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 ### KR-038 — Triangulate Git-history evidence on mature references
 
 - **Admits:** bounded history, hotspots, affinity, and topic-history reports for `gitminer-dash`
-  and at least one mature external Python repository pinned to a revision.
+  and `boxed/mutmut` pinned to an immutable revision.
 - **Observable result:** every sampled score and history edge can be reproduced with direct Git
   commands or a small independent checker; rename and merge policies are visible in the report.
 - **Still rejected:** using an LLM's narrative agreement as proof of correctness.
