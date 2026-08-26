@@ -61,6 +61,25 @@ def _line_count(content: bytes) -> int:
     return content.count(b"\n") + int(not content.endswith(b"\n"))
 
 
+def _file_evidence(
+    relative: Path,
+    content: bytes,
+    parse_status: str,
+    syntax_error: dict[str, int | str] | None = None,
+    *,
+    readable: bool = True,
+) -> PythonFileEvidence:
+    return PythonFileEvidence(
+        path=relative.as_posix(),
+        module=_module_name(relative),
+        module_kind=_module_kind(relative),
+        bytes=len(content) if readable else 0,
+        lines=_line_count(content) if readable else 0,
+        parse_status=parse_status,
+        syntax_error=syntax_error,
+    )
+
+
 def inventory_python(
     repository: Path, file_source: TrackedFileSource | None = None
 ) -> PythonInventoryReport:
@@ -78,16 +97,7 @@ def inventory_python(
         try:
             content = path.read_bytes()
         except OSError as error:
-            files.append(
-                PythonFileEvidence(
-                    path=relative_path,
-                    module=_module_name(relative),
-                    module_kind=_module_kind(relative),
-                    bytes=0,
-                    lines=0,
-                    parse_status="unreadable",
-                )
-            )
+            files.append(_file_evidence(relative, b"", "unreadable", readable=False))
             warnings.append(
                 {"code": "unreadable_file", "path": relative_path, "message": str(error)}
             )
@@ -96,16 +106,7 @@ def inventory_python(
         try:
             text = content.decode("utf-8")
         except UnicodeError:
-            files.append(
-                PythonFileEvidence(
-                    path=relative_path,
-                    module=_module_name(relative),
-                    module_kind=_module_kind(relative),
-                    bytes=len(content),
-                    lines=_line_count(content),
-                    parse_status="unreadable",
-                )
-            )
+            files.append(_file_evidence(relative, content, "unreadable"))
             warnings.append(
                 {
                     "code": "unreadable_file",
@@ -123,17 +124,7 @@ def inventory_python(
                 "column": error.offset or 0,
                 "message": error.msg,
             }
-            files.append(
-                PythonFileEvidence(
-                    path=relative_path,
-                    module=_module_name(relative),
-                    module_kind=_module_kind(relative),
-                    bytes=len(content),
-                    lines=_line_count(content),
-                    parse_status="syntax_error",
-                    syntax_error=syntax_error,
-                )
-            )
+            files.append(_file_evidence(relative, content, "syntax_error", syntax_error))
             warnings.append(
                 {
                     "code": "invalid_python",
@@ -145,15 +136,6 @@ def inventory_python(
             )
             continue
 
-        files.append(
-            PythonFileEvidence(
-                path=relative_path,
-                module=_module_name(relative),
-                module_kind=_module_kind(relative),
-                bytes=len(content),
-                lines=_line_count(content),
-                parse_status="ok",
-            )
-        )
+        files.append(_file_evidence(relative, content, "ok"))
 
     return PythonInventoryReport(language="python", files=tuple(files), warnings=tuple(warnings))
