@@ -126,20 +126,9 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
             )
             return result.data
 
-    first = asyncio.run(call_research("/repo/one", "python.complexity"))
-    second = asyncio.run(call_research("/repo/two", "git.affinity"))
+    rejection = asyncio.run(call_research("/repo/two", "git.affinity"))
 
-    assert first == {
-        "schema_version": "1",
-        "status": "rejected",
-        "operation": "python.complexity",
-        "query": {"repository_root": "/repo/one"},
-        "error": {
-            "code": "not_implemented",
-            "message": "No repository research capabilities have been admitted yet.",
-        },
-    }
-    assert second == {
+    assert rejection == {
         "schema_version": "1",
         "status": "rejected",
         "operation": "git.affinity",
@@ -147,6 +136,131 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
         "error": {
             "code": "not_implemented",
             "message": "No repository research capabilities have been admitted yet.",
+        },
+    }
+
+
+def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "pkg/logic.py",
+        (
+            "class Service:\n"
+            "    def decide(self, value: int) -> int:\n"
+            "        if value > 10:\n"
+            "            return value\n"
+            "        for item in range(value):\n"
+            "            if item % 2 == 0 and item > 3:\n"
+            "                return item\n"
+            "        return 0\n"
+            "\n"
+            "def outer(flag: bool) -> int:\n"
+            "    def inner(sample: int) -> int:\n"
+            "        return sample\n"
+            "    if flag:\n"
+            "        return inner(1)\n"
+            "    return inner(0)\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.complexity"},
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report == {
+        "schema_version": "1",
+        "status": "ok",
+        "operation": "python.complexity",
+        "query": {"repository_root": str(tmp_path)},
+        "data": {
+            "language": "python",
+            "functions": [
+                {
+                    "path": "pkg/logic.py",
+                    "qualified_name": "Service.decide",
+                    "kind": "method",
+                    "line": 2,
+                    "column": 4,
+                    "end_line": 8,
+                    "max_nesting_depth": 2,
+                    "branch_count": 3,
+                    "line_count": 7,
+                    "cyclomatic_count": 5,
+                },
+                {
+                    "path": "pkg/logic.py",
+                    "qualified_name": "outer",
+                    "kind": "function",
+                    "line": 10,
+                    "column": 0,
+                    "end_line": 15,
+                    "max_nesting_depth": 1,
+                    "branch_count": 1,
+                    "line_count": 6,
+                    "cyclomatic_count": 2,
+                },
+                {
+                    "path": "pkg/logic.py",
+                    "qualified_name": "outer.inner",
+                    "kind": "function",
+                    "line": 11,
+                    "column": 4,
+                    "end_line": 12,
+                    "max_nesting_depth": 0,
+                    "branch_count": 0,
+                    "line_count": 2,
+                    "cyclomatic_count": 1,
+                },
+            ],
+            "warnings": [],
+        },
+    }
+
+
+def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) -> None:
+    write_text(tmp_path, "broken.py", "def nope(:\n")
+    write_bytes(tmp_path, "bad_encoding.py", b"\xff\n")
+    git_repository(tmp_path, "broken.py", "bad_encoding.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.complexity"},
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report == {
+        "schema_version": "1",
+        "status": "ok",
+        "operation": "python.complexity",
+        "query": {"repository_root": str(tmp_path)},
+        "data": {
+            "language": "python",
+            "functions": [],
+            "warnings": [
+                {
+                    "code": "unreadable_file",
+                    "path": "bad_encoding.py",
+                    "message": "File could not be decoded as UTF-8.",
+                },
+                {
+                    "code": "invalid_python",
+                    "path": "broken.py",
+                    "message": "Syntax error at line 1, column 10: invalid syntax",
+                },
+            ],
         },
     }
 
