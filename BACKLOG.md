@@ -113,7 +113,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Acceptance:** Git's own path/ignore knowledge is not duplicated; unreadable and invalid tracked
   files become warnings, not lost evidence; the file-source port is replaceable in unit tests.
 
-#### KR-004 — Search Python names *(future admission)*
+#### KR-004 — Search Python names *(shipped in `efcf123`)*
 
 - **Admits:** exact and lexical-family identifier search for Python source.
 - **Observable result:** definitions, parameters, assignments, and references with path, line,
