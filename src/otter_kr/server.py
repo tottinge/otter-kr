@@ -7,6 +7,7 @@ from mcp.types import ToolAnnotations
 
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.python_complexity import analyze_python_complexity
+from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_imports import import_python
@@ -89,6 +90,43 @@ def create_server() -> FastMCP:
                 }
             try:
                 report = find_names(Path(repository_root), term)
+            except ValueError as error:
+                return _not_a_repository(operation, repository_root, error)
+            except GitFileSourceError as error:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root, "term": term},
+                    "error": {
+                        "code": "repository_access_failed",
+                        "message": str(error),
+                        "command": list(error.command),
+                        "returncode": error.returncode,
+                        "stderr": error.stderr,
+                    },
+                }
+            return {
+                "schema_version": "1",
+                "status": "ok",
+                "operation": operation,
+                "query": {"repository_root": repository_root, "term": term},
+                "data": report.to_dict(),
+            }
+        if operation == "python.discriminations":
+            if term is None:
+                return {
+                    "schema_version": "1",
+                    "status": "rejected",
+                    "operation": operation,
+                    "query": {"repository_root": repository_root},
+                    "error": {
+                        "code": "invalid_query",
+                        "message": "A term is required for python.discriminations.",
+                    },
+                }
+            try:
+                report = find_type_discriminations(Path(repository_root), term)
             except ValueError as error:
                 return _not_a_repository(operation, repository_root, error)
             except GitFileSourceError as error:

@@ -159,7 +159,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Observable result:** candidate pairs/groups, normalized structural fingerprints, and locations.
 - **Still rejected:** semantic clone claims, automatic merging, and cross-language similarity.
 
-#### KR-010 — Map enum/type discriminations
+#### KR-010 — Map enum/type discriminations *(shipped in this slice)*
 
 - **Admits:** Python `Enum` declarations and explicit comparisons/lookups involving one selected
   type.

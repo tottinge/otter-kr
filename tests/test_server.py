@@ -525,3 +525,63 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
         )
         for item in report["data"]["pairs"]
     ] == [("first", "second")]
+
+
+def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "from enum import Enum\n\n"
+            "class Status(Enum):\n"
+            '    OPEN = "open"\n'
+            '    CLOSED = "closed"\n\n'
+            'LABELS = {Status.OPEN: "Open", Status.CLOSED: "Closed"}\n\n'
+            "def describe(status):\n"
+            "    if status is Status.OPEN:\n"
+            "        return LABELS[Status.OPEN]\n"
+            "    if Status.CLOSED == status:\n"
+            "        return LABELS[Status.CLOSED]\n"
+            "    return LABELS[status]\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "python.discriminations",
+                    "term": "Status",
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.discriminations"
+    assert report["query"]["term"] == "Status"
+    assert [item["member"] for item in report["data"]["comparisons"]] == ["OPEN", "CLOSED"]
+
+
+def test_research_tool_rejects_python_discriminations_without_term() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "python.discriminations"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A term is required for python.discriminations.",
+    }
