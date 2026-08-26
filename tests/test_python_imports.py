@@ -4,6 +4,11 @@ from pathlib import Path
 from otter_kr.python_imports import import_python
 
 
+class ReversedFileSource:
+    def python_files(self, repository: Path) -> list[Path]:
+        return [repository / "pkg/b.py", repository / "pkg/a.py"]
+
+
 def write_python(repository: Path, relative_path: str, source: str) -> None:
     target = repository / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -96,5 +101,48 @@ def test_reports_parse_failures_and_unresolved_relative_imports(tmp_path: Path) 
             "message": (
                 "Relative import level 2 escapes the tracked package boundary for pkg.service."
             ),
+        },
+    ]
+
+
+def test_sorts_import_edges_deterministically(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/a.py", "from pkg.shared import beta\nimport zlib\n")
+    write_python(tmp_path, "pkg/b.py", "import sys\nfrom pkg.shared import alpha\n")
+    write_python(tmp_path, "pkg/shared.py", "VALUE = 1\n")
+
+    report = import_python(tmp_path, file_source=ReversedFileSource())
+
+    assert [edge.to_dict() for edge in report.edges] == [
+        {
+            "path": "pkg/a.py",
+            "source_module": "pkg.a",
+            "target_module": "pkg.shared",
+            "imported_names": ["beta"],
+            "relative_level": 0,
+            "line": 1,
+        },
+        {
+            "path": "pkg/a.py",
+            "source_module": "pkg.a",
+            "target_module": "zlib",
+            "imported_names": [],
+            "relative_level": 0,
+            "line": 2,
+        },
+        {
+            "path": "pkg/b.py",
+            "source_module": "pkg.b",
+            "target_module": "sys",
+            "imported_names": [],
+            "relative_level": 0,
+            "line": 1,
+        },
+        {
+            "path": "pkg/b.py",
+            "source_module": "pkg.b",
+            "target_module": "pkg.shared",
+            "imported_names": ["alpha"],
+            "relative_level": 0,
+            "line": 2,
         },
     ]
