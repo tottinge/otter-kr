@@ -1,29 +1,68 @@
 import asyncio
-from pathlib import Path
 
 from fastmcp import Client
 
 from otter_kr.server import create_server
 
 
-def test_names_tool_returns_structured_repository_evidence(tmp_path: Path) -> None:
-    (tmp_path / "orders.py").write_text("class OrderBook:\n    pass\n")
+def test_research_tool_rejects_every_request_with_stable_shape() -> None:
     server = create_server()
 
-    async def call_names() -> dict:
+    async def call_research() -> tuple[list[str], dict]:
         async with Client(server) as client:
             tools = await client.list_tools()
-            assert [tool.name for tool in tools] == ["names"]
-            result = await client.call_tool("names", {"repository": str(tmp_path), "term": "order"})
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": "/definitely/not/a/repository",
+                    "operation": "python.names",
+                },
+            )
+            return [tool.name for tool in tools], result.data
+
+    tool_names, rejection = asyncio.run(call_research())
+
+    assert tool_names == ["research"]
+    assert rejection == {
+        "status": "rejected",
+        "repository_root": "/definitely/not/a/repository",
+        "operation": "python.names",
+        "error": {
+            "code": "not_implemented",
+            "message": "No repository research capabilities have been admitted yet.",
+        },
+    }
+
+
+def test_research_tool_calls_are_independent() -> None:
+    server = create_server()
+
+    async def call_research(repository_root: str, operation: str) -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": repository_root, "operation": operation},
+            )
             return result.data
 
-    evidence = asyncio.run(call_names())
+    first = asyncio.run(call_research("/repo/one", "python.names"))
+    second = asyncio.run(call_research("/repo/two", "git.affinity"))
 
-    assert evidence["language"] == "python"
-    assert evidence["occurrences"][0] == {
-        "path": "orders.py",
-        "line": 1,
-        "column": 0,
-        "name": "OrderBook",
-        "kind": "class",
+    assert first == {
+        "status": "rejected",
+        "repository_root": "/repo/one",
+        "operation": "python.names",
+        "error": {
+            "code": "not_implemented",
+            "message": "No repository research capabilities have been admitted yet.",
+        },
+    }
+    assert second == {
+        "status": "rejected",
+        "repository_root": "/repo/two",
+        "operation": "git.affinity",
+        "error": {
+            "code": "not_implemented",
+            "message": "No repository research capabilities have been admitted yet.",
+        },
     }
