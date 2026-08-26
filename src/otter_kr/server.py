@@ -29,7 +29,7 @@ def create_server() -> FastMCP:
         ),
     )
     def research(repository_root: str, operation: str) -> dict:
-        """Reject research requests until an evidence capability is explicitly admitted."""
+        """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
             report = asdict(inventory_python(Path(repository_root)))
             for file_evidence in report["files"]:
