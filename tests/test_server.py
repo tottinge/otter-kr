@@ -196,3 +196,22 @@ def test_research_tool_admits_python_inventory(tmp_path) -> None:
     assert report["status"] == "ok"
     assert report["operation"] == "python.inventory"
     assert report["data"]["files"][0]["path"] == "module.py"
+
+
+def test_research_tool_reports_git_failure_evidence(tmp_path: Path) -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.inventory"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["status"] == "rejected"
+    assert rejection["error"]["code"] == "repository_access_failed"
+    assert rejection["error"]["returncode"] != 0
+    assert rejection["error"]["command"][:2] == ["git", "-C"]

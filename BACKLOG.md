@@ -51,7 +51,8 @@ Every new tool must:
   and provenance for each observation;
 - never import, execute, modify, or infer semantic concept identity from target code;
 - report unsupported inputs through a stable rejection (`unsupported_language`,
-  `not_a_repository`, `invalid_query`, or `not_implemented`) rather than silently widening scope;
+  `not_a_repository`, `repository_access_failed`, `invalid_query`, or `not_implemented`) rather
+  than silently widening scope;
 - preserve the current Python-only boundary until another language is explicitly admitted;
 - carry a report version before its output is consumed by composite tools.
 
