@@ -153,7 +153,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
   locations.
 - **Still rejected:** a proposed value-object type or claim that a group is one concept.
 
-#### KR-009 — Find duplicate helpers and near-duplicate algorithms
+#### KR-009 — Find duplicate helpers and near-duplicate algorithms *(shipped in this slice)*
 
 - **Admits:** exact structural helper duplication within Python source.
 - **Observable result:** candidate pairs/groups, normalized structural fingerprints, and locations.

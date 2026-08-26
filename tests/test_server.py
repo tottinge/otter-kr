@@ -482,3 +482,46 @@ def test_research_tool_reports_repeated_python_literals(tmp_path: Path) -> None:
         ("integer", "42", 2),
         ("string", "retry", 2),
     ]
+
+
+def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
+    write_text(
+        tmp_path,
+        "pkg/helpers.py",
+        (
+            "def first(item, limit):\n"
+            "    if item > limit:\n"
+            "        return item - limit\n"
+            "    return limit - item\n\n"
+            "def second(value, cap):\n"
+            "    if value > cap:\n"
+            "        return value - cap\n"
+            "    return cap - value\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": str(tmp_path), "operation": "python.duplicates"},
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.duplicates"
+    assert [item["qualified_name"] for item in report["data"]["groups"][0]["occurrences"]] == [
+        "first",
+        "second",
+    ]
+    assert [
+        (
+            item["left"]["qualified_name"],
+            item["right"]["qualified_name"],
+        )
+        for item in report["data"]["pairs"]
+    ] == [("first", "second")]
