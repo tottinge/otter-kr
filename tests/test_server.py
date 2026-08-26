@@ -24,9 +24,10 @@ def test_research_tool_rejects_every_request_with_stable_shape() -> None:
 
     assert tool_names == ["research"]
     assert rejection == {
+        "schema_version": "1",
         "status": "rejected",
-        "repository_root": "/definitely/not/a/repository",
         "operation": "python.names",
+        "query": {"repository_root": "/definitely/not/a/repository"},
         "error": {
             "code": "not_implemented",
             "message": "No repository research capabilities have been admitted yet.",
@@ -49,18 +50,20 @@ def test_research_tool_calls_are_independent() -> None:
     second = asyncio.run(call_research("/repo/two", "git.affinity"))
 
     assert first == {
+        "schema_version": "1",
         "status": "rejected",
-        "repository_root": "/repo/one",
         "operation": "python.names",
+        "query": {"repository_root": "/repo/one"},
         "error": {
             "code": "not_implemented",
             "message": "No repository research capabilities have been admitted yet.",
         },
     }
     assert second == {
+        "schema_version": "1",
         "status": "rejected",
-        "repository_root": "/repo/two",
         "operation": "git.affinity",
+        "query": {"repository_root": "/repo/two"},
         "error": {
             "code": "not_implemented",
             "message": "No repository research capabilities have been admitted yet.",

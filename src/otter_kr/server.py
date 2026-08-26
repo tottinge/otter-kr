@@ -26,9 +26,10 @@ def create_server() -> FastMCP:
     def research(repository_root: str, operation: str) -> dict:
         """Reject research requests until an evidence capability is explicitly admitted."""
         return {
+            "schema_version": "1",
             "status": "rejected",
-            "repository_root": repository_root,
             "operation": operation,
+            "query": {"repository_root": repository_root},
             "error": {
                 "code": "not_implemented",
                 "message": "No repository research capabilities have been admitted yet.",
