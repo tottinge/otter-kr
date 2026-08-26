@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
@@ -19,12 +19,25 @@ class PythonFileEvidence:
     parse_status: str
     syntax_error: dict[str, int | str] | None = None
 
+    def to_dict(self) -> dict[str, object]:
+        data = asdict(self)
+        if self.syntax_error is None:
+            del data["syntax_error"]
+        return data
+
 
 @dataclass(frozen=True, slots=True)
 class PythonInventoryReport:
     language: str
     files: tuple[PythonFileEvidence, ...]
     warnings: tuple[dict[str, str], ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "language": self.language,
+            "files": [file_evidence.to_dict() for file_evidence in self.files],
+            "warnings": list(self.warnings),
+        }
 
 
 def _module_kind(relative_path: Path) -> str:

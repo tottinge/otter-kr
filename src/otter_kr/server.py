@@ -1,6 +1,5 @@
 """FastMCP transport for repository evidence tools."""
 
-from dataclasses import asdict
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -33,7 +32,7 @@ def create_server() -> FastMCP:
         """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
             try:
-                report = asdict(inventory_python(Path(repository_root)))
+                report = inventory_python(Path(repository_root)).to_dict()
             except GitFileSourceError as error:
                 return {
                     "schema_version": "1",
@@ -48,9 +47,6 @@ def create_server() -> FastMCP:
                         "stderr": error.stderr,
                     },
                 }
-            for file_evidence in report["files"]:
-                if file_evidence["syntax_error"] is None:
-                    del file_evidence["syntax_error"]
             return {
                 "schema_version": "1",
                 "status": "ok",
