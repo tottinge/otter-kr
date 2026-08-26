@@ -7,9 +7,18 @@ observations, while an LLM using testing or refactoring skills interprets those 
 chooses actions. The server never makes judgments, names concepts, recommends refactorings, or
 assigns virtue scores.
 
-The current shipped slice is `names`, which searches Python identifiers and returns source
-locations, syntactic roles, and parse failures. Every item below is deliberately phrased as an
-end-to-end admission, not as a component task.
+The north star is grounding craftsmanship: make code and its history understandable enough for
+humans and agents to make well-founded design, testing, and refactoring decisions. Generative
+skills own interpretation and change; this server owns inspectable evidence. See [ADR
+0006](docs/adr/0006-grounding-before-generation.md).
+
+The repository currently contains a `names` implementation, but it is not part of the admitted
+product contract yet. The first product slice is deliberately a reject-everything stateless
+walking skeleton. Every item below is deliberately phrased as an end-to-end admission, not as a
+component task.
+
+Durable architectural decisions live in [`docs/adr/`](docs/adr/); this file tracks iteration-sized
+admissions and validation work.
 
 ## Reference implementation notes: `../gitminer-dash`
 
@@ -36,7 +45,8 @@ workflow, not in this MCP evidence layer.
 
 Every new tool must:
 
-- accept a repository path or an already-established repository context;
+- accept an explicit repository root (and any other inputs) on every call; no repository context
+  or analysis state may survive between calls;
 - return machine-readable evidence with stable ordering, relative locations, counts, warnings,
   and provenance for each observation;
 - never import, execute, modify, or infer semantic concept identity from target code;
@@ -47,38 +57,46 @@ Every new tool must:
 
 The shared path is:
 
-`MCP request -> repository guard -> language adapter -> deterministic evidence -> structured report`
+`MCP request -> explicit repository root -> repository guard -> language adapter -> deterministic evidence -> structured report`
 
-The first cross-cutting slice should establish a repository context and report envelope without
-breaking the existing `names` contract. Later slices may add a versioned projection and deprecate
-the initial shape deliberately.
+The first cross-cutting slice establishes only the MCP boundary and stable rejection envelope.
+It performs no repository, filesystem, AST, or Git work. Later slices progressively admit those
+operations one evidence shape at a time.
+
+Repository access follows the boundary in [ADR 0003](docs/adr/0003-hexagonal-git-adapter.md): research tools depend on small, capability-shaped
+Python protocols; the initial infrastructure adapter satisfies those protocols by invoking the Git
+executable with argument arrays. Report/domain types do not import the adapter, and the adapter does
+not import MCP handlers. New Git needs first become an explicit port, then an adapter operation,
+then a tool admission. Import-cycle checks are part of the architecture acceptance criteria.
 
 ## Delivery sequence
 
 ### Foundation
 
-#### KR-001 — Establish a closed research boundary
+#### KR-001 — Start a stateless reject-everything skeleton
 
-- **Source:** both specifications; portability and evidence-layer constraints.
-- **Admits:** one local directory supplied to one MCP tool.
-- **Observable result:** a structured repository-context response identifies the resolved root,
-  supported language (`python`), and stable rejection reasons for a missing directory, a file,
-  and an unsupported language request.
-- **Still rejected:** Git history, non-Python languages, semantic concepts, and all unregistered
-  research operations.
-- **Acceptance:** no absolute paths leak into relative evidence; invalid contexts never reach an
-  analyzer; existing `names` behavior remains green.
+- **Source:** both specifications; statelessness, portability, and evidence-layer constraints.
+- **Admits:** MCP startup, command registration, and an explicit `repository_root` parameter on
+  research requests.
+- **Observable result:** every research request returns the same structured `not_implemented`
+  rejection; the response includes no repository-derived evidence.
+- **Still rejected:** all filesystem access, repository validation, AST analysis, Git history,
+  language analysis, semantic concepts, and every research capability.
+- **Acceptance:** calls are independent and order-independent; no process-global repository
+  context is retained; the server starts cleanly; unsupported requests have stable JSON shape;
+  the existing `names` implementation is disabled or unreachable from the admitted MCP surface.
 
 #### KR-002 — Make evidence reports versioned and provenance-bearing
 
 - **Source:** `output_contract`, `evidence_packet_example`, and Principle 2 (one authoritative
   representation).
-- **Admits:** one report envelope around the existing `names` evidence.
-- **Observable result:** each report has a schema version, source adapter, query/seed, counts,
-  warnings, and evidence records with provenance.
-- **Still rejected:** new research facts and composite interpretation.
-- **Acceptance:** stable ordering and JSON serialization are tested; the old call remains available
-  or has an explicit versioned migration path.
+- **Admits:** the stable report/rejection envelope around the reject-everything skeleton.
+- **Observable result:** each rejection has a schema version, operation, supplied query metadata,
+  and deterministic error code, without repository-derived facts.
+- **Still rejected:** all analysis facts and repository access.
+- **Acceptance:** stable ordering and JSON serialization are tested; every future tool can reuse
+  the envelope without introducing session state; bounded reports preserve enough provenance for a
+  consumer to cite evidence without requesting the same raw facts repeatedly.
 
 ### Current-state evidence (no history required)
 
@@ -93,7 +111,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Acceptance:** hidden/environment directories are excluded by policy; unreadable and invalid
   files become warnings, not lost evidence.
 
-#### KR-004 — Search Python names *(shipped)*
+#### KR-004 — Search Python names *(future admission)*
 
 - **Admits:** exact and lexical-family identifier search for Python source.
 - **Observable result:** definitions, parameters, assignments, and references with path, line,
@@ -152,13 +170,26 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Observable result:** candidate tests, matched evidence, and explicit “no mapping found” output.
 - **Still rejected:** runtime coverage claims, proof of execution, and test-quality judgment.
 
+#### KR-011a — Establish capability-shaped Git evidence ports
+
+- **Admits:** the smallest typed repository capabilities needed by the first history slice,
+  beginning with bounded commit metadata and patch retrieval.
+- **Observable result:** tools declare their repository needs through protocols; a Git-command
+  adapter fulfills those protocols and turns exit status, stderr, and unavailable data into
+  structured evidence or rejection.
+- **Still rejected:** direct Git subprocesses in MCP handlers, a single catch-all repository
+  interface, and library-specific objects leaking into report schemas.
+- **Acceptance:** a fake adapter can drive tool unit tests; the real adapter is covered by a small
+  integration suite; dependencies point inward from adapters to ports; import-cycle checks and
+  deterministic argument construction pass.
+
 ### Git-history evidence
 
 These slices answer “what changed together, and how often?” They require a Git repository and a
 bounded commit window. They must preserve file identity across renames before co-change scores are
 trusted.
 
-#### KR-012a — Freeze the co-change weighting contract *(decided)*
+#### KR-012a — Freeze the co-change weighting contract *(decided; see [ADR 0002](docs/adr/0002-normalized-cochange-affinity.md))*
 
 - **Decision:** use `1/C(N,2)` per pair, where `C(N,2)` is the number of unique file pairs in the
   commit. Each eligible commit contributes one total pair-affinity mass.
@@ -217,8 +248,8 @@ dimensions and must not be smuggled into the weighting formula.
 
 #### KR-014 — Calculate global weighted co-change intimacy
 
-- **Admits:** commits touching at least two source files, weighted by `1/N` for a commit with `N`
-  source files.
+- **Admits:** commits touching at least two source files, weighted by the adopted `1/C(N,2)`
+  formula for a commit with `N` source files.
 - **Observable result:** descending file pairs, scores, commit counts, and the files excluded by
   policy.
 - **Still rejected:** static dependency claims and semantic coupling claims.
@@ -453,6 +484,93 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Still rejected:** proposing or applying a refactor, claiming that one design is correct, or
   making any virtue judgment.
 
+## Dogfooding and characterization
+
+The MCP is an evidence layer, so dogfooding must test both whether an observation is correct and
+whether a consumer can use it without the server smuggling in a conclusion. A single repository
+cannot answer all of those questions. Use three deliberately different corpus classes:
+
+1. **Planted-history fixtures** — tiny temporary Git repositories whose commits, renames, merges,
+   repeated hunks, and defect/fix relationships are known exactly. These are the executable oracle
+   for correctness and boundary behavior.
+2. **Mature reference repositories** — one or two well-known, actively maintained Python projects
+   with substantial history and tests (for example, Requests or Flask), plus `../gitminer-dash` as
+   our local long-history reference. These test scale, path diversity, real merge practices, and
+   whether reports are viable to inspect.
+3. **Blind discovery targets** — repositories selected without tailoring queries to expected
+   answers. These test whether the evidence is useful when nobody has pre-written the story. The
+   consumer records hypotheses separately from MCP output and may not edit the evidence report.
+
+Do not choose between a well-known codebase and pure discovery: calibrate on planted fixtures,
+triangulate on mature references, then run blind discovery. Treat every interpretation as a
+hypothesis until it is supported by citeable evidence. For each run, retain repository revision,
+tool/report versions, query parameters, elapsed time, warnings, and the raw evidence packet.
+
+### KR-036 — Build a planted Git characterization corpus
+
+- **Admits:** a versioned fixture suite covering empty and initial repositories, focused two-file
+  commits, broad commits, repeated edits, moved files, merge commits, binary files, deleted files,
+  and a topic fix with a known preimage commit.
+- **Observable result:** fixtures expose expected commit IDs, paths, hunk fingerprints, ancestry
+  edges, and affinity values as test oracles.
+- **Still rejected:** assumptions based only on output that “looks reasonable” in a real project.
+- **Acceptance:** each fixture states its invariant in prose and executable assertions; fixtures
+  are deterministic to regenerate and include negative cases where no relationship exists.
+
+### KR-037 — Characterize current-state Python evidence
+
+- **Admits:** the current-state tools against the fixture corpus and a clean checkout of this
+  project.
+- **Observable result:** inventory, parse failures, names, imports, structure, and test mappings
+  agree with independently checked AST/CLI facts and preserve stable ordering/provenance.
+- **Still rejected:** treating this repository's shallow history as evidence for history tools.
+- **Acceptance:** compare selected results with independent scripts or standard-library AST walks;
+  record false positives, false negatives, unreadable-file behavior, and runtime/resource bounds.
+
+### KR-038 — Triangulate Git-history evidence on mature references
+
+- **Admits:** bounded history, hotspots, affinity, and topic-history reports for `gitminer-dash`
+  and at least one mature external Python repository pinned to a revision.
+- **Observable result:** every sampled score and history edge can be reproduced with direct Git
+  commands or a small independent checker; rename and merge policies are visible in the report.
+- **Still rejected:** using an LLM's narrative agreement as proof of correctness.
+- **Acceptance:** sample focused, medium, and broad commits; verify the adopted `1/C(N,2)` invariant,
+  first-parent bounds, path identity, and topic-family termination; discrepancies become fixtures
+  or explicit limitations.
+
+### KR-039 — Run a blind discovery study
+
+- **Admits:** a fixed query budget over reference repositories, with the analyst initially blinded
+  to expected hotspots or known refactor targets.
+- **Observable result:** timestamped evidence packets, analyst questions, cited observations, and
+  a separate log of hypotheses, interpretations, and actions.
+- **Still rejected:** server-generated labels such as “bad design,” “root cause,” or “refactor
+  candidate.”
+- **Acceptance:** a second analyst can reproduce the packet from the recorded inputs; each claim is
+  marked as directly observed, derived by the consumer, or unresolved; unsupported findings are
+  counted rather than silently discarded.
+
+### KR-040 — Evaluate evidence usefulness and operational viability
+
+- **Admits:** repeat runs and independent review of the same packets across corpus classes.
+- **Observable result:** correctness discrepancies, coverage of intended cases, reproducibility,
+  latency, memory/size, warning rates, and reviewer-rated traceability are reported as raw measures.
+- **Still rejected:** collapsing the measures into one quality score or allowing reviewer preference
+  to alter MCP evidence.
+- **Acceptance:** define stop/go thresholds before the run; reruns at the same revision are byte
+  stable; changed revisions invalidate caches; every discovered gap gets a backlog item with a
+  concrete admission boundary.
+
+### KR-041 — Maintain a regression corpus from dogfooding
+
+- **Admits:** every confirmed discrepancy, surprising edge case, and useful blind-discovery query
+  as a minimized fixture or golden evidence packet.
+- **Observable result:** future changes replay the corpus and show added, removed, or changed
+  evidence with explicit report-version and policy metadata.
+- **Still rejected:** silently blessing an output because a human found it persuasive once.
+- **Acceptance:** the corpus runs in `full_test`; failures identify the evidence contract that
+  changed; real repositories are pinned by immutable revision rather than a moving branch.
+
 ## Backlog quality rules
 
 Use the refactoring skills as review criteria, not as a reason to pre-build abstractions:
@@ -464,6 +582,11 @@ Use the refactoring skills as review criteria, not as a reason to pre-build abst
 - **Clear/Easy:** names should distinguish observation (`cochange_score`) from interpretation
   (`candidate_concept` belongs to the consuming LLM, not this server); history windows and scope
   must be visible in results.
+- **Frugal:** deterministic bounded reports should avoid repeated raw facts while retaining
+  citeable provenance; context size is a design measure, not an excuse to omit evidence.
+- **Verifiable:** each evidence item should identify its source revision and coordinates, plus a
+  practical way to reproduce or inspect it with the MCP, Git, file reads, or another tool; consumers
+  must be free to disagree with the report.
 - **Developed:** introduce a type only when repeated evidence groups or edges demonstrate the need.
 - **Brief:** derive composite reports from evidence rather than reprinting raw scans.
 - **Coherent:** all tools use the same repository context, provenance, stable ordering, and reject
@@ -471,5 +594,6 @@ Use the refactoring skills as review criteria, not as a reason to pre-build abst
 
 For every implementation slice, record observations and provenance in the server; keep inference
 and action in the consuming LLM workflow. The server itself does not run the improvement test or
-decide whether a representation is better. Keep the default rejection path permanently useful for
+decide whether a representation is better. Prefer evidence that helps a skilled reviewer inspect
+and challenge a proposed conclusion. Keep the default rejection path permanently useful for
 unsupported languages, unknown query modes, and unavailable evidence.
