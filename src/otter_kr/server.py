@@ -1,7 +1,12 @@
 """FastMCP transport for repository evidence tools."""
 
+from dataclasses import asdict
+from pathlib import Path
+
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+
+from otter_kr.python_inventory import inventory_python
 
 
 def create_server() -> FastMCP:
@@ -25,6 +30,18 @@ def create_server() -> FastMCP:
     )
     def research(repository_root: str, operation: str) -> dict:
         """Reject research requests until an evidence capability is explicitly admitted."""
+        if operation == "python.inventory":
+            report = asdict(inventory_python(Path(repository_root)))
+            for file_evidence in report["files"]:
+                if file_evidence["syntax_error"] is None:
+                    del file_evidence["syntax_error"]
+            return {
+                "schema_version": "1",
+                "status": "ok",
+                "operation": operation,
+                "query": {"repository_root": repository_root},
+                "data": report,
+            }
         return {
             "schema_version": "1",
             "status": "rejected",

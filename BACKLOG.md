@@ -104,12 +104,13 @@ These slices answer “what exists now?” and can run on a copied source tree.
 
 #### KR-003 — Inventory Python files and parse health
 
-- **Admits:** Python file inventory for one repository context.
-- **Observable result:** sorted files, byte/line counts, module classification, parse status, and
-  syntax-error locations.
-- **Still rejected:** symbols, imports, Git metadata, and non-Python files.
-- **Acceptance:** hidden/environment directories are excluded by policy; unreadable and invalid
-  files become warnings, not lost evidence.
+- **Admits:** Python file inventory for one Git repository context, using Git's tracked-file list
+  as the source of file identity.
+- **Observable result:** sorted tracked Python files, byte/line counts, module classification, parse
+  status, and syntax-error locations.
+- **Still rejected:** symbols, imports, Git history, untracked files, and non-Python files.
+- **Acceptance:** Git's own path/ignore knowledge is not duplicated; unreadable and invalid tracked
+  files become warnings, not lost evidence; the file-source port is replaceable in unit tests.
 
 #### KR-004 — Search Python names *(future admission)*
 
