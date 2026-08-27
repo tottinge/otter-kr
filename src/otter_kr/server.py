@@ -81,6 +81,34 @@ def _repository_access_failed(
     }
 
 
+def _run_operation(
+    operation: str,
+    repository_root: str,
+    analyzer,
+    *,
+    term: str | None = None,
+    require_term: bool = False,
+    term_message: str | None = None,
+    catches_value_error: bool = True,
+) -> dict:
+    if require_term and term is None:
+        return _invalid_query(operation, repository_root, term_message or "A term is required.")
+
+    repository = Path(repository_root)
+
+    try:
+        report = analyzer(repository) if term is None else analyzer(repository, term)
+    except ValueError as error:
+        if catches_value_error:
+            return _not_a_repository(operation, repository_root, error)
+        raise
+    except GitFileSourceError as error:
+        return _repository_access_failed(operation, repository_root, error, term)
+
+    data = report.to_dict() if hasattr(report, "to_dict") else report
+    return _success(operation, repository_root, data, term)
+
+
 def create_server() -> FastMCP:
     server = FastMCP(
         name="otter-kr",
@@ -103,91 +131,49 @@ def create_server() -> FastMCP:
     def research(repository_root: str, operation: str, term: str | None = None) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
-            try:
-                report = inventory_python(Path(repository_root)).to_dict()
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(operation, repository_root, inventory_python)
         if operation == "python.names":
-            if term is None:
-                return _invalid_query(
-                    operation, repository_root, "A term is required for python.names."
-                )
-            try:
-                report = find_names(Path(repository_root), term)
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error, term)
-            return _success(operation, repository_root, report.to_dict(), term)
+            return _run_operation(
+                operation,
+                repository_root,
+                find_names,
+                term=term,
+                require_term=True,
+                term_message="A term is required for python.names.",
+            )
         if operation == "python.discriminations":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A term is required for python.discriminations.",
-                )
-            try:
-                report = find_type_discriminations(Path(repository_root), term)
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error, term)
-            return _success(operation, repository_root, report.to_dict(), term)
+            return _run_operation(
+                operation,
+                repository_root,
+                find_type_discriminations,
+                term=term,
+                require_term=True,
+                term_message="A term is required for python.discriminations.",
+            )
         if operation == "python.tests":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A term is required for python.tests.",
-                )
-            try:
-                report = find_tests_for_symbol(Path(repository_root), term)
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error, term)
-            return _success(operation, repository_root, report.to_dict(), term)
+            return _run_operation(
+                operation,
+                repository_root,
+                find_tests_for_symbol,
+                term=term,
+                require_term=True,
+                term_message="A term is required for python.tests.",
+            )
         if operation == "python.imports":
-            try:
-                report = import_python(Path(repository_root)).to_dict()
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(operation, repository_root, import_python)
         if operation == "python.complexity":
-            try:
-                report = analyze_python_complexity(Path(repository_root)).to_dict()
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(
+                operation,
+                repository_root,
+                analyze_python_complexity,
+                catches_value_error=False,
+            )
         if operation == "python.literals":
-            try:
-                report = find_repeated_literals(Path(repository_root)).to_dict()
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(operation, repository_root, find_repeated_literals)
         if operation == "python.groups":
-            try:
-                report = find_repeated_groups(Path(repository_root)).to_dict()
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(operation, repository_root, find_repeated_groups)
         if operation == "python.duplicates":
-            try:
-                report = find_duplicate_helpers(Path(repository_root)).to_dict()
-            except ValueError as error:
-                return _not_a_repository(operation, repository_root, error)
-            except GitFileSourceError as error:
-                return _repository_access_failed(operation, repository_root, error)
-            return _success(operation, repository_root, report)
+            return _run_operation(operation, repository_root, find_duplicate_helpers)
         return {
             "schema_version": "1",
             "status": "rejected",
