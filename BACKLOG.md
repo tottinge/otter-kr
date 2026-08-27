@@ -200,7 +200,7 @@ These slices answer “what changed together, and how often?” They require a G
 bounded commit window. They must preserve file identity across renames before co-change scores are
 trusted.
 
-#### KR-012a — Freeze the co-change weighting contract *(decided; see [ADR 0002](docs/adr/0002-normalized-cochange-affinity.md))*
+#### KR-012a — Freeze the co-change weighting contract *(shipped in this slice; see [ADR 0002](docs/adr/0002-normalized-cochange-affinity.md))*
 
 - **Decision:** use `1/C(N,2)` per pair, where `C(N,2)` is the number of unique file pairs in the
   commit. Each eligible commit contributes one total pair-affinity mass.
