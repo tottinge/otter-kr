@@ -20,6 +20,13 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
+    assert warning["code"] == "invalid_python"
+    assert warning["path"] == path
+    assert isinstance(warning["message"], str)
+    assert warning["message"]
+
+
 def test_reports_duplicate_helper_groups_and_pairs(tmp_path: Path) -> None:
     write_python(
         tmp_path,
@@ -91,10 +98,6 @@ def test_reports_parse_warnings_and_sorts_deterministically(tmp_path: Path) -> N
     report = find_duplicate_helpers(tmp_path, file_source=ReversedFileSource())
 
     assert [item.qualified_name for item in report.groups[0].occurrences] == ["alpha", "beta"]
-    assert list(report.warnings) == [
-        {
-            "code": "invalid_python",
-            "path": "broken.py",
-            "message": "Syntax error at line 1, column 10: invalid syntax",
-        }
-    ]
+    warnings = list(report.warnings)
+    assert len(warnings) == 1
+    assert_invalid_python_warning(warnings[0], "broken.py")

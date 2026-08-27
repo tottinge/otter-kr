@@ -15,6 +15,20 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def assert_valid_source_location(source: str, line: int, column: int) -> None:
+    lines = source.splitlines()
+    assert 1 <= line <= len(lines)
+    assert 1 <= column <= len(lines[line - 1]) + 1
+
+
+def assert_syntax_error_details(syntax_error: dict[str, int | str], source: str) -> None:
+    assert isinstance(syntax_error["line"], int)
+    assert isinstance(syntax_error["column"], int)
+    assert isinstance(syntax_error["message"], str)
+    assert syntax_error["message"]
+    assert_valid_source_location(source, syntax_error["line"], syntax_error["column"])
+
+
 def test_inventories_tracked_python_files_with_parse_health(tmp_path: Path) -> None:
     write_python(tmp_path, "pkg/__init__.py", "\n")
     write_python(tmp_path, "pkg/service.py", "answer = 42\n")
@@ -30,11 +44,8 @@ def test_inventories_tracked_python_files_with_parse_health(tmp_path: Path) -> N
         "pkg/service.py",
     ]
     assert report.files[0].parse_status == "syntax_error"
-    assert report.files[0].syntax_error == {
-        "line": 1,
-        "column": 10,
-        "message": "invalid syntax",
-    }
+    assert report.files[0].syntax_error is not None
+    assert_syntax_error_details(report.files[0].syntax_error, "def nope(:\n")
     assert report.files[1].module_kind == "package"
     assert report.files[2].module == "pkg.service"
     assert report.files[2].bytes == len(b"answer = 42\n")

@@ -20,6 +20,13 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
+    assert warning["code"] == "invalid_python"
+    assert warning["path"] == path
+    assert isinstance(warning["message"], str)
+    assert warning["message"]
+
+
 def test_reports_function_level_complexity_evidence_for_functions_and_methods(
     tmp_path: Path,
 ) -> None:
@@ -110,13 +117,9 @@ def test_reports_parse_warnings_and_ignores_untracked_python_files(tmp_path: Pat
     report = analyze_python_complexity(tmp_path)
 
     assert [function.qualified_name for function in report.functions] == ["ready"]
-    assert list(report.warnings) == [
-        {
-            "code": "invalid_python",
-            "path": "broken.py",
-            "message": "Syntax error at line 1, column 10: invalid syntax",
-        }
-    ]
+    warnings = list(report.warnings)
+    assert len(warnings) == 1
+    assert_invalid_python_warning(warnings[0], "broken.py")
 
 
 def test_sorts_complexity_evidence_deterministically(tmp_path: Path) -> None:

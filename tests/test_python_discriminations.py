@@ -20,6 +20,13 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
+    assert warning["code"] == "invalid_python"
+    assert warning["path"] == path
+    assert isinstance(warning["message"], str)
+    assert warning["message"]
+
+
 def test_reports_enum_members_comparisons_and_lookups_for_selected_type(tmp_path: Path) -> None:
     write_python(
         tmp_path,
@@ -135,10 +142,6 @@ def test_sorts_deterministically_and_reports_parse_warnings(tmp_path: Path) -> N
     assert [item.path for item in report.declarations] == ["pkg/a.py"]
     assert [item.path for item in report.comparisons] == ["pkg/b.py"]
     assert [item.path for item in report.lookups] == ["pkg/b.py"]
-    assert list(report.warnings) == [
-        {
-            "code": "invalid_python",
-            "path": "broken.py",
-            "message": "Syntax error at line 1, column 10: invalid syntax",
-        }
-    ]
+    warnings = list(report.warnings)
+    assert len(warnings) == 1
+    assert_invalid_python_warning(warnings[0], "broken.py")

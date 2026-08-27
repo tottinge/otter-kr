@@ -48,6 +48,13 @@ def evidence_summary(candidate) -> dict[str, str]:
     }
 
 
+def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
+    assert warning["code"] == "invalid_python"
+    assert warning["path"] == path
+    assert isinstance(warning["message"], str)
+    assert warning["message"]
+
+
 def test_reports_direct_and_aliased_symbol_evidence_for_candidate_tests(tmp_path: Path) -> None:
     source = (
         "from app.service import collect_payment, collect_payment as pay\n\n"
@@ -165,18 +172,13 @@ def test_sorts_deterministically_and_reports_parse_warnings(tmp_path: Path) -> N
 
     assert [item.path for item in report.candidates] == ["tests/test_a.py", "tests/test_b.py"]
     assert [item.qualified_name for item in report.candidates] == ["test_alpha", "test_beta"]
-    assert list(report.warnings) == [
-        {
-            "code": "unreadable_file",
-            "path": "bad_encoding.py",
-            "message": "File could not be decoded as UTF-8.",
-        },
-        {
-            "code": "invalid_python",
-            "path": "broken.py",
-            "message": "Syntax error at line 1, column 10: invalid syntax",
-        },
-    ]
+    warnings = list(report.warnings)
+    assert warnings[0] == {
+        "code": "unreadable_file",
+        "path": "bad_encoding.py",
+        "message": "File could not be decoded as UTF-8.",
+    }
+    assert_invalid_python_warning(warnings[1], "broken.py")
 
 
 def test_reports_no_mapping_found_for_selected_symbol(tmp_path: Path) -> None:

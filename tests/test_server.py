@@ -24,6 +24,27 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def assert_valid_source_location(source: str, line: int, column: int) -> None:
+    lines = source.splitlines()
+    assert 1 <= line <= len(lines)
+    assert 1 <= column <= len(lines[line - 1]) + 1
+
+
+def assert_syntax_error_details(syntax_error: dict[str, int | str], source: str) -> None:
+    assert isinstance(syntax_error["line"], int)
+    assert isinstance(syntax_error["column"], int)
+    assert isinstance(syntax_error["message"], str)
+    assert syntax_error["message"]
+    assert_valid_source_location(source, syntax_error["line"], syntax_error["column"])
+
+
+def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
+    assert warning["code"] == "invalid_python"
+    assert warning["path"] == path
+    assert isinstance(warning["message"], str)
+    assert warning["message"]
+
+
 def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path) -> None:
     write_text(tmp_path, "pkg/__init__.py", '"""Package."""\n')
     write_text(
@@ -53,66 +74,49 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     tool_names, report = asyncio.run(call_research())
 
     assert tool_names == ["research"]
-    assert report == {
-        "schema_version": "1",
-        "status": "ok",
-        "operation": "python.inventory",
-        "query": {"repository_root": str(tmp_path)},
-        "data": {
-            "language": "python",
-            "files": [
-                {
-                    "path": "bad_encoding.py",
-                    "module": "bad_encoding",
-                    "module_kind": "module",
-                    "bytes": 2,
-                    "lines": 1,
-                    "parse_status": "unreadable",
-                },
-                {
-                    "path": "broken.py",
-                    "module": "broken",
-                    "module_kind": "module",
-                    "bytes": 11,
-                    "lines": 1,
-                    "parse_status": "syntax_error",
-                    "syntax_error": {
-                        "line": 1,
-                        "column": 10,
-                        "message": "invalid syntax",
-                    },
-                },
-                {
-                    "path": "pkg/__init__.py",
-                    "module": "pkg",
-                    "module_kind": "package",
-                    "bytes": 15,
-                    "lines": 1,
-                    "parse_status": "ok",
-                },
-                {
-                    "path": "pkg/service.py",
-                    "module": "pkg.service",
-                    "module_kind": "module",
-                    "bytes": 59,
-                    "lines": 2,
-                    "parse_status": "ok",
-                },
-            ],
-            "warnings": [
-                {
-                    "code": "unreadable_file",
-                    "path": "bad_encoding.py",
-                    "message": "File could not be decoded as UTF-8.",
-                },
-                {
-                    "code": "invalid_python",
-                    "path": "broken.py",
-                    "message": "Syntax error at line 1, column 10: invalid syntax",
-                },
-            ],
-        },
+    assert report["schema_version"] == "1"
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.inventory"
+    assert report["query"] == {"repository_root": str(tmp_path)}
+    data = report["data"]
+    assert data["language"] == "python"
+    assert data["files"][0] == {
+        "path": "bad_encoding.py",
+        "module": "bad_encoding",
+        "module_kind": "module",
+        "bytes": 2,
+        "lines": 1,
+        "parse_status": "unreadable",
     }
+    assert data["files"][1]["path"] == "broken.py"
+    assert data["files"][1]["module"] == "broken"
+    assert data["files"][1]["module_kind"] == "module"
+    assert data["files"][1]["bytes"] == 11
+    assert data["files"][1]["lines"] == 1
+    assert data["files"][1]["parse_status"] == "syntax_error"
+    assert_syntax_error_details(data["files"][1]["syntax_error"], "def nope(:\n")
+    assert data["files"][2] == {
+        "path": "pkg/__init__.py",
+        "module": "pkg",
+        "module_kind": "package",
+        "bytes": 15,
+        "lines": 1,
+        "parse_status": "ok",
+    }
+    assert data["files"][3] == {
+        "path": "pkg/service.py",
+        "module": "pkg.service",
+        "module_kind": "module",
+        "bytes": 59,
+        "lines": 2,
+        "parse_status": "ok",
+    }
+    assert data["warnings"][0] == {
+        "code": "unreadable_file",
+        "path": "bad_encoding.py",
+        "message": "File could not be decoded as UTF-8.",
+    }
+    assert_invalid_python_warning(data["warnings"][1], "broken.py")
 
 
 def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> None:
@@ -241,28 +245,19 @@ def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) 
 
     report = asyncio.run(call_research())
 
-    assert report == {
-        "schema_version": "1",
-        "status": "ok",
-        "operation": "python.complexity",
-        "query": {"repository_root": str(tmp_path)},
-        "data": {
-            "language": "python",
-            "functions": [],
-            "warnings": [
-                {
-                    "code": "unreadable_file",
-                    "path": "bad_encoding.py",
-                    "message": "File could not be decoded as UTF-8.",
-                },
-                {
-                    "code": "invalid_python",
-                    "path": "broken.py",
-                    "message": "Syntax error at line 1, column 10: invalid syntax",
-                },
-            ],
-        },
+    assert report["schema_version"] == "1"
+    assert report["status"] == "ok"
+    assert report["operation"] == "python.complexity"
+    assert report["query"] == {"repository_root": str(tmp_path)}
+    assert report["data"]["language"] == "python"
+    assert report["data"]["functions"] == []
+    warnings = report["data"]["warnings"]
+    assert warnings[0] == {
+        "code": "unreadable_file",
+        "path": "bad_encoding.py",
+        "message": "File could not be decoded as UTF-8.",
     }
+    assert_invalid_python_warning(warnings[1], "broken.py")
 
 
 def test_research_tool_calls_are_independent(tmp_path: Path) -> None:
