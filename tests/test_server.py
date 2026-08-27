@@ -227,6 +227,63 @@ def test_research_tool_reports_git_hotspots(tmp_path: Path) -> None:
     assert data["files"][0]["total_changed_lines"] == 4
 
 
+def test_research_tool_reports_global_git_cochange(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/a.py", "a = 1\n")
+    write_python(tmp_path, "pkg/b.py", "b = 1\n")
+    git_repository(tmp_path, "pkg")
+    git_commit(tmp_path, "initial pair")
+    write_python(tmp_path, "pkg/a.py", "a = 2\n")
+    write_python(tmp_path, "pkg/b.py", "b = 2\n")
+    git_commit(tmp_path, "adjust pair", "pkg/a.py", "pkg/b.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.cochange",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="git.cochange",
+        repository_root=str(tmp_path),
+        since_unix_time=1,
+        limit=10,
+    )
+    assert data["eligible_commit_count"] == 2
+    assert data["pairs"][0]["left_path"] == "pkg/a.py"
+    assert data["pairs"][0]["right_path"] == "pkg/b.py"
+    assert data["pairs"][0]["score"] == 2.0
+    assert data["pairs"][0]["commit_count"] == 2
+
+
+def test_research_tool_rejects_git_cochange_without_bounds() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "git.cochange"},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A positive since_unix_time is required for git.cochange.",
+    }
+
+
 def test_research_tool_rejects_git_hotspots_without_bounds() -> None:
     server = create_server()
 

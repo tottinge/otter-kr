@@ -257,7 +257,7 @@ dimensions and must not be smuggled into the weighting formula.
 - **Reference sample:** `gitminer-dash/algorithms/commit_frequency.py`,
   `algorithms/file_changes.py`, and `insights.snapshot_builder.py`.
 
-#### KR-014 — Calculate global weighted co-change intimacy
+#### KR-014 — Calculate global weighted co-change intimacy *(shipped in this slice)*
 
 - **Admits:** commits touching at least two source files, weighted by the adopted `1/C(N,2)`
   formula for a commit with `N` source files.
