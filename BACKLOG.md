@@ -504,14 +504,14 @@ cannot answer all of those questions. Use three deliberately different corpus cl
 1. **Planted-history fixtures** — tiny temporary Git repositories whose commits, renames, merges,
    repeated hunks, and defect/fix relationships are known exactly. These are the executable oracle
    for correctness and boundary behavior.
-2. **Mature reference repositories** — one or two well-known, actively maintained Python projects
-   with substantial history and tests (for example, Requests or Flask), plus `../gitminer-dash` as
-   our local long-history reference. These test scale, path diversity, real merge practices, and
-   whether reports are viable to inspect.
+2. **Mature/reference repositories** — the default set is `gitminer-dash`, `quizzology`,
+   `OpenModelica`, and `otter-kr`, covering long history, medium application structure,
+   parser-warning edge cases, and self-hosting. These test scale, path diversity, real merge
+   practices, and whether reports are viable to inspect.
 3. **Blind discovery targets** — repositories selected without tailoring queries to expected
-   answers. These test whether the evidence is useful when nobody has pre-written the story. The
-   first target is `boxed/mutmut`; the consumer records hypotheses separately from MCP output and
-   may not edit the evidence report.
+   answers. The default set is also used for discovery unless a slice needs a distinct target such
+   as `boxed/mutmut`; the consumer records hypotheses separately from MCP output and may not edit
+   the evidence report.
 
 Do not choose between a well-known codebase and pure discovery: calibrate on planted fixtures,
 triangulate on mature references, then run blind discovery. Treat every interpretation as a
@@ -541,8 +541,8 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 
 ### KR-038 — Triangulate Git-history evidence on mature references
 
-- **Admits:** bounded history, hotspots, affinity, and topic-history reports for `gitminer-dash`
-  and `boxed/mutmut` pinned to an immutable revision.
+- **Admits:** bounded history, hotspots, affinity, and topic-history reports for the default
+  dogfooding set pinned to immutable revisions.
 - **Observable result:** every sampled score and history edge can be reproduced with direct Git
   commands or a small independent checker; rename and merge policies are visible in the report.
 - **Still rejected:** using an LLM's narrative agreement as proof of correctness.
@@ -586,6 +586,21 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 ## Backlog quality rules
 
 Use the refactoring skills as review criteria, not as a reason to pre-build abstractions:
+
+## MCP-assisted editing protocol
+
+Every refactoring or TDD session should:
+
+1. Start a fresh MCP stdio server and establish a narrow baseline query.
+2. Record the repository revision and working-tree state represented by the evidence.
+3. Re-query only after material edits, using bounded outputs relevant to the current change.
+4. Stop the MCP before final verification and the atomic commit protocol.
+5. Optionally run one post-commit smoke query against the committed tree.
+
+The MCP analyzes Git-known files only. Do not stage a new file solely to expose it to analysis;
+use direct tests or a temporary tracked fixture when new-file evidence is needed. Process startup
+is cheap, but full reports can be expensive in model context, so retain summaries rather than
+repeating unchanged evidence.
 
 - **Working:** each slice has unit and MCP contract checks before widening the admission.
 - **Unique:** one report schema, one weight policy, one repository-context policy, and one source
