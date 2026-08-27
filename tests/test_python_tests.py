@@ -28,6 +28,22 @@ def assert_evidence_matches_source(candidate, source: str) -> None:
         assert line[evidence.column :].startswith(evidence.name)
 
 
+def assert_import_matches_source(matching_import, source: str) -> None:
+    lines = source.splitlines()
+    line = lines[matching_import.line - 1]
+    assert line[matching_import.column :].startswith(matching_import.imported_name)
+
+
+def import_summary(matching_import) -> dict[str, object]:
+    return {
+        "path": matching_import.path,
+        "module": matching_import.module,
+        "relative_level": matching_import.relative_level,
+        "imported_name": matching_import.imported_name,
+        "local_name": matching_import.local_name,
+    }
+
+
 def evidence_summary(candidate) -> dict[str, str]:
     evidence = candidate.evidence[0]
     return {
@@ -75,8 +91,26 @@ def test_reports_direct_and_aliased_symbol_evidence_for_candidate_tests(tmp_path
             "expression": "pay()",
         },
     ]
+    assert [import_summary(item) for item in report.matching_imports] == [
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "collect_payment",
+        },
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "pay",
+        },
+    ]
     for candidate in report.candidates:
         assert_evidence_matches_source(candidate, source)
+    for matching_import in report.matching_imports:
+        assert_import_matches_source(matching_import, source)
 
 
 def test_reports_shadowed_import_name_truthfully(tmp_path: Path) -> None:
@@ -167,4 +201,96 @@ def test_reports_no_mapping_found_for_selected_symbol(tmp_path: Path) -> None:
 
     assert report.mapping_status == "no_mapping_found"
     assert report.candidates == ()
+    assert report.matching_imports == ()
     assert report.warnings == ()
+
+
+def test_reports_matching_imports_without_promoting_import_only_tests_to_candidates(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "from app.service import collect_payment\n\n"
+        "def helper():\n"
+        "    return collect_payment\n\n"
+        "def test_import_only():\n"
+        "    assert True\n"
+    )
+    write_python(tmp_path, "tests/test_import_only.py", source)
+    git_repository(tmp_path, "tests")
+
+    report = find_tests_for_symbol(tmp_path, "collect_payment")
+
+    assert report.mapping_status == "no_mapping_found"
+    assert report.candidates == ()
+    assert [import_summary(item) for item in report.matching_imports] == [
+        {
+            "path": "tests/test_import_only.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "collect_payment",
+        }
+    ]
+    assert_import_matches_source(report.matching_imports[0], source)
+
+
+def test_reports_relative_nested_and_deterministically_sorted_matching_imports(
+    tmp_path: Path,
+) -> None:
+    class ReversedTestFileSource:
+        def python_files(self, repository: Path) -> list[Path]:
+            return [
+                repository / "tests/test_beta.py",
+                repository / "tests/test_alpha.py",
+                repository / "tests/service.py",
+            ]
+
+    alpha_source = (
+        "from pkg.service import collect_payment as module_alias\n\n"
+        "def test_alpha():\n"
+        "    from . import collect_payment as local_alias\n"
+        "    local_alias()\n"
+    )
+    beta_source = (
+        "def test_beta():\n    from pkg.service import collect_payment\n    collect_payment()\n"
+    )
+    write_python(tmp_path, "tests/test_beta.py", beta_source)
+    write_python(tmp_path, "tests/test_alpha.py", alpha_source)
+    write_python(tmp_path, "tests/service.py", "def collect_payment():\n    return 1\n")
+    git_repository(tmp_path, "tests")
+
+    report = find_tests_for_symbol(
+        tmp_path,
+        "collect_payment",
+        file_source=ReversedTestFileSource(),
+    )
+
+    assert [import_summary(item) for item in report.matching_imports] == [
+        {
+            "path": "tests/test_alpha.py",
+            "module": "pkg.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "module_alias",
+        },
+        {
+            "path": "tests/test_alpha.py",
+            "module": None,
+            "relative_level": 1,
+            "imported_name": "collect_payment",
+            "local_name": "local_alias",
+        },
+        {
+            "path": "tests/test_beta.py",
+            "module": "pkg.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "collect_payment",
+        },
+    ]
+    for matching_import, source in [
+        (report.matching_imports[0], alpha_source),
+        (report.matching_imports[1], alpha_source),
+        (report.matching_imports[2], beta_source),
+    ]:
+        assert_import_matches_source(matching_import, source)

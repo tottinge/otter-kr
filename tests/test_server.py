@@ -537,14 +537,15 @@ def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> No
 
 
 def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_path: Path) -> None:
+    source = (
+        "from app.service import collect_payment, collect_payment as pay\n\n"
+        "def test_collect_payment_path():\n"
+        "    collect_payment()\n"
+    )
     write_python(
         tmp_path,
         "tests/test_service.py",
-        (
-            "from app.service import collect_payment\n\n"
-            "def test_collect_payment_path():\n"
-            "    collect_payment()\n"
-        ),
+        source,
     )
     git_repository(tmp_path, "tests")
     server = create_server()
@@ -569,6 +570,37 @@ def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_pa
     assert [item["qualified_name"] for item in report["data"]["candidates"]] == [
         "test_collect_payment_path"
     ]
+    assert [
+        {
+            key: item[key]
+            for key in (
+                "path",
+                "module",
+                "relative_level",
+                "imported_name",
+                "local_name",
+            )
+        }
+        for item in report["data"]["matching_imports"]
+    ] == [
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "collect_payment",
+        },
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "pay",
+        },
+    ]
+    source_line = source.splitlines()[0]
+    for item in report["data"]["matching_imports"]:
+        assert source_line[item["column"] :].startswith(item["imported_name"])
 
 
 def test_research_tool_rejects_python_discriminations_without_term() -> None:

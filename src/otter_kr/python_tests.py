@@ -42,11 +42,26 @@ class TestCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class MatchingImport:
+    path: str
+    line: int
+    column: int
+    module: str | None
+    relative_level: int
+    imported_name: str
+    local_name: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TestMappingReport:
     language: str
     symbol: str
     mapping_status: str
     candidates: tuple[TestCandidate, ...]
+    matching_imports: tuple[MatchingImport, ...]
     warnings: tuple[dict[str, str], ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -55,6 +70,7 @@ class TestMappingReport:
             "symbol": self.symbol,
             "mapping_status": self.mapping_status,
             "candidates": [item.to_dict() for item in self.candidates],
+            "matching_imports": [item.to_dict() for item in self.matching_imports],
             "warnings": list(self.warnings),
         }
 
@@ -83,6 +99,32 @@ def _module_bindings(module: ast.Module, symbol: str) -> dict[str, str]:
             local_name = alias.asname or alias.name
             bindings[local_name] = _binding_kind(local_name, alias.name)
     return bindings
+
+
+def _matching_imports_in_tree(
+    path: str,
+    tree: ast.AST,
+    symbol: str,
+) -> list[MatchingImport]:
+    matching_imports: list[MatchingImport] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        for alias in node.names:
+            if alias.name != symbol:
+                continue
+            matching_imports.append(
+                MatchingImport(
+                    path=path,
+                    line=getattr(alias, "lineno", node.lineno),
+                    column=getattr(alias, "col_offset", node.col_offset),
+                    module=node.module,
+                    relative_level=node.level,
+                    imported_name=alias.name,
+                    local_name=alias.asname or alias.name,
+                )
+            )
+    return matching_imports
 
 
 def _binding_names(target: ast.AST) -> set[str]:
@@ -312,6 +354,7 @@ def find_tests_for_symbol(
         raise ValueError("Symbol must be a valid Python identifier")
 
     candidates: list[TestCandidate] = []
+    matching_imports: list[MatchingImport] = []
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
@@ -337,6 +380,7 @@ def find_tests_for_symbol(
                 }
             )
             continue
+        matching_imports.extend(_matching_imports_in_tree(relative, tree, symbol))
         collector = _TestCollector(relative, symbol, _parent_map(tree))
         collector.visit(tree)
         candidates.extend(collector.candidates)
@@ -347,6 +391,20 @@ def find_tests_for_symbol(
         mapping_status="matched" if candidates else "no_mapping_found",
         candidates=tuple(
             sorted(candidates, key=lambda item: (item.path, item.line, item.column, item.kind))
+        ),
+        matching_imports=tuple(
+            sorted(
+                matching_imports,
+                key=lambda item: (
+                    item.path,
+                    item.line,
+                    item.column,
+                    item.module or "",
+                    item.relative_level,
+                    item.imported_name,
+                    item.local_name,
+                ),
+            )
         ),
         warnings=tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
     )

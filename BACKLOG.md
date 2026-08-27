@@ -166,11 +166,20 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Observable result:** all observed branches, lookups, and locations for that type.
 - **Still rejected:** exhaustive semantic coverage claims and pattern matching in other languages.
 
-#### KR-011 — Map tests to a selected symbol
+#### KR-011 — Map tests to a selected symbol *(shipped in this slice)*
 
 - **Admits:** naming- and import-based relationships between Python tests and one symbol.
 - **Observable result:** candidate tests, matched evidence, and explicit “no mapping found” output.
 - **Still rejected:** runtime coverage claims, proof of execution, and test-quality judgment.
+
+#### KR-011b — Broaden symbol-to-test import evidence beyond `from ... import ...`
+
+- **Admits:** additional static import shapes for one selected symbol, beginning with plain `import`
+  plus attribute use, without changing the evidence-only contract.
+- **Observable result:** separate citeable evidence for the newly admitted import shape, with stable
+  path and source locations.
+- **Still rejected:** dynamic imports, wildcard imports, re-export inference, and runtime coverage
+  claims.
 
 #### KR-011a — Establish capability-shaped Git evidence ports
 
