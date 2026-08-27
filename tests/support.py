@@ -38,3 +38,11 @@ def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
     assert warning["path"] == path
     assert isinstance(warning["message"], str)
     assert warning["message"]
+
+
+def assert_unreadable_file_warning(warning: dict[str, str], path: str) -> None:
+    assert warning == {
+        "code": "unreadable_file",
+        "path": path,
+        "message": "File could not be decoded as UTF-8.",
+    }

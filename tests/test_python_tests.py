@@ -1,7 +1,13 @@
 from pathlib import Path
 
 from otter_kr.python_tests import find_tests_for_symbol
-from tests.support import assert_invalid_python_warning, git_repository, write_bytes, write_python
+from tests.support import (
+    assert_invalid_python_warning,
+    assert_unreadable_file_warning,
+    git_repository,
+    write_bytes,
+    write_python,
+)
 
 
 class ReversedFileSource:
@@ -149,11 +155,7 @@ def test_sorts_deterministically_and_reports_parse_warnings(tmp_path: Path) -> N
     assert [item.path for item in report.candidates] == ["tests/test_a.py", "tests/test_b.py"]
     assert [item.qualified_name for item in report.candidates] == ["test_alpha", "test_beta"]
     warnings = list(report.warnings)
-    assert warnings[0] == {
-        "code": "unreadable_file",
-        "path": "bad_encoding.py",
-        "message": "File could not be decoded as UTF-8.",
-    }
+    assert_unreadable_file_warning(warnings[0], "bad_encoding.py")
     assert_invalid_python_warning(warnings[1], "broken.py")
 
 

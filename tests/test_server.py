@@ -7,6 +7,7 @@ from otter_kr.server import create_server
 from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
+    assert_unreadable_file_warning,
     git_repository,
     write_bytes,
     write_python,
@@ -96,11 +97,7 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
         "lines": 2,
         "parse_status": "ok",
     }
-    assert data["warnings"][0] == {
-        "code": "unreadable_file",
-        "path": "bad_encoding.py",
-        "message": "File could not be decoded as UTF-8.",
-    }
+    assert_unreadable_file_warning(data["warnings"][0], "bad_encoding.py")
     assert_invalid_python_warning(data["warnings"][1], "broken.py")
 
 
@@ -235,11 +232,7 @@ def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) 
     assert data["language"] == "python"
     assert data["functions"] == []
     warnings = data["warnings"]
-    assert warnings[0] == {
-        "code": "unreadable_file",
-        "path": "bad_encoding.py",
-        "message": "File could not be decoded as UTF-8.",
-    }
+    assert_unreadable_file_warning(warnings[0], "bad_encoding.py")
     assert_invalid_python_warning(warnings[1], "broken.py")
 
 
