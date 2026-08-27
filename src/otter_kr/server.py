@@ -10,6 +10,7 @@ from otter_kr.git_cochange import collect_global_cochange
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_history_context import collect_git_history
 from otter_kr.git_hotspots import collect_git_hotspots
+from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
@@ -27,6 +28,8 @@ def _query(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
 ) -> dict:
     query = {"repository_root": repository_root}
     if term is not None:
@@ -35,6 +38,10 @@ def _query(
         query["since_unix_time"] = since_unix_time
     if limit is not None:
         query["limit"] = limit
+    if left_path is not None:
+        query["left_path"] = left_path
+    if right_path is not None:
+        query["right_path"] = right_path
     return query
 
 
@@ -45,12 +52,14 @@ def _success(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "ok",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit),
+        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
         "data": data,
     }
 
@@ -63,12 +72,14 @@ def _invalid_query(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit),
+        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
         "error": {
             "code": "invalid_query",
             "message": message,
@@ -96,12 +107,14 @@ def _repository_access_failed(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit),
+        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
         "error": {
             "code": "repository_access_failed",
             "message": str(error),
@@ -120,6 +133,8 @@ def _run_operation(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
@@ -132,6 +147,8 @@ def _run_operation(
             term=term,
             since_unix_time=since_unix_time,
             limit=limit,
+            left_path=left_path,
+            right_path=right_path,
         )
 
     repository = Path(repository_root)
@@ -163,10 +180,21 @@ def _run_operation(
             term,
             since_unix_time,
             limit,
+            left_path,
+            right_path,
         )
 
     data = report.to_dict() if hasattr(report, "to_dict") else report
-    return _success(operation, repository_root, data, term, since_unix_time, limit)
+    return _success(
+        operation,
+        repository_root,
+        data,
+        term,
+        since_unix_time,
+        limit,
+        left_path,
+        right_path,
+    )
 
 
 def create_server() -> FastMCP:
@@ -194,6 +222,8 @@ def create_server() -> FastMCP:
         term: str | None = None,
         since_unix_time: int | None = None,
         limit: int | None = None,
+        left_path: str | None = None,
+        right_path: str | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
@@ -382,6 +412,80 @@ def create_server() -> FastMCP:
                 term=term,
                 since_unix_time=since_unix_time,
                 limit=limit,
+            )
+        if operation == "git.cochange.pair":
+            if left_path is None or right_path is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "left_path and right_path are required for git.cochange.pair.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if since_unix_time is None or since_unix_time <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive since_unix_time is required for git.cochange.pair.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if limit is None or limit <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive limit is required for git.cochange.pair.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if left_path == right_path:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "left_path and right_path must be different files.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if (
+                left_path.startswith("/")
+                or right_path.startswith("/")
+                or "\\" in left_path
+                or "\\" in right_path
+                or any(part == ".." for part in left_path.split("/"))
+                or any(part == ".." for part in right_path.split("/"))
+            ):
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "file paths must be repository-relative.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, **_: collect_pair_cochange(
+                    repository,
+                    left_path,
+                    right_path,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    changes=GitCliHistory(),
+                ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+                left_path=left_path,
+                right_path=right_path,
             )
         return {
             "schema_version": "1",

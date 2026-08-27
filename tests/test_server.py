@@ -23,6 +23,8 @@ def assert_ok_report(
     term: str | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
 ) -> dict:
     assert report["schema_version"] == "1"
     assert report["status"] == "ok"
@@ -34,6 +36,10 @@ def assert_ok_report(
         expected_query["since_unix_time"] = since_unix_time
     if limit is not None:
         expected_query["limit"] = limit
+    if left_path is not None:
+        expected_query["left_path"] = left_path
+    if right_path is not None:
+        expected_query["right_path"] = right_path
     assert report["query"] == expected_query
     return report["data"]
 
@@ -302,6 +308,65 @@ def test_research_tool_reports_focus_file_cochange(tmp_path: Path) -> None:
     assert len(data["pairs"]) == 1
     assert data["pairs"][0]["right_path"] == "pkg/b.py"
     assert data["pairs"][0]["score"] == 2.0
+
+
+def test_research_tool_reports_explicit_pair_cochange(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/a.py", "a = 1\n")
+    write_python(tmp_path, "pkg/b.py", "b = 1\n")
+    git_repository(tmp_path, "pkg")
+    git_commit(tmp_path, "initial pair")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.cochange.pair",
+                    "left_path": "pkg/a.py",
+                    "right_path": "pkg/b.py",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="git.cochange.pair",
+        repository_root=str(tmp_path),
+        since_unix_time=1,
+        limit=10,
+        left_path="pkg/a.py",
+        right_path="pkg/b.py",
+    )
+    assert report["query"]["left_path"] == "pkg/a.py"
+    assert report["query"]["right_path"] == "pkg/b.py"
+    assert data["pair"]["score"] == 1.0
+
+
+def test_research_tool_rejects_pair_without_both_paths() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": "/repo",
+                    "operation": "git.cochange.pair",
+                    "left_path": "pkg/a.py",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"]["code"] == "invalid_query"
 
 
 def test_research_tool_rejects_focus_file_cochange_without_term() -> None:

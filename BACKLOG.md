@@ -274,7 +274,7 @@ dimensions and must not be smuggled into the weighting formula.
   without changing its meaning.
 - **Still rejected:** arbitrary multi-file filters and semantic ownership.
 
-#### KR-016 — Scope co-change to one file pair
+#### KR-016 — Scope co-change to one file pair *(shipped in this slice)*
 
 - **Admits:** an explicit pair of files.
 - **Observable result:** pair score, contributing commits, and window/filter context.
