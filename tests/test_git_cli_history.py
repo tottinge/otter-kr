@@ -113,7 +113,13 @@ def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path)
     from otter_kr.git_ports import CommitFileChange, CommitHistoryQuery
 
     sha = "1" * 40
-    output = sha.encode() + b"\0" + b"1700000001\0\0" + b"4\t2\tpkg/service.py\0"
+    output = (
+        sha.encode()
+        + b"\0"
+        + b"1700000001\0\0"
+        + b"\n4\t2\tpkg/service.py\0"
+        + b"1\t0\tpkg/helpers.py\0"
+    )
     calls: list[tuple[str, ...]] = []
 
     def runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
@@ -132,6 +138,7 @@ def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path)
             str(tmp_path),
             "log",
             "--numstat",
+            "--no-renames",
             "-z",
             "--format=%H%x00%ct%x00",
             "--date-order",
@@ -149,7 +156,14 @@ def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path)
             path="pkg/service.py",
             additions=4,
             deletions=2,
-        )
+        ),
+        CommitFileChange(
+            commit_sha=sha,
+            committed_unix_time=1_700_000_001,
+            path="pkg/helpers.py",
+            additions=1,
+            deletions=0,
+        ),
     ]
 
 

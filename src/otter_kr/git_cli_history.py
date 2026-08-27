@@ -112,6 +112,7 @@ class GitCliHistory(CommitMetadataSource, CommitFileChangeSource, CommitPatchSou
             str(repository),
             "log",
             "--numstat",
+            "--no-renames",
             "-z",
             "--format=%H%x00%ct%x00",
             "--date-order",
@@ -181,6 +182,10 @@ def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
         while index < len(fields) and not _SHA_PATTERN.fullmatch(
             fields[index].decode(errors="replace")
         ):
+            fields[index] = fields[index].lstrip(b"\n")
+            if not fields[index]:
+                index += 1
+                continue
             additions, separator, remainder = fields[index].partition(b"\t")
             deletions, separator2, path = remainder.partition(b"\t")
             if not separator or not separator2:
