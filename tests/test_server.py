@@ -45,6 +45,23 @@ def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
     assert warning["message"]
 
 
+def assert_ok_report(
+    report: dict,
+    *,
+    operation: str,
+    repository_root: str,
+    term: str | None = None,
+) -> dict:
+    assert report["schema_version"] == "1"
+    assert report["status"] == "ok"
+    assert report["operation"] == operation
+    expected_query = {"repository_root": repository_root}
+    if term is not None:
+        expected_query["term"] = term
+    assert report["query"] == expected_query
+    return report["data"]
+
+
 def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path) -> None:
     write_text(tmp_path, "pkg/__init__.py", '"""Package."""\n')
     write_text(
@@ -178,55 +195,52 @@ def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:
             return result.data
 
     report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="python.complexity",
+        repository_root=str(tmp_path),
+    )
 
-    assert report == {
-        "schema_version": "1",
-        "status": "ok",
-        "operation": "python.complexity",
-        "query": {"repository_root": str(tmp_path)},
-        "data": {
-            "language": "python",
-            "functions": [
-                {
-                    "path": "pkg/logic.py",
-                    "qualified_name": "Service.decide",
-                    "kind": "method",
-                    "line": 2,
-                    "column": 4,
-                    "end_line": 8,
-                    "max_nesting_depth": 2,
-                    "branch_count": 3,
-                    "line_count": 7,
-                    "cyclomatic_count": 5,
-                },
-                {
-                    "path": "pkg/logic.py",
-                    "qualified_name": "outer",
-                    "kind": "function",
-                    "line": 10,
-                    "column": 0,
-                    "end_line": 15,
-                    "max_nesting_depth": 1,
-                    "branch_count": 1,
-                    "line_count": 6,
-                    "cyclomatic_count": 2,
-                },
-                {
-                    "path": "pkg/logic.py",
-                    "qualified_name": "outer.inner",
-                    "kind": "function",
-                    "line": 11,
-                    "column": 4,
-                    "end_line": 12,
-                    "max_nesting_depth": 0,
-                    "branch_count": 0,
-                    "line_count": 2,
-                    "cyclomatic_count": 1,
-                },
-            ],
-            "warnings": [],
+    assert data["language"] == "python"
+    assert data["warnings"] == []
+    assert data["functions"] == [
+        {
+            "path": "pkg/logic.py",
+            "qualified_name": "Service.decide",
+            "kind": "method",
+            "line": 2,
+            "column": 4,
+            "end_line": 8,
+            "max_nesting_depth": 2,
+            "branch_count": 3,
+            "line_count": 7,
+            "cyclomatic_count": 5,
         },
-    }
+        {
+            "path": "pkg/logic.py",
+            "qualified_name": "outer",
+            "kind": "function",
+            "line": 10,
+            "column": 0,
+            "end_line": 15,
+            "max_nesting_depth": 1,
+            "branch_count": 1,
+            "line_count": 6,
+            "cyclomatic_count": 2,
+        },
+        {
+            "path": "pkg/logic.py",
+            "qualified_name": "outer.inner",
+            "kind": "function",
+            "line": 11,
+            "column": 4,
+            "end_line": 12,
+            "max_nesting_depth": 0,
+            "branch_count": 0,
+            "line_count": 2,
+            "cyclomatic_count": 1,
+        },
+    ]
 
 
 def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) -> None:
@@ -244,14 +258,15 @@ def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) 
             return result.data
 
     report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="python.complexity",
+        repository_root=str(tmp_path),
+    )
 
-    assert report["schema_version"] == "1"
-    assert report["status"] == "ok"
-    assert report["operation"] == "python.complexity"
-    assert report["query"] == {"repository_root": str(tmp_path)}
-    assert report["data"]["language"] == "python"
-    assert report["data"]["functions"] == []
-    warnings = report["data"]["warnings"]
+    assert data["language"] == "python"
+    assert data["functions"] == []
+    warnings = data["warnings"]
     assert warnings[0] == {
         "code": "unreadable_file",
         "path": "bad_encoding.py",
@@ -356,35 +371,32 @@ def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
             return result.data
 
     report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="python.imports",
+        repository_root=str(tmp_path),
+    )
 
-    assert report == {
-        "schema_version": "1",
-        "status": "ok",
-        "operation": "python.imports",
-        "query": {"repository_root": str(tmp_path)},
-        "data": {
-            "language": "python",
-            "edges": [
-                {
-                    "path": "pkg/service.py",
-                    "source_module": "pkg.service",
-                    "target_module": "os",
-                    "imported_names": [],
-                    "relative_level": 0,
-                    "line": 1,
-                },
-                {
-                    "path": "pkg/service.py",
-                    "source_module": "pkg.service",
-                    "target_module": "pkg.helpers",
-                    "imported_names": ["helper"],
-                    "relative_level": 0,
-                    "line": 2,
-                },
-            ],
-            "warnings": [],
+    assert data["language"] == "python"
+    assert data["warnings"] == []
+    assert data["edges"] == [
+        {
+            "path": "pkg/service.py",
+            "source_module": "pkg.service",
+            "target_module": "os",
+            "imported_names": [],
+            "relative_level": 0,
+            "line": 1,
         },
-    }
+        {
+            "path": "pkg/service.py",
+            "source_module": "pkg.service",
+            "target_module": "pkg.helpers",
+            "imported_names": ["helper"],
+            "relative_level": 0,
+            "line": 2,
+        },
+    ]
 
 
 def test_research_tool_rejects_python_names_without_term() -> None:
