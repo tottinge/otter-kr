@@ -267,7 +267,7 @@ dimensions and must not be smuggled into the weighting formula.
 - **Reference sample:** `gitminer-dash/algorithms/affinity_calculator.py`; its normalized formula
   is deliberately subject to KR-012a rather than copied implicitly.
 
-#### KR-015 — Scope co-change to one file
+#### KR-015 — Scope co-change to one file *(shipped in this slice)*
 
 - **Admits:** a focus file and its ranked historical partners.
 - **Observable result:** the same weighted score plus per-partner context, using the global algorithm
