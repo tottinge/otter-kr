@@ -28,6 +28,26 @@ class CommitMetadata:
 
 
 @dataclass(frozen=True)
+class CommitFileChange:
+    """Evidence for one file's line changes in one commit."""
+
+    commit_sha: str
+    committed_unix_time: int
+    path: str
+    additions: int
+    deletions: int
+
+
+class CommitFileChangeSource(Protocol):
+    """Read bounded per-file change statistics for one repository."""
+
+    def commit_file_changes(
+        self, repository: Path, query: CommitHistoryQuery
+    ) -> list[CommitFileChange]:
+        """Return per-file changes in deterministic commit order."""
+
+
+@dataclass(frozen=True)
 class CommitPatchRequest:
     """Describe one explicit parent-based patch request."""
 

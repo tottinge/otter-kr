@@ -7,6 +7,8 @@ from pathlib import Path, PurePosixPath
 
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_ports import (
+    CommitFileChange,
+    CommitFileChangeSource,
     CommitHistoryQuery,
     CommitMetadata,
     CommitMetadataSource,
@@ -48,7 +50,7 @@ def _default_runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
     return result.returncode, result.stdout, result.stderr
 
 
-class GitCliHistory(CommitMetadataSource, CommitPatchSource):
+class GitCliHistory(CommitMetadataSource, CommitFileChangeSource, CommitPatchSource):
     """Fulfill bounded history ports by invoking Git directly."""
 
     def __init__(self, runner: GitRunner = _default_runner) -> None:
@@ -97,6 +99,29 @@ class GitCliHistory(CommitMetadataSource, CommitPatchSource):
             raise GitHistoryPatchTooLargeError(command, request.max_bytes, len(stdout))
         return RawCommitPatch(commit_sha=commit_sha, parent_sha=parent_sha, patch=stdout)
 
+    def commit_file_changes(
+        self, repository: Path, query: CommitHistoryQuery
+    ) -> list[CommitFileChange]:
+        _validate_limit(query.limit)
+        _validate_since_unix_time(query.since_unix_time)
+        tip = _validate_sha(query.tip_sha, field_name="tip_sha") if query.tip_sha else "HEAD"
+        path_args = _validate_paths(query.paths)
+        command = (
+            "git",
+            "-C",
+            str(repository),
+            "log",
+            "--numstat",
+            "-z",
+            "--format=%H%x00%ct%x00",
+            "--date-order",
+            f"--max-count={query.limit + 1}",
+            f"--since=@{query.since_unix_time}",
+            tip,
+            *(_with_path_separator(path_args)),
+        )
+        return _parse_file_changes(self._run(command))
+
     def _run(self, command: tuple[str, ...]) -> bytes:
         try:
             returncode, stdout, stderr = self._runner(command)
@@ -137,6 +162,48 @@ def _parse_commit_metadata(stdout: bytes) -> list[CommitMetadata]:
             )
         )
     return commits
+
+
+def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
+    if not stdout:
+        return []
+    fields = stdout.split(b"\0")
+    if fields[-1] == b"":
+        fields.pop()
+    changes: list[CommitFileChange] = []
+    index = 0
+    while index < len(fields):
+        sha = _decode_field(fields[index], "sha")
+        committed_at = _decode_field(fields[index + 1], "committed_unix_time")
+        if not _SHA_PATTERN.fullmatch(sha) or fields[index + 2] != b"":
+            raise GitHistoryValidationError("Git numstat output had an invalid commit header.")
+        index += 3
+        while index < len(fields) and not _SHA_PATTERN.fullmatch(
+            fields[index].decode(errors="replace")
+        ):
+            additions, separator, remainder = fields[index].partition(b"\t")
+            deletions, separator2, path = remainder.partition(b"\t")
+            if not separator or not separator2:
+                raise GitHistoryValidationError("Git numstat output had an invalid file record.")
+            if additions == b"-" or deletions == b"-":
+                index += 1
+                continue
+            try:
+                changes.append(
+                    CommitFileChange(
+                        commit_sha=sha,
+                        committed_unix_time=int(committed_at),
+                        path=_decode_field(path, "path"),
+                        additions=int(additions),
+                        deletions=int(deletions),
+                    )
+                )
+            except ValueError as error:
+                raise GitHistoryValidationError(
+                    "Git numstat output had invalid line counts."
+                ) from error
+            index += 1
+    return changes
 
 
 def _decode_field(value: bytes, name: str) -> str:

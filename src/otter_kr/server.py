@@ -8,6 +8,7 @@ from mcp.types import ToolAnnotations
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_history_context import collect_git_history
+from otter_kr.git_hotspots import collect_git_hotspots
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
@@ -262,6 +263,35 @@ def create_server() -> FastMCP:
                     since_unix_time=since_unix_time,
                     limit=limit,
                     history=GitCliHistory(),
+                ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
+        if operation == "git.hotspots":
+            if since_unix_time is None or since_unix_time <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive since_unix_time is required for git.hotspots.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            if limit is None or limit <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive limit is required for git.hotspots.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, *, since_unix_time, limit: collect_git_hotspots(
+                    repository,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    changes=GitCliHistory(),
                 ),
                 since_unix_time=since_unix_time,
                 limit=limit,

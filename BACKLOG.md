@@ -248,7 +248,7 @@ dimensions and must not be smuggled into the weighting formula.
   rejection when Git or the requested window is unavailable.
 - **Still rejected:** scores, blame-based ownership, and unbounded history by default.
 
-#### KR-013 — Rank current hotspots
+#### KR-013 — Rank current hotspots *(shipped in this slice)*
 
 - **Admits:** file-level change frequency and churn within the bounded history.
 - **Observable result:** ranked files with commit count, average changed lines, total size/diff

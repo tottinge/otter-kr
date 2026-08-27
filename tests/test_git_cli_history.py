@@ -108,6 +108,51 @@ def test_lists_bounded_commit_metadata_with_injected_runner(tmp_path: Path) -> N
     ]
 
 
+def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path) -> None:
+    from otter_kr.git_cli_history import GitCliHistory
+    from otter_kr.git_ports import CommitFileChange, CommitHistoryQuery
+
+    sha = "1" * 40
+    output = sha.encode() + b"\0" + b"1700000001\0\0" + b"4\t2\tpkg/service.py\0"
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
+        calls.append(command)
+        return 0, output, b""
+
+    changes = GitCliHistory(runner=runner).commit_file_changes(
+        tmp_path,
+        CommitHistoryQuery(limit=2, since_unix_time=1_700_000_000, paths=("*.py",)),
+    )
+
+    assert calls == [
+        (
+            "git",
+            "-C",
+            str(tmp_path),
+            "log",
+            "--numstat",
+            "-z",
+            "--format=%H%x00%ct%x00",
+            "--date-order",
+            "--max-count=3",
+            "--since=@1700000000",
+            "HEAD",
+            "--",
+            "*.py",
+        )
+    ]
+    assert changes == [
+        CommitFileChange(
+            commit_sha=sha,
+            committed_unix_time=1_700_000_001,
+            path="pkg/service.py",
+            additions=4,
+            deletions=2,
+        )
+    ]
+
+
 def test_commit_metadata_rejects_invalid_query_values(tmp_path: Path) -> None:
     from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
     from otter_kr.git_ports import CommitHistoryQuery
