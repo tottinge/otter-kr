@@ -19,6 +19,29 @@ def git_repository(repository: Path, *paths: str) -> None:
     subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
+def git_commit(repository: Path, message: str, *paths: str) -> str:
+    if paths:
+        subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
+    env = {
+        "GIT_AUTHOR_NAME": "Test User",
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "Test User",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+    }
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-q", "-m", message],
+        check=True,
+        env=env,
+    )
+    result = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def assert_valid_source_location(source: str, line: int, column: int) -> None:
     lines = source.splitlines()
     assert 1 <= line <= len(lines)

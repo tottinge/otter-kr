@@ -181,7 +181,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Still rejected:** dynamic imports, wildcard imports, re-export inference, and runtime coverage
   claims.
 
-#### KR-011a — Establish capability-shaped Git evidence ports
+#### KR-011a — Establish capability-shaped Git evidence ports *(shipped in this slice)*
 
 - **Admits:** the smallest typed repository capabilities needed by the first history slice,
   beginning with bounded commit metadata and patch retrieval.
