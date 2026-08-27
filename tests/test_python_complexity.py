@@ -1,30 +1,12 @@
-import subprocess
 from pathlib import Path
 
 from otter_kr.python_complexity import analyze_python_complexity
+from tests.support import assert_invalid_python_warning, git_repository, write_python
 
 
 class ReversedFileSource:
     def python_files(self, repository: Path) -> list[Path]:
         return [repository / "pkg/b.py", repository / "pkg/a.py"]
-
-
-def write_python(repository: Path, relative_path: str, source: str) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source)
-
-
-def git_repository(repository: Path, *paths: str) -> None:
-    subprocess.run(["git", "init", "-q", str(repository)], check=True)
-    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
-
-
-def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
-    assert warning["code"] == "invalid_python"
-    assert warning["path"] == path
-    assert isinstance(warning["message"], str)
-    assert warning["message"]
 
 
 def test_reports_function_level_complexity_evidence_for_functions_and_methods(

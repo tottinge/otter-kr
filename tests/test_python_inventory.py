@@ -1,32 +1,7 @@
-import subprocess
 from pathlib import Path
 
 from otter_kr.python_inventory import inventory_python
-
-
-def write_python(repository: Path, relative_path: str, source: str) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source)
-
-
-def git_repository(repository: Path, *paths: str) -> None:
-    subprocess.run(["git", "init", "-q", str(repository)], check=True)
-    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
-
-
-def assert_valid_source_location(source: str, line: int, column: int) -> None:
-    lines = source.splitlines()
-    assert 1 <= line <= len(lines)
-    assert 1 <= column <= len(lines[line - 1]) + 1
-
-
-def assert_syntax_error_details(syntax_error: dict[str, int | str], source: str) -> None:
-    assert isinstance(syntax_error["line"], int)
-    assert isinstance(syntax_error["column"], int)
-    assert isinstance(syntax_error["message"], str)
-    assert syntax_error["message"]
-    assert_valid_source_location(source, syntax_error["line"], syntax_error["column"])
+from tests.support import assert_syntax_error_details, git_repository, write_python
 
 
 def test_inventories_tracked_python_files_with_parse_health(tmp_path: Path) -> None:

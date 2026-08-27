@@ -1,18 +1,7 @@
-import subprocess
 from pathlib import Path
 
 from otter_kr.python_names import find_names
-
-
-def write_python(repository: Path, relative_path: str, source: str) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source)
-
-
-def git_repository(repository: Path, *paths: str) -> None:
-    subprocess.run(["git", "init", "-q", str(repository)], check=True)
-    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
+from tests.support import git_repository, write_python
 
 
 def test_finds_exact_definition_and_reference(tmp_path: Path) -> None:

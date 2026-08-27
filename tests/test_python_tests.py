@@ -1,7 +1,7 @@
-import subprocess
 from pathlib import Path
 
 from otter_kr.python_tests import find_tests_for_symbol
+from tests.support import assert_invalid_python_warning, git_repository, write_bytes, write_python
 
 
 class ReversedFileSource:
@@ -12,23 +12,6 @@ class ReversedFileSource:
             repository / "broken.py",
             repository / "bad_encoding.py",
         ]
-
-
-def write_python(repository: Path, relative_path: str, source: str) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source)
-
-
-def write_bytes(repository: Path, relative_path: str, source: bytes) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(source)
-
-
-def git_repository(repository: Path, *paths: str) -> None:
-    subprocess.run(["git", "init", "-q", str(repository)], check=True)
-    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
 
 
 def assert_evidence_matches_source(candidate, source: str) -> None:
@@ -46,13 +29,6 @@ def evidence_summary(candidate) -> dict[str, str]:
         "name": evidence.name,
         "expression": evidence.expression,
     }
-
-
-def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
-    assert warning["code"] == "invalid_python"
-    assert warning["path"] == path
-    assert isinstance(warning["message"], str)
-    assert warning["message"]
 
 
 def test_reports_direct_and_aliased_symbol_evidence_for_candidate_tests(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
-import subprocess
 from pathlib import Path
 
 from otter_kr.python_literals import find_repeated_literals
+from tests.support import git_repository, write_python
 
 
 def test_reports_repeated_non_trivial_literals_with_locations(tmp_path: Path) -> None:
@@ -10,9 +10,8 @@ def test_reports_repeated_non_trivial_literals_with_locations(tmp_path: Path) ->
         '    return "retry later", 42\n\ndef again():\n'
         '    return "retry later", 42\n'
     )
-    (tmp_path / "app.py").write_text(source)
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "add", "app.py"], check=True)
+    write_python(tmp_path, "app.py", source)
+    git_repository(tmp_path, "app.py")
 
     report = find_repeated_literals(tmp_path)
 
@@ -29,10 +28,9 @@ def test_reports_repeated_non_trivial_literals_with_locations(tmp_path: Path) ->
 
 
 def test_excludes_trivial_constants_and_untracked_files(tmp_path: Path) -> None:
-    (tmp_path / "tracked.py").write_text('def f():\n    return None, True, 0, 1, "", 42\n')
-    (tmp_path / "untracked.py").write_text("value = 42\nvalue = 42\n")
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    subprocess.run(["git", "-C", str(tmp_path), "add", "tracked.py"], check=True)
+    write_python(tmp_path, "tracked.py", 'def f():\n    return None, True, 0, 1, "", 42\n')
+    write_python(tmp_path, "untracked.py", "value = 42\nvalue = 42\n")
+    git_repository(tmp_path, "tracked.py")
 
     report = find_repeated_literals(tmp_path)
 

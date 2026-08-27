@@ -1,48 +1,16 @@
 import asyncio
-import subprocess
 from pathlib import Path
 
 from fastmcp import Client
 
 from otter_kr.server import create_server
-
-
-def write_text(repository: Path, relative_path: str, source: str) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(source, encoding="utf-8")
-
-
-def write_bytes(repository: Path, relative_path: str, source: bytes) -> None:
-    target = repository / relative_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(source)
-
-
-def git_repository(repository: Path, *paths: str) -> None:
-    subprocess.run(["git", "init", "-q", str(repository)], check=True)
-    subprocess.run(["git", "-C", str(repository), "add", *paths], check=True)
-
-
-def assert_valid_source_location(source: str, line: int, column: int) -> None:
-    lines = source.splitlines()
-    assert 1 <= line <= len(lines)
-    assert 1 <= column <= len(lines[line - 1]) + 1
-
-
-def assert_syntax_error_details(syntax_error: dict[str, int | str], source: str) -> None:
-    assert isinstance(syntax_error["line"], int)
-    assert isinstance(syntax_error["column"], int)
-    assert isinstance(syntax_error["message"], str)
-    assert syntax_error["message"]
-    assert_valid_source_location(source, syntax_error["line"], syntax_error["column"])
-
-
-def assert_invalid_python_warning(warning: dict[str, str], path: str) -> None:
-    assert warning["code"] == "invalid_python"
-    assert warning["path"] == path
-    assert isinstance(warning["message"], str)
-    assert warning["message"]
+from tests.support import (
+    assert_invalid_python_warning,
+    assert_syntax_error_details,
+    git_repository,
+    write_bytes,
+    write_python,
+)
 
 
 def assert_ok_report(
@@ -63,15 +31,15 @@ def assert_ok_report(
 
 
 def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path) -> None:
-    write_text(tmp_path, "pkg/__init__.py", '"""Package."""\n')
-    write_text(
+    write_python(tmp_path, "pkg/__init__.py", '"""Package."""\n')
+    write_python(
         tmp_path, "pkg/service.py", "def collect_payment(amount: int) -> int:\n    return amount\n"
     )
-    write_text(tmp_path, "broken.py", "def nope(:\n")
+    write_python(tmp_path, "broken.py", "def nope(:\n")
     write_bytes(tmp_path, "bad_encoding.py", b"\xff\n")
-    write_text(tmp_path, ".hidden/secret.py", "secret = 1\n")
-    write_text(tmp_path, ".venv/lib.py", "virtual = 1\n")
-    write_text(tmp_path, "venv/lib.py", "virtual = 2\n")
+    write_python(tmp_path, ".hidden/secret.py", "secret = 1\n")
+    write_python(tmp_path, ".venv/lib.py", "virtual = 1\n")
+    write_python(tmp_path, "venv/lib.py", "virtual = 2\n")
     git_repository(tmp_path, "pkg", "broken.py", "bad_encoding.py")
 
     server = create_server()
@@ -162,7 +130,7 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
 
 
 def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "pkg/logic.py",
         (
@@ -244,7 +212,7 @@ def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:
 
 
 def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) -> None:
-    write_text(tmp_path, "broken.py", "def nope(:\n")
+    write_python(tmp_path, "broken.py", "def nope(:\n")
     write_bytes(tmp_path, "bad_encoding.py", b"\xff\n")
     git_repository(tmp_path, "broken.py", "bad_encoding.py")
     server = create_server()
@@ -276,9 +244,9 @@ def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) 
 
 
 def test_research_tool_calls_are_independent(tmp_path: Path) -> None:
-    write_text(tmp_path, "alpha.py", "alpha = 1\n")
+    write_python(tmp_path, "alpha.py", "alpha = 1\n")
     other = tmp_path / "other"
-    write_text(other, "beta.py", "beta = 1\n")
+    write_python(other, "beta.py", "beta = 1\n")
     git_repository(tmp_path, "alpha.py", "other")
     git_repository(other, "beta.py")
 
@@ -323,7 +291,7 @@ def test_research_tool_admits_python_inventory(tmp_path) -> None:
 
 
 def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
-    write_text(tmp_path, "orders.py", "class OrderBook:\n    pass\n")
+    write_python(tmp_path, "orders.py", "class OrderBook:\n    pass\n")
     git_repository(tmp_path, "orders.py")
     server = create_server()
 
@@ -353,12 +321,12 @@ def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
 
 
 def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "pkg/service.py",
         "import os\nfrom pkg.helpers import helper\n",
     )
-    write_text(tmp_path, "pkg/helpers.py", "def helper():\n    return 1\n")
+    write_python(tmp_path, "pkg/helpers.py", "def helper():\n    return 1\n")
     git_repository(tmp_path, "pkg")
     server = create_server()
 
@@ -463,7 +431,7 @@ def test_research_tool_rejects_missing_repository_root() -> None:
 
 
 def test_research_tool_reports_repeated_python_literals(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "app.py",
         'def first():\n    return "retry", 42\n\ndef second():\n    return "retry", 42\n',
@@ -492,7 +460,7 @@ def test_research_tool_reports_repeated_python_literals(tmp_path: Path) -> None:
 
 
 def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "pkg/helpers.py",
         (
@@ -535,7 +503,7 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
 
 
 def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "pkg/service.py",
         (
@@ -576,7 +544,7 @@ def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> No
 
 
 def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_path: Path) -> None:
-    write_text(
+    write_python(
         tmp_path,
         "tests/test_service.py",
         (
