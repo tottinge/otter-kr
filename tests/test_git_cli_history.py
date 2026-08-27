@@ -138,7 +138,7 @@ def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path)
             str(tmp_path),
             "log",
             "--numstat",
-            "--no-renames",
+            "--find-renames",
             "-z",
             "--format=%H%x00%ct%x00",
             "--date-order",
@@ -165,6 +165,21 @@ def test_lists_bounded_numstat_file_changes_with_injected_runner(tmp_path: Path)
             deletions=0,
         ),
     ]
+
+
+def test_parses_git_rename_numstat_record(tmp_path: Path) -> None:
+    from otter_kr.git_cli_history import GitCliHistory
+    from otter_kr.git_ports import CommitHistoryQuery
+
+    sha = "1" * 40
+    output = sha.encode() + b"\0" + b"1700000001\0\0\n3\t1\told.py\0new.py\0"
+
+    changes = GitCliHistory(runner=lambda command: (0, output, b"")).commit_file_changes(
+        tmp_path, CommitHistoryQuery(limit=1, since_unix_time=1, paths=("*.py",))
+    )
+
+    assert changes[0].path == "new.py"
+    assert changes[0].previous_path == "old.py"
 
 
 def test_commit_metadata_rejects_invalid_query_values(tmp_path: Path) -> None:

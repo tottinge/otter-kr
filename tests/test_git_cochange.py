@@ -78,3 +78,21 @@ def test_limits_history_before_calculating_scores(tmp_path: Path) -> None:
     assert report.truncated is True
     assert report.pairs[0].contributing_commits == ("c3",)
     assert report.pairs[0].score == pytest.approx(1.0)
+
+
+def test_rename_does_not_split_pair_history(tmp_path: Path) -> None:
+    source = FakeChanges(
+        [
+            CommitFileChange("rename", 3, "new.py", 1, 0, previous_path="old.py"),
+            change("rename", "partner.py"),
+            change("before", "old.py"),
+            change("before", "partner.py"),
+        ]
+    )
+
+    report = collect_global_cochange(tmp_path, since_unix_time=1, limit=2, changes=source)
+
+    assert [(pair.left_path, pair.right_path) for pair in report.pairs] == [
+        ("new.py", "partner.py")
+    ]
+    assert report.pairs[0].commit_count == 2

@@ -112,7 +112,7 @@ class GitCliHistory(CommitMetadataSource, CommitFileChangeSource, CommitPatchSou
             str(repository),
             "log",
             "--numstat",
-            "--no-renames",
+            "--find-renames",
             "-z",
             "--format=%H%x00%ct%x00",
             "--date-order",
@@ -194,6 +194,19 @@ def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
                 index += 1
                 continue
             try:
+                previous_path = None
+                if not path and index + 2 < len(fields):
+                    previous_path = _decode_field(fields[index + 1], "previous_path")
+                    path = fields[index + 2]
+                    index += 2
+                elif (
+                    index + 1 < len(fields)
+                    and b"\t" not in fields[index + 1]
+                    and not _SHA_PATTERN.fullmatch(fields[index + 1].decode(errors="replace"))
+                ):
+                    previous_path = _decode_field(path, "previous_path")
+                    path = fields[index + 1]
+                    index += 1
                 changes.append(
                     CommitFileChange(
                         commit_sha=sha,
@@ -201,6 +214,7 @@ def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
                         path=_decode_field(path, "path"),
                         additions=int(additions),
                         deletions=int(deletions),
+                        previous_path=previous_path,
                     )
                 )
             except ValueError as error:

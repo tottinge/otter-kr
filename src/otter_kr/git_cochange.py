@@ -11,6 +11,7 @@ from otter_kr.cochange_affinity import (
     CochangeWeightingPolicy,
     calculate_cochange_affinity,
 )
+from otter_kr.git_identity import canonicalize_file_changes
 from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
 
 _REPORT_VERSION = "1"
@@ -82,9 +83,13 @@ def collect_global_cochange(
     if limit <= 0:
         raise ValueError("limit must be positive.")
 
-    records = changes.commit_file_changes(
-        resolved_repository,
-        CommitHistoryQuery(limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)),
+    records = canonicalize_file_changes(
+        changes.commit_file_changes(
+            resolved_repository,
+            CommitHistoryQuery(
+                limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)
+            ),
+        )
     )
     commit_order = list(dict.fromkeys(record.commit_sha for record in records))
     visible_commits = tuple(commit_order[:limit])

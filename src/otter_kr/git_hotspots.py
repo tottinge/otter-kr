@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from otter_kr.git_identity import canonicalize_file_changes
 from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
 
 _REPORT_VERSION = "1"
@@ -68,9 +69,13 @@ def collect_git_hotspots(
     if limit <= 0:
         raise ValueError("limit must be positive.")
 
-    records = changes.commit_file_changes(
-        resolved_repository,
-        CommitHistoryQuery(limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)),
+    records = canonicalize_file_changes(
+        changes.commit_file_changes(
+            resolved_repository,
+            CommitHistoryQuery(
+                limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)
+            ),
+        )
     )
     commit_order = _commit_order(records)
     visible_commits = set(commit_order[:limit])

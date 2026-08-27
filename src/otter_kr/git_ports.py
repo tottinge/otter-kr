@@ -36,6 +36,7 @@ class CommitFileChange:
     path: str
     additions: int
     deletions: int
+    previous_path: str | None = None
 
 
 class CommitFileChangeSource(Protocol):

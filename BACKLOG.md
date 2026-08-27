@@ -281,7 +281,7 @@ dimensions and must not be smuggled into the weighting formula.
 - **Still rejected:** pairwise scores for an unbounded set and conclusions about why the files change
   together.
 
-#### KR-017 — Preserve file identity across renames
+#### KR-017 — Preserve file identity across renames *(shipped in this slice)*
 
 - **Admits:** Git rename detection during the existing history walk.
 - **Observable result:** canonical file identity and scores that do not split at a path rename.
