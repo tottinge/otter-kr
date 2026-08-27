@@ -5,7 +5,9 @@ from pathlib import Path
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_files import GitFileSourceError
+from otter_kr.git_history_context import collect_git_history
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
@@ -17,29 +19,53 @@ from otter_kr.python_names import find_names
 from otter_kr.python_tests import find_tests_for_symbol
 
 
-def _query(repository_root: str, term: str | None = None) -> dict:
+def _query(
+    repository_root: str,
+    term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> dict:
     query = {"repository_root": repository_root}
     if term is not None:
         query["term"] = term
+    if since_unix_time is not None:
+        query["since_unix_time"] = since_unix_time
+    if limit is not None:
+        query["limit"] = limit
     return query
 
 
-def _success(operation: str, repository_root: str, data: dict, term: str | None = None) -> dict:
+def _success(
+    operation: str,
+    repository_root: str,
+    data: dict,
+    term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> dict:
     return {
         "schema_version": "1",
         "status": "ok",
         "operation": operation,
-        "query": _query(repository_root, term),
+        "query": _query(repository_root, term, since_unix_time, limit),
         "data": data,
     }
 
 
-def _invalid_query(operation: str, repository_root: str, message: str) -> dict:
+def _invalid_query(
+    operation: str,
+    repository_root: str,
+    message: str,
+    *,
+    term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root),
+        "query": _query(repository_root, term, since_unix_time, limit),
         "error": {
             "code": "invalid_query",
             "message": message,
@@ -65,12 +91,14 @@ def _repository_access_failed(
     repository_root: str,
     error: GitFileSourceError,
     term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term),
+        "query": _query(repository_root, term, since_unix_time, limit),
         "error": {
             "code": "repository_access_failed",
             "message": str(error),
@@ -87,26 +115,55 @@ def _run_operation(
     analyzer,
     *,
     term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
 ) -> dict:
     if require_term and term is None:
-        return _invalid_query(operation, repository_root, term_message or "A term is required.")
+        return _invalid_query(
+            operation,
+            repository_root,
+            term_message or "A term is required.",
+            term=term,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
 
     repository = Path(repository_root)
 
     try:
-        report = analyzer(repository) if term is None else analyzer(repository, term)
+        if term is not None:
+            report = analyzer(repository, term)
+        elif since_unix_time is not None or limit is not None:
+            report = analyzer(repository, since_unix_time=since_unix_time, limit=limit)
+        else:
+            report = analyzer(repository)
+    except GitHistoryValidationError as error:
+        return _invalid_query(
+            operation,
+            repository_root,
+            str(error),
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
     except ValueError as error:
         if catches_value_error:
             return _not_a_repository(operation, repository_root, error)
         raise
     except GitFileSourceError as error:
-        return _repository_access_failed(operation, repository_root, error, term)
+        return _repository_access_failed(
+            operation,
+            repository_root,
+            error,
+            term,
+            since_unix_time,
+            limit,
+        )
 
     data = report.to_dict() if hasattr(report, "to_dict") else report
-    return _success(operation, repository_root, data, term)
+    return _success(operation, repository_root, data, term, since_unix_time, limit)
 
 
 def create_server() -> FastMCP:
@@ -128,7 +185,13 @@ def create_server() -> FastMCP:
             openWorldHint=False,
         ),
     )
-    def research(repository_root: str, operation: str, term: str | None = None) -> dict:
+    def research(
+        repository_root: str,
+        operation: str,
+        term: str | None = None,
+        since_unix_time: int | None = None,
+        limit: int | None = None,
+    ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
         if operation == "python.inventory":
             return _run_operation(operation, repository_root, inventory_python)
@@ -174,6 +237,35 @@ def create_server() -> FastMCP:
             return _run_operation(operation, repository_root, find_repeated_groups)
         if operation == "python.duplicates":
             return _run_operation(operation, repository_root, find_duplicate_helpers)
+        if operation == "git.history":
+            if since_unix_time is None or since_unix_time <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive since_unix_time is required for git.history.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            if limit is None or limit <= 0:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A positive limit is required for git.history.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, *, since_unix_time, limit: collect_git_history(
+                    repository,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    history=GitCliHistory(),
+                ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
         return {
             "schema_version": "1",
             "status": "rejected",

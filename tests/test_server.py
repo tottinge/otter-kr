@@ -8,6 +8,7 @@ from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
     assert_unreadable_file_warning,
+    git_commit,
     git_repository,
     write_bytes,
     write_python,
@@ -20,6 +21,8 @@ def assert_ok_report(
     operation: str,
     repository_root: str,
     term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
 ) -> dict:
     assert report["schema_version"] == "1"
     assert report["status"] == "ok"
@@ -27,6 +30,10 @@ def assert_ok_report(
     expected_query = {"repository_root": repository_root}
     if term is not None:
         expected_query["term"] = term
+    if since_unix_time is not None:
+        expected_query["since_unix_time"] = since_unix_time
+    if limit is not None:
+        expected_query["limit"] = limit
     assert report["query"] == expected_query
     return report["data"]
 
@@ -124,6 +131,126 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
             "message": "No repository research capabilities have been admitted yet.",
         },
     }
+
+
+def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    first = git_commit(tmp_path, "initial import")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    second = git_commit(tmp_path, "adjust service", "pkg/service.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.history",
+                    "since_unix_time": 1,
+                    "limit": 2,
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="git.history",
+        repository_root=str(tmp_path),
+        since_unix_time=1,
+        limit=2,
+    )
+    assert data["report_version"] == "1"
+    assert data["repository_root"] == str(tmp_path)
+    assert data["tip_revision"] == "HEAD"
+    assert data["since_unix_time"] == 1
+    assert data["limit"] == 2
+    assert data["commit_count"] == 2
+    assert data["truncated"] is False
+    assert data["source_file_filter"] == {
+        "tracked_by": "git",
+        "language": "python",
+        "pathspec": "*.py",
+        "tip_revision": "HEAD",
+    }
+    assert data["commits"] == [
+        {
+            "sha": second,
+            "parent_shas": [first],
+            "committed_unix_time": data["commits"][0]["committed_unix_time"],
+            "subject": "adjust service",
+        },
+        {
+            "sha": first,
+            "parent_shas": [],
+            "committed_unix_time": data["commits"][1]["committed_unix_time"],
+            "subject": "initial import",
+        },
+    ]
+
+
+def test_research_tool_rejects_git_history_without_explicit_since_boundary() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "git.history", "limit": 10},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A positive since_unix_time is required for git.history.",
+    }
+
+
+def test_research_tool_rejects_git_history_without_explicit_limit() -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {"repository_root": "/repo", "operation": "git.history", "since_unix_time": 1},
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A positive limit is required for git.history.",
+    }
+
+
+def test_research_tool_reports_git_history_failure_evidence(tmp_path: Path) -> None:
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.history",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return result.data
+
+    rejection = asyncio.run(call_research())
+
+    assert rejection["status"] == "rejected"
+    assert rejection["error"]["code"] == "repository_access_failed"
+    assert rejection["error"]["returncode"] != 0
+    assert rejection["error"]["command"][:2] == ["git", "-C"]
 
 
 def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:

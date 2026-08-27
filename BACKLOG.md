@@ -241,7 +241,7 @@ specification: source-file filtering, explicit time bounds, rename identity, mer
 classification, or any confidence/minimum-observation rule. Those remain separate evidence
 dimensions and must not be smuggled into the weighting formula.
 
-#### KR-012 — Establish Git history context and bounded walks
+#### KR-012 — Establish Git history context and bounded walks *(shipped in this slice)*
 
 - **Admits:** one repository’s commits since an explicit `--since`/equivalent time boundary.
 - **Observable result:** repository root, commit count, source-file filter policy, and a stable

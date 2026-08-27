@@ -10,6 +10,7 @@ class CommitHistoryQuery:
     """Describe a bounded backward commit walk."""
 
     limit: int
+    since_unix_time: int
     tip_sha: str | None = None
     paths: tuple[str, ...] = ()
 

@@ -56,6 +56,7 @@ class GitCliHistory(CommitMetadataSource, CommitPatchSource):
 
     def commit_metadata(self, repository: Path, query: CommitHistoryQuery) -> list[CommitMetadata]:
         _validate_limit(query.limit)
+        _validate_since_unix_time(query.since_unix_time)
         tip = _validate_sha(query.tip_sha, field_name="tip_sha") if query.tip_sha else "HEAD"
         path_args = _validate_paths(query.paths)
         command = (
@@ -65,7 +66,9 @@ class GitCliHistory(CommitMetadataSource, CommitPatchSource):
             "log",
             "-z",
             f"--format={_LOG_FORMAT}",
-            f"--max-count={query.limit}",
+            "--date-order",
+            f"--max-count={query.limit + 1}",
+            f"--since=@{query.since_unix_time}",
             tip,
             *(_with_path_separator(path_args)),
         )
@@ -151,6 +154,11 @@ def _validate_limit(limit: int) -> None:
 def _validate_max_bytes(max_bytes: int) -> None:
     if max_bytes <= 0:
         raise GitHistoryValidationError("max_bytes must be positive.")
+
+
+def _validate_since_unix_time(since_unix_time: int) -> None:
+    if since_unix_time <= 0:
+        raise GitHistoryValidationError(f"since_unix_time must be positive: {since_unix_time}")
 
 
 def _validate_sha(value: str, *, field_name: str) -> str:

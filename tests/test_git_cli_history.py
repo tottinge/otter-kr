@@ -64,7 +64,12 @@ def test_lists_bounded_commit_metadata_with_injected_runner(tmp_path: Path) -> N
 
     commits = history.commit_metadata(
         tmp_path,
-        CommitHistoryQuery(limit=2, tip_sha=second, paths=("pkg/service.py",)),
+        CommitHistoryQuery(
+            limit=2,
+            since_unix_time=1_700_000_000,
+            tip_sha=second,
+            paths=("*.py",),
+        ),
     )
 
     assert calls == [
@@ -75,10 +80,12 @@ def test_lists_bounded_commit_metadata_with_injected_runner(tmp_path: Path) -> N
             "log",
             "-z",
             "--format=%H%x00%P%x00%ct%x00%an%x00%ae%x00%s",
-            "--max-count=2",
+            "--date-order",
+            "--max-count=3",
+            "--since=@1700000000",
             second,
             "--",
-            "pkg/service.py",
+            "*.py",
         )
     ]
     assert commits == [
@@ -108,13 +115,21 @@ def test_commit_metadata_rejects_invalid_query_values(tmp_path: Path) -> None:
     history = GitCliHistory(runner=lambda command: (0, b"", b""))
 
     with pytest.raises(GitHistoryValidationError, match="limit must be between 1 and 5000"):
-        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=0))
+        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=0, since_unix_time=1))
+
+    with pytest.raises(GitHistoryValidationError, match="since_unix_time must be positive"):
+        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=1, since_unix_time=0))
 
     with pytest.raises(GitHistoryValidationError, match="tip_sha must be a Git SHA"):
-        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=1, tip_sha="HEAD"))
+        history.commit_metadata(
+            tmp_path, CommitHistoryQuery(limit=1, since_unix_time=1, tip_sha="HEAD")
+        )
 
     with pytest.raises(GitHistoryValidationError, match="paths must be repository-relative"):
-        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=1, paths=("/tmp/file.py",)))
+        history.commit_metadata(
+            tmp_path,
+            CommitHistoryQuery(limit=1, since_unix_time=1, paths=("/tmp/file.py",)),
+        )
 
 
 def test_reads_parent_based_patch_with_injected_runner(tmp_path: Path) -> None:
@@ -188,7 +203,7 @@ def test_adapter_preserves_git_failure_evidence(tmp_path: Path) -> None:
     history = GitCliHistory(runner=lambda command: (128, b"", b"fatal: not a git repository\n"))
 
     with pytest.raises(GitHistoryError) as error:
-        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=1))
+        history.commit_metadata(tmp_path, CommitHistoryQuery(limit=1, since_unix_time=1))
 
     assert error.value.command[:4] == ("git", "-C", str(tmp_path), "log")
     assert error.value.returncode == 128
@@ -209,7 +224,12 @@ def test_lists_real_commit_metadata_in_deterministic_order(tmp_path: Path) -> No
 
     commits = GitCliHistory().commit_metadata(
         tmp_path,
-        CommitHistoryQuery(limit=2, tip_sha=third, paths=("pkg/service.py",)),
+        CommitHistoryQuery(
+            limit=2,
+            since_unix_time=1,
+            tip_sha=third,
+            paths=("*.py",),
+        ),
     )
 
     assert [item.sha for item in commits] == [second, first]
@@ -217,6 +237,38 @@ def test_lists_real_commit_metadata_in_deterministic_order(tmp_path: Path) -> No
     assert commits[0].subject == "adjust service"
     assert commits[1].parent_shas == ()
     assert commits[1].subject == "initial import"
+
+
+def test_commit_metadata_marks_truncation_when_limit_plus_one_records_arrive(
+    tmp_path: Path,
+) -> None:
+    from otter_kr.git_cli_history import GitCliHistory
+    from otter_kr.git_ports import CommitHistoryQuery
+
+    records = []
+    for index in range(3):
+        sha = str(index + 1) * 40
+        records.extend(
+            [
+                sha.encode("utf-8"),
+                b"",
+                str(1_700_000_000 + index).encode("utf-8"),
+                b"Test User",
+                b"test@example.com",
+                f"change {index}".encode(),
+            ]
+        )
+    stdout = b"\0".join(records) + b"\0"
+
+    history = GitCliHistory(runner=lambda command: (0, stdout, b""))
+
+    commits = history.commit_metadata(
+        tmp_path,
+        CommitHistoryQuery(limit=2, since_unix_time=1, tip_sha="1" * 40, paths=("*.py",)),
+    )
+
+    assert len(commits) == 3
+    assert [item.subject for item in commits] == ["change 0", "change 1", "change 2"]
 
 
 def test_reads_real_parent_based_patch(tmp_path: Path) -> None:
