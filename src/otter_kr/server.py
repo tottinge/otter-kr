@@ -134,6 +134,41 @@ def _repository_access_failed(
     }
 
 
+def _validate_history_bounds(
+    operation: str,
+    repository_root: str,
+    since_unix_time: int | None,
+    limit: int | None,
+    *,
+    term: str | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
+) -> dict | None:
+    if since_unix_time is None or since_unix_time <= 0:
+        return _invalid_query(
+            operation,
+            repository_root,
+            f"A positive since_unix_time is required for {operation}.",
+            term=term,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            left_path=left_path,
+            right_path=right_path,
+        )
+    if limit is None or limit <= 0:
+        return _invalid_query(
+            operation,
+            repository_root,
+            f"A positive limit is required for {operation}.",
+            term=term,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            left_path=left_path,
+            right_path=right_path,
+        )
+    return None
+
+
 def _run_operation(
     operation: str,
     repository_root: str,
@@ -272,59 +307,42 @@ def create_server() -> FastMCP:
                 **kwargs,
             )
 
-        if operation == "python.inventory":
-            return run(inventory_python)
-        if operation == "python.names":
-            return run(
-                find_names,
-                term=term,
-                require_term=True,
-                term_message="A term is required for python.names.",
-            )
-        if operation == "python.discriminations":
-            return run(
+        python_operations = {
+            "python.inventory": (inventory_python, False, None, True),
+            "python.names": (find_names, True, "A term is required for python.names.", True),
+            "python.discriminations": (
                 find_type_discriminations,
-                term=term,
-                require_term=True,
-                term_message="A term is required for python.discriminations.",
-            )
-        if operation == "python.tests":
-            return run(
+                True,
+                "A term is required for python.discriminations.",
+                True,
+            ),
+            "python.tests": (
                 find_tests_for_symbol,
-                term=term,
-                require_term=True,
-                term_message="A term is required for python.tests.",
-            )
-        if operation == "python.imports":
-            return run(import_python)
-        if operation == "python.complexity":
+                True,
+                "A term is required for python.tests.",
+                True,
+            ),
+            "python.imports": (import_python, False, None, True),
+            "python.complexity": (analyze_python_complexity, False, None, False),
+            "python.literals": (find_repeated_literals, False, None, True),
+            "python.groups": (find_repeated_groups, False, None, True),
+            "python.duplicates": (find_duplicate_helpers, False, None, True),
+        }
+        python_spec = python_operations.get(operation)
+        if python_spec is not None:
+            analyzer, requires_term, term_message, catches_value_error = python_spec
             return run(
-                analyze_python_complexity,
-                catches_value_error=False,
+                analyzer,
+                term=term if requires_term else None,
+                require_term=requires_term,
+                term_message=term_message,
+                catches_value_error=catches_value_error,
             )
-        if operation == "python.literals":
-            return run(find_repeated_literals)
-        if operation == "python.groups":
-            return run(find_repeated_groups)
-        if operation == "python.duplicates":
-            return run(find_duplicate_helpers)
+
         if operation == "git.history":
-            if since_unix_time is None or since_unix_time <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive since_unix_time is required for git.history.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if limit is None or limit <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive limit is required for git.history.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
             return _run_operation(
                 operation,
                 repository_root,
@@ -338,22 +356,9 @@ def create_server() -> FastMCP:
                 limit=limit,
             )
         if operation == "git.hotspots":
-            if since_unix_time is None or since_unix_time <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive since_unix_time is required for git.hotspots.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if limit is None or limit <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive limit is required for git.hotspots.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
             return _run_operation(
                 operation,
                 repository_root,
@@ -367,22 +372,9 @@ def create_server() -> FastMCP:
                 limit=limit,
             )
         if operation == "git.cochange":
-            if since_unix_time is None or since_unix_time <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive since_unix_time is required for git.cochange.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if limit is None or limit <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive limit is required for git.cochange.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
             return _run_operation(
                 operation,
                 repository_root,
