@@ -16,6 +16,7 @@ from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.git_hotspots import collect_git_hotspots
 from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
+from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
@@ -57,6 +58,11 @@ PYTHON_OPERATIONS = {
         find_historical_neighborhood,
         requires_term=True,
         term_message="A seed is required for python.neighborhood.historical.",
+    ),
+    "python.neighborhood.behavioral": PythonOperationSpec(
+        find_behavioral_neighborhood,
+        requires_term=True,
+        term_message="A seed is required for python.neighborhood.behavioral.",
     ),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
