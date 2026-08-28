@@ -67,6 +67,18 @@ class RawCommitPatch:
     patch: bytes
 
 
+@dataclass(frozen=True)
+class CommitPathChange:
+    status: str
+    path: str
+    previous_path: str | None = None
+
+
+class CommitChangeSource(Protocol):
+    def commit_changes(self, repository: Path, commit_sha: str) -> list[CommitPathChange]:
+        """Return changed paths and statuses for one commit."""
+
+
 class CommitMetadataSource(Protocol):
     """Read bounded commit metadata for one repository."""
 

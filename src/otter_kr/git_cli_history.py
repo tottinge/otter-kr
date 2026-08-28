@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_ports import (
+    CommitChangeSource,
     CommitFileChange,
     CommitFileChangeSource,
     CommitHistoryQuery,
@@ -14,6 +15,7 @@ from otter_kr.git_ports import (
     CommitMetadataSource,
     CommitPatchRequest,
     CommitPatchSource,
+    CommitPathChange,
     RawCommitPatch,
 )
 
@@ -50,7 +52,9 @@ def _default_runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
     return result.returncode, result.stdout, result.stderr
 
 
-class GitCliHistory(CommitMetadataSource, CommitFileChangeSource, CommitPatchSource):
+class GitCliHistory(
+    CommitMetadataSource, CommitFileChangeSource, CommitPatchSource, CommitChangeSource
+):
     """Fulfill bounded history ports by invoking Git directly."""
 
     def __init__(self, runner: GitRunner = _default_runner) -> None:
@@ -98,6 +102,14 @@ class GitCliHistory(CommitMetadataSource, CommitFileChangeSource, CommitPatchSou
         if len(stdout) > request.max_bytes:
             raise GitHistoryPatchTooLargeError(command, request.max_bytes, len(stdout))
         return RawCommitPatch(commit_sha=commit_sha, parent_sha=parent_sha, patch=stdout)
+
+    def commit_changes(self, repository: Path, commit_sha: str) -> list[CommitPathChange]:
+        commit_sha = _validate_sha(commit_sha, field_name="commit_sha")
+        command = (
+            "git", "-C", str(repository), "diff-tree", "--root", "--no-commit-id",
+            "--name-status", "-z", "-r", "-M", commit_sha,
+        )
+        return _parse_commit_changes(self._run(command))
 
     def commit_file_changes(
         self, repository: Path, query: CommitHistoryQuery
@@ -163,6 +175,22 @@ def _parse_commit_metadata(stdout: bytes) -> list[CommitMetadata]:
             )
         )
     return commits
+
+
+def _parse_commit_changes(stdout: bytes) -> list[CommitPathChange]:
+    fields = [field.decode("utf-8") for field in stdout.split(b"\0") if field]
+    changes: list[CommitPathChange] = []
+    index = 0
+    while index < len(fields):
+        status = fields[index]
+        index += 1
+        if status.startswith("R") or status.startswith("C"):
+            changes.append(CommitPathChange(status[0], fields[index + 1], fields[index]))
+            index += 2
+        else:
+            changes.append(CommitPathChange(status[0], fields[index]))
+            index += 1
+    return changes
 
 
 def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
