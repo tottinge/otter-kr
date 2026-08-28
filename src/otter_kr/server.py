@@ -20,6 +20,7 @@ from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
+from otter_kr.python_graph import build_python_import_graph
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_historical_neighborhood import find_historical_neighborhood
 from otter_kr.python_imports import import_python
@@ -64,6 +65,7 @@ PYTHON_OPERATIONS = {
         requires_term=True,
         term_message="A seed is required for python.neighborhood.behavioral.",
     ),
+    "python.graph_topology": PythonOperationSpec(build_python_import_graph),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
         requires_term=True,
