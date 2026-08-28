@@ -9,6 +9,7 @@ from mcp.types import ToolAnnotations
 from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
+from otter_kr.git_distributions import collect_git_distributions
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_history_context import collect_git_history
 from otter_kr.git_history_snapshot import collect_git_history_snapshot
@@ -412,6 +413,22 @@ def create_server() -> FastMCP:
                     patches=GitCliHistory(),
                 ),
                 term=term,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
+        if operation == "git.distributions":
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, *, since_unix_time, limit: collect_git_distributions(
+                    repository,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    history=GitCliHistory(),
+                ),
                 since_unix_time=since_unix_time,
                 limit=limit,
             )
