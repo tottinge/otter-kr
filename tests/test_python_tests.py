@@ -113,6 +113,62 @@ def test_reports_direct_and_aliased_symbol_evidence_for_candidate_tests(tmp_path
         assert_import_matches_source(matching_import, source)
 
 
+def test_reports_plain_module_import_and_attribute_use(tmp_path: Path) -> None:
+    source = (
+        "import app.service as service\n\n"
+        "def test_attribute_reference():\n"
+        "    service.collect_payment()\n"
+    )
+    write_python(tmp_path, "tests/test_service.py", source)
+    git_repository(tmp_path, "tests")
+
+    report = find_tests_for_symbol(tmp_path, "collect_payment")
+
+    assert [item.qualified_name for item in report.candidates] == ["test_attribute_reference"]
+    assert evidence_summary(report.candidates[0]) == {
+        "kind": "imported_module_attribute",
+        "name": "collect_payment",
+        "expression": "service.collect_payment()",
+    }
+    assert [import_summary(item) for item in report.matching_imports] == [
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "service",
+        }
+    ]
+
+
+def test_reports_unaliased_dotted_module_import_and_attribute_use(tmp_path: Path) -> None:
+    source = (
+        "import app.service\n\n"
+        "def test_attribute_reference():\n"
+        "    app.service.collect_payment()\n"
+    )
+    write_python(tmp_path, "tests/test_service.py", source)
+    git_repository(tmp_path, "tests")
+
+    report = find_tests_for_symbol(tmp_path, "collect_payment")
+
+    assert [item.qualified_name for item in report.candidates] == ["test_attribute_reference"]
+    assert evidence_summary(report.candidates[0]) == {
+        "kind": "imported_module_attribute",
+        "name": "collect_payment",
+        "expression": "app.service.collect_payment()",
+    }
+    assert [import_summary(item) for item in report.matching_imports] == [
+        {
+            "path": "tests/test_service.py",
+            "module": "app.service",
+            "relative_level": 0,
+            "imported_name": "collect_payment",
+            "local_name": "app",
+        }
+    ]
+
+
 def test_reports_shadowed_import_name_truthfully(tmp_path: Path) -> None:
     source = (
         "from app.service import collect_payment\n\n"

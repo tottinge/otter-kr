@@ -101,6 +101,26 @@ def _module_bindings(module: ast.Module, symbol: str) -> dict[str, str]:
     return bindings
 
 
+def _module_import_bindings(module: ast.Module) -> dict[str, str]:
+    bindings: dict[str, str] = {}
+    for statement in module.body:
+        if not isinstance(statement, ast.Import):
+            continue
+        for alias in statement.names:
+            local_name = alias.asname or alias.name.split(".", 1)[0]
+            bindings[local_name] = alias.name
+    return bindings
+
+
+def _attribute_chain(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _attribute_chain(node.value)
+        return f"{prefix}.{node.attr}" if prefix else None
+    return None
+
+
 def _matching_imports_in_tree(
     path: str,
     tree: ast.AST,
@@ -108,22 +128,43 @@ def _matching_imports_in_tree(
 ) -> list[MatchingImport]:
     matching_imports: list[MatchingImport] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom):
-            continue
-        for alias in node.names:
-            if alias.name != symbol:
-                continue
-            matching_imports.append(
-                MatchingImport(
-                    path=path,
-                    line=getattr(alias, "lineno", node.lineno),
-                    column=getattr(alias, "col_offset", node.col_offset),
-                    module=node.module,
-                    relative_level=node.level,
-                    imported_name=alias.name,
-                    local_name=alias.asname or alias.name,
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != symbol:
+                    continue
+                matching_imports.append(
+                    MatchingImport(
+                        path=path,
+                        line=getattr(alias, "lineno", node.lineno),
+                        column=getattr(alias, "col_offset", node.col_offset),
+                        module=node.module,
+                        relative_level=node.level,
+                        imported_name=alias.name,
+                        local_name=alias.asname or alias.name,
+                    )
                 )
-            )
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                local_name = alias.asname or alias.name.split(".", 1)[0]
+                expected_chains = {f"{alias.name}.{symbol}"}
+                if alias.asname:
+                    expected_chains.add(f"{local_name}.{symbol}")
+                if any(
+                    isinstance(candidate, ast.Attribute)
+                    and _attribute_chain(candidate) in expected_chains
+                    for candidate in ast.walk(tree)
+                ):
+                    matching_imports.append(
+                        MatchingImport(
+                            path=path,
+                            line=getattr(alias, "lineno", node.lineno),
+                            column=getattr(alias, "col_offset", node.col_offset),
+                            module=alias.name,
+                            relative_level=0,
+                            imported_name=symbol,
+                            local_name=local_name,
+                        )
+                    )
     return matching_imports
 
 
@@ -231,11 +272,13 @@ class _FunctionEvidenceCollector(ast.NodeVisitor):
         symbol: str,
         parents: dict[ast.AST, ast.AST],
         bindings: dict[str, str],
+        module_imports: dict[str, str],
         local_bindings: set[str],
     ) -> None:
         self.symbol = symbol
         self.parents = parents
         self.bindings = dict(bindings)
+        self.module_imports = dict(module_imports)
         self.local_bindings = set(local_bindings)
         self.evidence: list[TestEvidence] = []
 
@@ -276,6 +319,27 @@ class _FunctionEvidenceCollector(ast.NodeVisitor):
             )
         )
 
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if not isinstance(node.ctx, ast.Load):
+            return
+        chain = _attribute_chain(node)
+        if chain is None or node.attr != self.symbol:
+            self.generic_visit(node)
+            return
+        for local_name, module in self.module_imports.items():
+            if chain in {f"{local_name}.{self.symbol}", f"{module}.{self.symbol}"}:
+                self.evidence.append(
+                    TestEvidence(
+                        kind="imported_module_attribute",
+                        line=node.lineno,
+                        column=node.col_offset,
+                        name=node.attr,
+                        expression=_expression_for(node, self.parents),
+                    )
+                )
+                break
+        self.generic_visit(node)
+
 
 class _TestCollector(ast.NodeVisitor):
     def __init__(self, relative_path: str, symbol: str, parents: dict[ast.AST, ast.AST]) -> None:
@@ -284,10 +348,12 @@ class _TestCollector(ast.NodeVisitor):
         self.parents = parents
         self.class_stack: list[str] = []
         self.module_bindings: dict[str, str] = {}
+        self.module_imports: dict[str, str] = {}
         self.candidates: list[TestCandidate] = []
 
     def visit_Module(self, node: ast.Module) -> None:
         self.module_bindings = _module_bindings(node, self.symbol)
+        self.module_imports = _module_import_bindings(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
@@ -313,6 +379,7 @@ class _TestCollector(ast.NodeVisitor):
             self.symbol,
             self.parents,
             self.module_bindings,
+            self.module_imports,
             _function_local_bindings(node),
         )
         for statement in node.body:
