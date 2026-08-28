@@ -146,7 +146,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Still rejected:** automatic extraction, semantic equivalence, and strings whose repetition is
   intentionally incidental.
 
-#### KR-008 — Find repeated parameter and field groups *(shipped in this slice)*
+#### KR-008 — Find repeated parameter and field groups *(shipped in commit `149b67e`)*
 
 - **Admits:** repeated ordered parameter or attribute groups visible in Python AST structure.
 - **Observable result:** grouped signatures/field sets, participating functions, and occurrence
