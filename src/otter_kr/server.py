@@ -1,5 +1,6 @@
 """FastMCP transport for repository evidence tools."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -21,6 +22,39 @@ from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
 from otter_kr.python_tests import find_tests_for_symbol
+
+
+@dataclass(frozen=True, slots=True)
+class PythonOperationSpec:
+    analyzer: object
+    requires_term: bool = False
+    term_message: str | None = None
+    catches_value_error: bool = True
+
+
+PYTHON_OPERATIONS = {
+    "python.inventory": PythonOperationSpec(inventory_python),
+    "python.names": PythonOperationSpec(
+        find_names, requires_term=True, term_message="A term is required for python.names."
+    ),
+    "python.discriminations": PythonOperationSpec(
+        find_type_discriminations,
+        requires_term=True,
+        term_message="A term is required for python.discriminations.",
+    ),
+    "python.tests": PythonOperationSpec(
+        find_tests_for_symbol,
+        requires_term=True,
+        term_message="A term is required for python.tests.",
+    ),
+    "python.imports": PythonOperationSpec(import_python),
+    "python.complexity": PythonOperationSpec(
+        analyze_python_complexity, catches_value_error=False
+    ),
+    "python.literals": PythonOperationSpec(find_repeated_literals),
+    "python.groups": PythonOperationSpec(find_repeated_groups),
+    "python.duplicates": PythonOperationSpec(find_duplicate_helpers),
+}
 
 
 def _query(
@@ -307,36 +341,14 @@ def create_server() -> FastMCP:
                 **kwargs,
             )
 
-        python_operations = {
-            "python.inventory": (inventory_python, False, None, True),
-            "python.names": (find_names, True, "A term is required for python.names.", True),
-            "python.discriminations": (
-                find_type_discriminations,
-                True,
-                "A term is required for python.discriminations.",
-                True,
-            ),
-            "python.tests": (
-                find_tests_for_symbol,
-                True,
-                "A term is required for python.tests.",
-                True,
-            ),
-            "python.imports": (import_python, False, None, True),
-            "python.complexity": (analyze_python_complexity, False, None, False),
-            "python.literals": (find_repeated_literals, False, None, True),
-            "python.groups": (find_repeated_groups, False, None, True),
-            "python.duplicates": (find_duplicate_helpers, False, None, True),
-        }
-        python_spec = python_operations.get(operation)
+        python_spec = PYTHON_OPERATIONS.get(operation)
         if python_spec is not None:
-            analyzer, requires_term, term_message, catches_value_error = python_spec
             return run(
-                analyzer,
-                term=term if requires_term else None,
-                require_term=requires_term,
-                term_message=term_message,
-                catches_value_error=catches_value_error,
+                python_spec.analyzer,
+                term=term if python_spec.requires_term else None,
+                require_term=python_spec.requires_term,
+                term_message=python_spec.term_message,
+                catches_value_error=python_spec.catches_value_error,
             )
 
         if operation == "git.history":

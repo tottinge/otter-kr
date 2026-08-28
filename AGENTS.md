@@ -1,19 +1,13 @@
 # Repository workflow
 
-## Atomic commit disposition protocol
+Use the `atomic-commit` skill for every commit. It is the authoritative
+procedure for choosing a coherent batch, maintaining a green exact state,
+resolving untracked files, reviewing the complete staged snapshot, obtaining
+human approval, and verifying the post-commit workspace.
 
-Before every commit, assess the workspace so the commit remains a clean, coherent
-unit of work and does not capture machine-specific artifacts or unrelated tests.
+For this repository, treat the untracked-file disposition assessment as a hard
+safety boundary: every non-ignored path must be explicitly classified as
+**add**, **gitignore**, or **delete**, with the chosen action performed before
+staging. Ignored paths need not be listed unless the ignore rules are changing.
 
-1. Inspect Git status and determine whether non-ignored untracked paths exist.
-2. If there are non-ignored paths, classify each as **add**, **gitignore**, or
-   **delete**, and perform those disposition actions. Ignored paths do not need
-   to be listed unless the ignore rules themselves are changing.
-3. Review the complete diff and verify the intended unit of work and test health.
-4. Stage the repository root with `git add .`.
-5. Review the staged diff and check it for whitespace/errors.
-6. Commit only after the staged review passes.
-7. Verify the post-commit workspace is clean.
-
-The disposition assessment is the purpose of this protocol. Do not skip it or
-assume that a previously clean workspace is still clean without validation.
+Do not assume a previously clean workspace is still clean without validating it.
