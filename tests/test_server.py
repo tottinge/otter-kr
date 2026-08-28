@@ -8,8 +8,10 @@ from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
     assert_unreadable_file_warning,
+    call_research,
     git_commit,
     git_repository,
+    list_tools,
     write_bytes,
     write_python,
 )
@@ -58,19 +60,13 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
 
     server = create_server()
 
-    async def call_research() -> tuple[list[str], dict]:
-        async with Client(server) as client:
-            tools = await client.list_tools()
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "python.inventory",
-                },
-            )
-            return [tool.name for tool in tools], result.data
-
-    tool_names, report = asyncio.run(call_research())
+    report = asyncio.run(
+        call_research(
+            server,
+            {"repository_root": str(tmp_path), "operation": "python.inventory"},
+        )
+    )
+    tool_names = asyncio.run(list_tools(server))
 
     assert tool_names == ["research"]
     assert report["schema_version"] == "1"

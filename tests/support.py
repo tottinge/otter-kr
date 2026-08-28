@@ -1,5 +1,20 @@
 import subprocess
 from pathlib import Path
+from typing import Any
+
+from fastmcp import Client
+
+
+async def call_research(server: Any, request: dict[str, Any]) -> dict[str, Any]:
+    """Invoke the research tool while keeping transport plumbing out of tests."""
+    async with Client(server) as client:
+        result = await client.call_tool("research", request)
+        return result.data
+
+
+async def list_tools(server: Any) -> list[str]:
+    async with Client(server) as client:
+        return [tool.name for tool in await client.list_tools()]
 
 
 def write_python(repository: Path, relative_path: str, source: str) -> None:
