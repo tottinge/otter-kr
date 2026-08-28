@@ -6,6 +6,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
 from otter_kr.git_files import GitFileSourceError
@@ -381,6 +382,36 @@ def create_server() -> FastMCP:
                     limit=limit,
                     changes=GitCliHistory(),
                 ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
+        if operation == "git.branch_additions":
+            if term is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A Python file path is required for git.branch_additions.",
+                    term=term,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            rejection = _validate_history_bounds(
+                operation, repository_root, since_unix_time, limit, term=term
+            )
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, path: collect_branch_additions(
+                    repository,
+                    path,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    history=GitCliHistory(),
+                    patches=GitCliHistory(),
+                ),
+                term=term,
                 since_unix_time=since_unix_time,
                 limit=limit,
             )

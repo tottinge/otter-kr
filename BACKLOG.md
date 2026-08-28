@@ -295,11 +295,11 @@ dimensions and must not be smuggled into the weighting formula.
 - **Still rejected:** narrative summaries, recommendations, and unbounded raw commit payloads.
 - **Reference sample:** `gitminer-dash/insights/models.py` and `insights/snapshot_builder.py`.
 
-#### KR-018 — Detect repeatedly growing branches
+#### KR-018 — Report branch constructs added across commits
 
-- **Admits:** branch or conditional growth observable across successive commits for one file.
-- **Observable result:** changed branch counts/locations over time and the commits contributing to
-  growth.
+- **Admits:** branch or conditional constructs added in successive commits for one Python file.
+- **Observable result:** added-construct counts, locations, text, commit identities, and explicit
+  first-parent/skipped-commit evidence.
 - **Still rejected:** a refactoring recommendation or assertion that growth is harmful.
 
 #### KR-018a — Report temporal and commit-message distributions
