@@ -182,47 +182,54 @@ def _parse_file_changes(stdout: bytes) -> list[CommitFileChange]:
         while index < len(fields) and not _SHA_PATTERN.fullmatch(
             fields[index].decode(errors="replace")
         ):
-            fields[index] = fields[index].lstrip(b"\n")
-            if not fields[index]:
+            record, consumed = _parse_numstat_record(fields, index, sha, committed_at)
+            index += consumed
+            if record is None:
                 index += 1
                 continue
-            additions, separator, remainder = fields[index].partition(b"\t")
-            deletions, separator2, path = remainder.partition(b"\t")
-            if not separator or not separator2:
-                raise GitHistoryValidationError("Git numstat output had an invalid file record.")
-            if additions == b"-" or deletions == b"-":
-                index += 1
-                continue
-            try:
-                previous_path = None
-                if not path and index + 2 < len(fields):
-                    previous_path = _decode_field(fields[index + 1], "previous_path")
-                    path = fields[index + 2]
-                    index += 2
-                elif (
-                    index + 1 < len(fields)
-                    and b"\t" not in fields[index + 1]
-                    and not _SHA_PATTERN.fullmatch(fields[index + 1].decode(errors="replace"))
-                ):
-                    previous_path = _decode_field(path, "previous_path")
-                    path = fields[index + 1]
-                    index += 1
-                changes.append(
-                    CommitFileChange(
-                        commit_sha=sha,
-                        committed_unix_time=int(committed_at),
-                        path=_decode_field(path, "path"),
-                        additions=int(additions),
-                        deletions=int(deletions),
-                        previous_path=previous_path,
-                    )
-                )
-            except ValueError as error:
-                raise GitHistoryValidationError(
-                    "Git numstat output had invalid line counts."
-                ) from error
+            changes.append(record)
             index += 1
     return changes
+
+
+def _parse_numstat_record(
+    fields: list[bytes], index: int, sha: str, committed_at: str
+) -> tuple[CommitFileChange | None, int]:
+    field = fields[index].lstrip(b"\n")
+    if not field:
+        return None, 0
+    additions, separator, remainder = field.partition(b"\t")
+    deletions, separator2, path = remainder.partition(b"\t")
+    if not separator or not separator2:
+        raise GitHistoryValidationError("Git numstat output had an invalid file record.")
+    if additions == b"-" or deletions == b"-":
+        return None, 0
+    consumed = 0
+    previous_path = None
+    if not path and index + 2 < len(fields):
+        previous_path = _decode_field(fields[index + 1], "previous_path")
+        path = fields[index + 2]
+        consumed = 2
+    elif (
+        index + 1 < len(fields)
+        and b"\t" not in fields[index + 1]
+        and not _SHA_PATTERN.fullmatch(fields[index + 1].decode(errors="replace"))
+    ):
+        previous_path = _decode_field(path, "previous_path")
+        path = fields[index + 1]
+        consumed = 1
+    try:
+        record = CommitFileChange(
+            commit_sha=sha,
+            committed_unix_time=int(committed_at),
+            path=_decode_field(path, "path"),
+            additions=int(additions),
+            deletions=int(deletions),
+            previous_path=previous_path,
+        )
+    except ValueError as error:
+        raise GitHistoryValidationError("Git numstat output had invalid line counts.") from error
+    return record, consumed
 
 
 def _decode_field(value: bytes, name: str) -> str:
