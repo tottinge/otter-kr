@@ -20,6 +20,7 @@ from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
 from otter_kr.python_groups import find_repeated_groups
+from otter_kr.python_historical_neighborhood import find_historical_neighborhood
 from otter_kr.python_imports import import_python
 from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
@@ -51,6 +52,11 @@ PYTHON_OPERATIONS = {
         find_structural_neighborhood,
         requires_term=True,
         term_message="A seed is required for python.neighborhood.structural.",
+    ),
+    "python.neighborhood.historical": PythonOperationSpec(
+        find_historical_neighborhood,
+        requires_term=True,
+        term_message="A seed is required for python.neighborhood.historical.",
     ),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
