@@ -797,7 +797,15 @@ def test_research_tool_rejects_missing_repository_root() -> None:
         async with Client(server) as client:
             result = await client.call_tool(
                 "research",
-                {"repository_root": "/repo/missing", "operation": "python.imports"},
+                {
+                    "repository_root": "/repo/missing",
+                    "operation": "python.imports",
+                    "term": "Widget",
+                    "since_unix_time": 123,
+                    "limit": 7,
+                    "left_path": "left.py",
+                    "right_path": "right.py",
+                },
             )
             return result.data
 
@@ -807,7 +815,14 @@ def test_research_tool_rejects_missing_repository_root() -> None:
         "schema_version": "1",
         "status": "rejected",
         "operation": "python.imports",
-        "query": {"repository_root": "/repo/missing"},
+        "query": {
+            "repository_root": "/repo/missing",
+            "term": "Widget",
+            "since_unix_time": 123,
+            "limit": 7,
+            "left_path": "left.py",
+            "right_path": "right.py",
+        },
         "error": {
             "code": "not_a_repository",
             "message": "Repository is not a directory: /repo/missing",

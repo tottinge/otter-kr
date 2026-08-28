@@ -87,12 +87,21 @@ def _invalid_query(
     }
 
 
-def _not_a_repository(operation: str, repository_root: str, error: ValueError) -> dict:
+def _not_a_repository(
+    operation: str,
+    repository_root: str,
+    error: ValueError,
+    term: str | None = None,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+    left_path: str | None = None,
+    right_path: str | None = None,
+) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root),
+        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
         "error": {
             "code": "not_a_repository",
             "message": str(error),
@@ -135,10 +144,22 @@ def _run_operation(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    query_term: str | None = None,
+    query_since_unix_time: int | None = None,
+    query_limit: int | None = None,
+    query_left_path: str | None = None,
+    query_right_path: str | None = None,
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
 ) -> dict:
+    query_term = term if query_term is None else query_term
+    query_since_unix_time = (
+        since_unix_time if query_since_unix_time is None else query_since_unix_time
+    )
+    query_limit = limit if query_limit is None else query_limit
+    query_left_path = left_path if query_left_path is None else query_left_path
+    query_right_path = right_path if query_right_path is None else query_right_path
     if require_term and term is None:
         return _invalid_query(
             operation,
@@ -165,12 +186,24 @@ def _run_operation(
             operation,
             repository_root,
             str(error),
-            since_unix_time=since_unix_time,
-            limit=limit,
+            term=query_term,
+            since_unix_time=query_since_unix_time,
+            limit=query_limit,
+            left_path=query_left_path,
+            right_path=query_right_path,
         )
     except ValueError as error:
         if catches_value_error:
-            return _not_a_repository(operation, repository_root, error)
+            return _not_a_repository(
+                operation,
+                repository_root,
+                error,
+                query_term,
+                query_since_unix_time,
+                query_limit,
+                query_left_path,
+                query_right_path,
+            )
         raise
     except GitFileSourceError as error:
         return _repository_access_failed(
@@ -226,50 +259,55 @@ def create_server() -> FastMCP:
         right_path: str | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
-        if operation == "python.inventory":
-            return _run_operation(operation, repository_root, inventory_python)
-        if operation == "python.names":
+        def run(analyzer, **kwargs):
             return _run_operation(
                 operation,
                 repository_root,
+                analyzer,
+                query_term=term,
+                query_since_unix_time=since_unix_time,
+                query_limit=limit,
+                query_left_path=left_path,
+                query_right_path=right_path,
+                **kwargs,
+            )
+
+        if operation == "python.inventory":
+            return run(inventory_python)
+        if operation == "python.names":
+            return run(
                 find_names,
                 term=term,
                 require_term=True,
                 term_message="A term is required for python.names.",
             )
         if operation == "python.discriminations":
-            return _run_operation(
-                operation,
-                repository_root,
+            return run(
                 find_type_discriminations,
                 term=term,
                 require_term=True,
                 term_message="A term is required for python.discriminations.",
             )
         if operation == "python.tests":
-            return _run_operation(
-                operation,
-                repository_root,
+            return run(
                 find_tests_for_symbol,
                 term=term,
                 require_term=True,
                 term_message="A term is required for python.tests.",
             )
         if operation == "python.imports":
-            return _run_operation(operation, repository_root, import_python)
+            return run(import_python)
         if operation == "python.complexity":
-            return _run_operation(
-                operation,
-                repository_root,
+            return run(
                 analyze_python_complexity,
                 catches_value_error=False,
             )
         if operation == "python.literals":
-            return _run_operation(operation, repository_root, find_repeated_literals)
+            return run(find_repeated_literals)
         if operation == "python.groups":
-            return _run_operation(operation, repository_root, find_repeated_groups)
+            return run(find_repeated_groups)
         if operation == "python.duplicates":
-            return _run_operation(operation, repository_root, find_duplicate_helpers)
+            return run(find_duplicate_helpers)
         if operation == "git.history":
             if since_unix_time is None or since_unix_time <= 0:
                 return _invalid_query(
