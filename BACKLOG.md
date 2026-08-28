@@ -130,7 +130,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Still rejected:** runtime imports, package installation metadata, call-graph edges, and cycles
   inferred across unresolved modules.
 
-#### KR-006 — Report function-level complexity pressure
+#### KR-006 — Report function-level complexity pressure *(shipped in commit `170914d`)*
 
 - **Admits:** Python functions and methods in one repository.
 - **Observable result:** deterministic nesting, branch, line, and cyclomatic-style counts with
