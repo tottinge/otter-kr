@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.git_ports import CommitHistoryQuery, CommitMetadata, CommitMetadataSource
+from otter_kr.git_provenance import (
+    BoundedHistoryProvenance,
+    python_history_provenance,
+)
 
 _REPORT_VERSION = "1"
 _TIP_REVISION = "HEAD"
@@ -29,39 +33,21 @@ class GitHistoryCommitEvidence:
 
 
 @dataclass(frozen=True, slots=True)
-class SourceFileFilterPolicy:
-    tracked_by: str
-    language: str
-    pathspec: str
-    tip_revision: str
-
-    def to_dict(self) -> dict[str, str]:
-        return asdict(self)
-
-
-@dataclass(frozen=True, slots=True)
 class GitHistoryContextReport:
-    report_version: str
-    repository_root: str
-    tip_revision: str
-    since_unix_time: int
-    limit: int
-    commit_count: int
-    truncated: bool
-    source_file_filter: SourceFileFilterPolicy
+    provenance: BoundedHistoryProvenance
     commits: tuple[GitHistoryCommitEvidence, ...]
 
+    @property
+    def commit_count(self) -> int:
+        return self.provenance.commit_count
+
+    @property
+    def truncated(self) -> bool:
+        return self.provenance.truncated
+
     def to_dict(self) -> dict[str, object]:
-        return {
-            "report_version": self.report_version,
-            "repository_root": self.repository_root,
-            "tip_revision": self.tip_revision,
-            "since_unix_time": self.since_unix_time,
-            "limit": self.limit,
-            "commit_count": self.commit_count,
-            "truncated": self.truncated,
-            "source_file_filter": self.source_file_filter.to_dict(),
-            "commits": [commit.to_dict() for commit in self.commits],
+        return self.provenance.to_dict() | {
+            "commits": [commit.to_dict() for commit in self.commits]
         }
 
 
@@ -93,18 +79,12 @@ def collect_git_history(
     truncated = len(metadata) > limit
     visible_commits = tuple(_commit_evidence(commit) for commit in metadata[:limit])
     return GitHistoryContextReport(
-        report_version=_REPORT_VERSION,
-        repository_root=str(resolved_repository),
-        tip_revision=_TIP_REVISION,
-        since_unix_time=since_unix_time,
-        limit=limit,
-        commit_count=len(visible_commits),
-        truncated=truncated,
-        source_file_filter=SourceFileFilterPolicy(
-            tracked_by="git",
-            language="python",
-            pathspec=_PYTHON_PATHSPEC,
-            tip_revision=_TIP_REVISION,
+        provenance=python_history_provenance(
+            str(resolved_repository),
+            since_unix_time=since_unix_time,
+            limit=limit,
+            commit_count=len(visible_commits),
+            truncated=truncated,
         ),
         commits=visible_commits,
     )

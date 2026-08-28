@@ -7,6 +7,7 @@ from pathlib import Path
 
 from otter_kr.git_identity import canonicalize_file_changes
 from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
+from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
 
 _REPORT_VERSION = "1"
 _TIP_REVISION = "HEAD"
@@ -29,28 +30,19 @@ class HotspotFile:
 
 @dataclass(frozen=True, slots=True)
 class GitHotspotReport:
-    report_version: str
-    repository_root: str
-    tip_revision: str
-    since_unix_time: int
-    limit: int
-    commit_count: int
-    truncated: bool
-    source_file_filter: dict[str, str]
+    provenance: BoundedHistoryProvenance
     files: tuple[HotspotFile, ...]
 
+    @property
+    def commit_count(self) -> int:
+        return self.provenance.commit_count
+
+    @property
+    def truncated(self) -> bool:
+        return self.provenance.truncated
+
     def to_dict(self) -> dict[str, object]:
-        return {
-            "report_version": self.report_version,
-            "repository_root": self.repository_root,
-            "tip_revision": self.tip_revision,
-            "since_unix_time": self.since_unix_time,
-            "limit": self.limit,
-            "commit_count": self.commit_count,
-            "truncated": self.truncated,
-            "source_file_filter": self.source_file_filter,
-            "files": [file.to_dict() for file in self.files],
-        }
+        return self.provenance.to_dict() | {"files": [file.to_dict() for file in self.files]}
 
 
 def collect_git_hotspots(
@@ -82,19 +74,13 @@ def collect_git_hotspots(
     visible_records = [record for record in records if record.commit_sha in visible_commits]
     files = _aggregate(visible_records)
     return GitHotspotReport(
-        report_version=_REPORT_VERSION,
-        repository_root=str(resolved_repository),
-        tip_revision=_TIP_REVISION,
-        since_unix_time=since_unix_time,
-        limit=limit,
-        commit_count=len(commit_order[:limit]),
-        truncated=len(commit_order) > limit,
-        source_file_filter={
-            "tracked_by": "git",
-            "language": "python",
-            "pathspec": _PYTHON_PATHSPEC,
-            "tip_revision": _TIP_REVISION,
-        },
+        provenance=python_history_provenance(
+            str(resolved_repository),
+            since_unix_time=since_unix_time,
+            limit=limit,
+            commit_count=len(commit_order[:limit]),
+            truncated=len(commit_order) > limit,
+        ),
         files=files,
     )
 

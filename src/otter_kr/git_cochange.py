@@ -13,6 +13,7 @@ from otter_kr.cochange_affinity import (
 )
 from otter_kr.git_identity import canonicalize_file_changes
 from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
+from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
 
 _REPORT_VERSION = "1"
 _PYTHON_PATHSPEC = "*.py"
@@ -38,28 +39,21 @@ class GlobalCochangePair:
 
 @dataclass(frozen=True, slots=True)
 class GlobalCochangeReport:
-    report_version: str
-    repository_root: str
-    tip_revision: str
-    since_unix_time: int
-    limit: int
-    commit_count: int
-    truncated: bool
-    source_file_filter: dict[str, str]
+    provenance: BoundedHistoryProvenance
     excluded_single_file_commits: int
     eligible_commit_count: int
     pairs: tuple[GlobalCochangePair, ...]
 
+    @property
+    def commit_count(self) -> int:
+        return self.provenance.commit_count
+
+    @property
+    def truncated(self) -> bool:
+        return self.provenance.truncated
+
     def to_dict(self) -> dict[str, object]:
-        return {
-            "report_version": self.report_version,
-            "repository_root": self.repository_root,
-            "tip_revision": self.tip_revision,
-            "since_unix_time": self.since_unix_time,
-            "limit": self.limit,
-            "commit_count": self.commit_count,
-            "truncated": self.truncated,
-            "source_file_filter": self.source_file_filter,
+        return self.provenance.to_dict() | {
             "excluded_single_file_commits": self.excluded_single_file_commits,
             "eligible_commit_count": self.eligible_commit_count,
             "pairs": [pair.to_dict() for pair in self.pairs],
@@ -111,19 +105,13 @@ def collect_global_cochange(
         )
     )
     return GlobalCochangeReport(
-        report_version=_REPORT_VERSION,
-        repository_root=str(resolved_repository),
-        tip_revision="HEAD",
-        since_unix_time=since_unix_time,
-        limit=limit,
-        commit_count=len(visible_commits),
-        truncated=len(commit_order) > limit,
-        source_file_filter={
-            "tracked_by": "git",
-            "language": "python",
-            "pathspec": _PYTHON_PATHSPEC,
-            "tip_revision": "HEAD",
-        },
+        provenance=python_history_provenance(
+            str(resolved_repository),
+            since_unix_time=since_unix_time,
+            limit=limit,
+            commit_count=len(visible_commits),
+            truncated=len(commit_order) > limit,
+        ),
         excluded_single_file_commits=affinity.excluded_single_file_commits,
         eligible_commit_count=affinity.eligible_commit_count,
         pairs=pairs,
