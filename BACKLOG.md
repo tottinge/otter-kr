@@ -122,7 +122,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
   languages.
 - **Acceptance:** existing five-test contract remains green.
 
-#### KR-005 — Report direct Python imports and dependency edges *(in progress)*
+#### KR-005 — Report direct Python imports and dependency edges *(shipped in commit `2b57868`)*
 
 - **Admits:** statically visible `import` and `from ... import ...` edges.
 - **Observable result:** source module, target module, imported names, relative-import level, and
