@@ -24,6 +24,7 @@ from otter_kr.python_imports import import_python
 from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
+from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 
 
@@ -39,6 +40,11 @@ PYTHON_OPERATIONS = {
     "python.inventory": PythonOperationSpec(inventory_python),
     "python.names": PythonOperationSpec(
         find_names, requires_term=True, term_message="A term is required for python.names."
+    ),
+    "python.neighborhood": PythonOperationSpec(
+        find_python_neighborhood,
+        requires_term=True,
+        term_message="A seed is required for python.neighborhood.",
     ),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
