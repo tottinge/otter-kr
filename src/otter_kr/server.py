@@ -10,6 +10,7 @@ from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
 from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_history_context import collect_git_history
+from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.git_hotspots import collect_git_hotspots
 from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
@@ -363,6 +364,22 @@ def create_server() -> FastMCP:
                     since_unix_time=since_unix_time,
                     limit=limit,
                     history=GitCliHistory(),
+                ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
+        if operation == "git.snapshot":
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, *, since_unix_time, limit: collect_git_history_snapshot(
+                    repository,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    changes=GitCliHistory(),
                 ),
                 since_unix_time=since_unix_time,
                 limit=limit,

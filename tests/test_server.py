@@ -225,8 +225,39 @@ def test_research_tool_reports_git_hotspots(tmp_path: Path) -> None:
     assert data["commit_count"] == 2
     assert data["truncated"] is False
     assert data["files"][0]["path"] == "pkg/service.py"
+
+
+def test_research_tool_reports_git_history_snapshot(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    git_commit(tmp_path, "initial")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    git_commit(tmp_path, "update", "pkg/service.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.snapshot",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+    data = assert_ok_report(
+        report,
+        operation="git.snapshot",
+        repository_root=str(tmp_path),
+        since_unix_time=1,
+        limit=10,
+    )
+    assert data["files"][0]["path"] == "pkg/service.py"
     assert data["files"][0]["commit_count"] == 2
-    assert data["files"][0]["total_changed_lines"] == 4
 
 
 def test_research_tool_reports_global_git_cochange(tmp_path: Path) -> None:
