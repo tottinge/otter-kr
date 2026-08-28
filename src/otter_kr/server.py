@@ -25,6 +25,7 @@ from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
+from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 
 
@@ -45,6 +46,11 @@ PYTHON_OPERATIONS = {
         find_python_neighborhood,
         requires_term=True,
         term_message="A seed is required for python.neighborhood.",
+    ),
+    "python.neighborhood.structural": PythonOperationSpec(
+        find_structural_neighborhood,
+        requires_term=True,
+        term_message="A seed is required for python.neighborhood.structural.",
     ),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
