@@ -11,8 +11,8 @@ from otter_kr.cochange_affinity import (
     CochangeWeightingPolicy,
     calculate_cochange_affinity,
 )
-from otter_kr.git_identity import canonicalize_file_changes
-from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
+from otter_kr.git_history_window import collect_bounded_file_changes
+from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource
 from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
 
 _REPORT_VERSION = "1"
@@ -69,26 +69,10 @@ def collect_global_cochange(
     policy: CochangeWeightingPolicy = DEFAULT_POLICY,
 ) -> GlobalCochangeReport:
     """Calculate normalized co-change evidence for bounded tracked Python history."""
-    resolved_repository = repository.resolve()
-    if not resolved_repository.is_dir():
-        raise ValueError(f"Repository is not a directory: {resolved_repository}")
-    if since_unix_time <= 0:
-        raise ValueError("since_unix_time must be positive.")
-    if limit <= 0:
-        raise ValueError("limit must be positive.")
-
-    records = canonicalize_file_changes(
-        changes.commit_file_changes(
-            resolved_repository,
-            CommitHistoryQuery(
-                limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)
-            ),
-        )
+    window = collect_bounded_file_changes(
+        repository, since_unix_time=since_unix_time, limit=limit, changes=changes
     )
-    commit_order = list(dict.fromkeys(record.commit_sha for record in records))
-    visible_commits = tuple(commit_order[:limit])
-    visible_records = [record for record in records if record.commit_sha in visible_commits]
-    commits = _paths_by_commit(visible_records)
+    commits = _paths_by_commit(window.visible_records)
     affinity = calculate_cochange_affinity((paths for _, paths in commits), policy=policy)
     pair_commits = _pair_commits(commits)
     pairs = tuple(
@@ -106,11 +90,11 @@ def collect_global_cochange(
     )
     return GlobalCochangeReport(
         provenance=python_history_provenance(
-            str(resolved_repository),
+            str(window.repository),
             since_unix_time=since_unix_time,
             limit=limit,
-            commit_count=len(visible_commits),
-            truncated=len(commit_order) > limit,
+            commit_count=len(window.visible_commits),
+            truncated=len(window.commit_order) > limit,
         ),
         excluded_single_file_commits=affinity.excluded_single_file_commits,
         eligible_commit_count=affinity.eligible_commit_count,

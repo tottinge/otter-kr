@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from otter_kr.git_identity import canonicalize_file_changes
-from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource, CommitHistoryQuery
+from otter_kr.git_history_window import collect_bounded_file_changes
+from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource
 from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
 
 _REPORT_VERSION = "1"
@@ -53,43 +53,23 @@ def collect_git_hotspots(
     changes: CommitFileChangeSource,
 ) -> GitHotspotReport:
     """Aggregate bounded Git numstat evidence by tracked Python file."""
-    resolved_repository = repository.resolve()
-    if not resolved_repository.is_dir():
-        raise ValueError(f"Repository is not a directory: {resolved_repository}")
-    if since_unix_time <= 0:
-        raise ValueError("since_unix_time must be positive.")
-    if limit <= 0:
-        raise ValueError("limit must be positive.")
-
-    records = canonicalize_file_changes(
-        changes.commit_file_changes(
-            resolved_repository,
-            CommitHistoryQuery(
-                limit=limit, since_unix_time=since_unix_time, paths=(_PYTHON_PATHSPEC,)
-            ),
-        )
+    window = collect_bounded_file_changes(
+        repository, since_unix_time=since_unix_time, limit=limit, changes=changes
     )
-    commit_order = _commit_order(records)
-    visible_commits = set(commit_order[:limit])
-    visible_records = [record for record in records if record.commit_sha in visible_commits]
-    files = _aggregate(visible_records)
+    files = _aggregate(window.visible_records)
     return GitHotspotReport(
         provenance=python_history_provenance(
-            str(resolved_repository),
+            str(window.repository),
             since_unix_time=since_unix_time,
             limit=limit,
-            commit_count=len(commit_order[:limit]),
-            truncated=len(commit_order) > limit,
+            commit_count=len(window.visible_commits),
+            truncated=len(window.commit_order) > limit,
         ),
         files=files,
     )
 
 
-def _commit_order(records: list[CommitFileChange]) -> list[str]:
-    return list(dict.fromkeys(record.commit_sha for record in records))
-
-
-def _aggregate(records: list[CommitFileChange]) -> tuple[HotspotFile, ...]:
+def _aggregate(records: tuple[CommitFileChange, ...]) -> tuple[HotspotFile, ...]:
     grouped: dict[str, list[CommitFileChange]] = {}
     for record in records:
         grouped.setdefault(record.path, []).append(record)
