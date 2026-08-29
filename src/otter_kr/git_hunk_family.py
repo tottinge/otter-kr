@@ -51,6 +51,13 @@ class FamilyReport:
     matches: tuple[HunkMatch, ...]
     termination: str
     path_transitions: tuple[PathTransition, ...] = ()
+    topic_sha: str | None = None
+    topic_hunks: tuple[TopicHunk, ...] = ()
+    unmatched_hunks: tuple[TopicHunk, ...] = ()
+    skipped_commits: tuple[dict[str, object], ...] = ()
+    budget_limit: int | None = None
+    history_commits: tuple[dict[str, object], ...] = ()
+    topic_metadata: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -58,6 +65,13 @@ class FamilyReport:
             "matches": [m.to_dict() for m in self.matches],
             "termination": self.termination,
             "path_transitions": [item.to_dict() for item in self.path_transitions],
+            "topic_sha": self.topic_sha,
+            "topic_hunks": [item.to_dict() for item in self.topic_hunks],
+            "unmatched_hunks": [item.to_dict() for item in self.unmatched_hunks],
+            "skipped_commits": list(self.skipped_commits),
+            "budget_limit": self.budget_limit,
+            "history_commits": list(self.history_commits),
+            "topic_metadata": self.topic_metadata,
         }
 
 
@@ -91,6 +105,9 @@ def collect_topic_family(
     source = GitCliHistory()
     topic = collect_topic_hunks(repository, topic_sha).hunks
     walk = walk_topic_history(repository, topic_sha, since_unix_time=since_unix_time, limit=limit)
+    metadata = source.commit_metadata(
+        repository, CommitHistoryQuery(1, since_unix_time, tip_sha=topic_sha)
+    )
     candidates = []
     path_transitions: list[PathTransition] = []
     for depth, item in enumerate(walk.commits[1:], 1):
@@ -117,10 +134,36 @@ def collect_topic_family(
 
         candidates.append((commit, extract_hunks(patch.patch)))
     report = expand_family(topic, tuple(candidates), limit)
-    return FamilyReport(report.members, report.matches, report.termination, tuple(path_transitions))
+    matched_topics = {match.topic_fingerprint for match in report.matches}
+    unmatched = tuple(hunk for hunk in topic if hunk.fingerprint not in matched_topics)
+    skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
+    return FamilyReport(
+        report.members,
+        report.matches,
+        report.termination,
+        tuple(path_transitions),
+        topic_sha,
+        topic,
+        unmatched,
+        skipped,
+        limit,
+        walk.commits,
+        _metadata_dict(metadata[0]) if metadata else None,
+    )
 
 
 def _path_status(status: str, previous_path: str | None) -> str:
     if previous_path is not None:
         return {"R": "rename", "C": "copy"}.get(status, "path_transition")
     return {"A": "added", "D": "deleted", "M": "modified"}.get(status, "discontinuity")
+
+
+def _metadata_dict(metadata) -> dict[str, object]:
+    return {
+        "sha": metadata.sha,
+        "parent_shas": list(metadata.parent_shas),
+        "committed_unix_time": metadata.committed_unix_time,
+        "author_name": metadata.author_name,
+        "author_email": metadata.author_email,
+        "subject": metadata.subject,
+    }
