@@ -826,6 +826,17 @@ def create_server() -> FastMCP:
                 left_path=left_path,
                 right_path=right_path,
             )
+        if operation == "python.variable_cluster":
+            return {
+                "schema_version": "1",
+                "status": "rejected",
+                "operation": operation,
+                "query": _query(repository_root, term, since_unix_time, limit),
+                "error": {
+                    "code": "not_implemented",
+                    "message": "Variable-cluster evidence has not been admitted yet.",
+                },
+            }
         return {
             "schema_version": "1",
             "status": "rejected",

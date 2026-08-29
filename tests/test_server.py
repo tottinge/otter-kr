@@ -1353,3 +1353,22 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
         "repeated_groups",
         "distributions",
     }
+
+
+def test_variable_cluster_slice_zero_rejects_without_analysis() -> None:
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": "/repo",
+                "operation": "python.variable_cluster",
+                "term": "value",
+            },
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["error"] == {
+        "code": "not_implemented",
+        "message": "Variable-cluster evidence has not been admitted yet.",
+    }
