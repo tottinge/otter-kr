@@ -18,6 +18,13 @@ class ReviewEvidencePacket:
         return {"scope": self.scope, "history": self.history, "inventory": self.inventory}
 
 
+def compose_review_packet(
+    scope: dict[str, object], history: dict[str, object], inventory: dict[str, object]
+) -> ReviewEvidencePacket:
+    """Compose already-collected evidence without performing repository I/O."""
+    return ReviewEvidencePacket(scope, history, inventory)
+
+
 def collect_review_packet(
     repository: Path, *, since_unix_time: int, limit: int
 ) -> ReviewEvidencePacket:
@@ -25,7 +32,7 @@ def collect_review_packet(
     snapshot = collect_git_history_snapshot(
         repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
     )
-    return ReviewEvidencePacket(
+    return compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
             "since_unix_time": since_unix_time,
