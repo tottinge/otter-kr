@@ -7,6 +7,7 @@ from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from otter_kr.change_evidence import collect_term_change_evidence
+from otter_kr.evidence_envelope import EvidenceEnvelope
 from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
@@ -129,13 +130,11 @@ def _success(
     left_path: str | None = None,
     right_path: str | None = None,
 ) -> dict:
-    return {
-        "schema_version": "1",
-        "status": "ok",
-        "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
-        "data": data,
-    }
+    return EvidenceEnvelope(
+        operation,
+        _query(repository_root, term, since_unix_time, limit, left_path, right_path),
+        data,
+    ).to_dict()
 
 
 def _invalid_query(

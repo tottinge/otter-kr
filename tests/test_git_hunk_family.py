@@ -41,3 +41,23 @@ def test_family_report_serializes_unmatched_hunks_and_budget() -> None:
     assert data["topic_hunks"][0]["path"] == "a.py"
     assert data["unmatched_hunks"][0]["fingerprint"] == topic[0].fingerprint
     assert data["budget_limit"] == 3
+
+
+def test_family_report_history_factory_names_evidence_fields() -> None:
+    topic = extract_hunks(b"+++ b/a.py\n@@ -1 +1 @@\n-old\n+new\n")
+    base = expand_family(topic, (), limit=3)
+
+    report = FamilyReport.with_history_evidence(
+        base,
+        topic_sha="topic",
+        topic_hunks=topic,
+        unmatched_hunks=topic,
+        skipped_commits=(),
+        budget_limit=3,
+        history_commits=(),
+        topic_metadata=None,
+        path_transitions=(),
+    )
+
+    assert report.topic_sha == "topic"
+    assert report.budget_limit == 3

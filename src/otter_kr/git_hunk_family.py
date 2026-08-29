@@ -59,6 +59,34 @@ class FamilyReport:
     history_commits: tuple[dict[str, object], ...] = ()
     topic_metadata: dict[str, object] | None = None
 
+    @classmethod
+    def with_history_evidence(
+        cls,
+        report: FamilyReport,
+        *,
+        topic_sha: str,
+        topic_hunks: tuple[TopicHunk, ...],
+        unmatched_hunks: tuple[TopicHunk, ...],
+        skipped_commits: tuple[dict[str, object], ...],
+        budget_limit: int,
+        history_commits: tuple[dict[str, object], ...],
+        topic_metadata: dict[str, object] | None,
+        path_transitions: tuple[PathTransition, ...],
+    ) -> FamilyReport:
+        return cls(
+            report.members,
+            report.matches,
+            report.termination,
+            path_transitions,
+            topic_sha,
+            topic_hunks,
+            unmatched_hunks,
+            skipped_commits,
+            budget_limit,
+            history_commits,
+            topic_metadata,
+        )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "members": [m.to_dict() for m in self.members],
@@ -137,18 +165,16 @@ def collect_topic_family(
     matched_topics = {match.topic_fingerprint for match in report.matches}
     unmatched = tuple(hunk for hunk in topic if hunk.fingerprint not in matched_topics)
     skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
-    return FamilyReport(
-        report.members,
-        report.matches,
-        report.termination,
-        tuple(path_transitions),
-        topic_sha,
-        topic,
-        unmatched,
-        skipped,
-        limit,
-        walk.commits,
-        _metadata_dict(metadata[0]) if metadata else None,
+    return FamilyReport.with_history_evidence(
+        report,
+        topic_sha=topic_sha,
+        topic_hunks=topic,
+        unmatched_hunks=unmatched,
+        skipped_commits=skipped,
+        budget_limit=limit,
+        history_commits=walk.commits,
+        topic_metadata=_metadata_dict(metadata[0]) if metadata else None,
+        path_transitions=tuple(path_transitions),
     )
 
 
