@@ -18,6 +18,7 @@ from otter_kr.git_hunks import collect_topic_hunks
 from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
+from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
@@ -399,6 +400,21 @@ def create_server() -> FastMCP:
                     "A commit reference is required for git.topic_hunks.",
                 )
             return _run_operation(operation, repository_root, collect_topic_hunks, term=term)
+        if operation == "git.topic_walk":
+            if term is None:
+                return _invalid_query(
+                    operation, repository_root,
+                    "A commit reference is required for git.topic_walk.",
+                )
+            rejection = _validate_history_bounds(
+                operation, repository_root, since_unix_time, limit, term=term
+            )
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation, repository_root, walk_topic_history, term=term,
+                since_unix_time=since_unix_time, limit=limit,
+            )
         if operation == "git.history":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
             if rejection is not None:
