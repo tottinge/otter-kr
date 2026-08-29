@@ -261,6 +261,7 @@ def _run_operation(
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
+    pass_bounds_with_term: bool = False,
 ) -> dict:
     query_term = term if query_term is None else query_term
     query_since_unix_time = (
@@ -284,7 +285,9 @@ def _run_operation(
     repository = Path(repository_root)
 
     try:
-        if term is not None:
+        if term is not None and pass_bounds_with_term:
+            report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
+        elif term is not None:
             report = analyzer(repository, term)
         elif since_unix_time is not None or limit is not None:
             report = analyzer(repository, since_unix_time=since_unix_time, limit=limit)
@@ -336,6 +339,36 @@ def _run_operation(
         limit,
         left_path,
         right_path,
+    )
+
+
+def _run_bounded(
+    operation: str,
+    repository_root: str,
+    analyzer,
+    *,
+    since_unix_time: int | None,
+    limit: int | None,
+    term: str | None = None,
+    term_required: bool = False,
+    term_message: str | None = None,
+    pass_bounds_with_term: bool = False,
+) -> dict:
+    rejection = _validate_history_bounds(
+        operation, repository_root, since_unix_time, limit, term=term
+    )
+    if rejection is not None:
+        return rejection
+    return _run_operation(
+        operation,
+        repository_root,
+        analyzer,
+        term=term,
+        since_unix_time=since_unix_time,
+        limit=limit,
+        require_term=term_required,
+        term_message=term_message,
+        pass_bounds_with_term=pass_bounds_with_term,
     )
 
 
@@ -404,15 +437,10 @@ def create_server() -> FastMCP:
                 )
             return _run_operation(operation, repository_root, describe_topic_commit, term=term)
         if operation == "python.term_change_evidence":
-            if term is None:
-                return _invalid_query(operation, repository_root, "A term is required.")
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
-            return _run_operation(
+            return _run_bounded(
                 operation,
                 repository_root,
-                lambda repository, value: collect_term_change_evidence(
+                lambda repository, value, **_: collect_term_change_evidence(
                     repository,
                     value,
                     since_unix_time=since_unix_time,
@@ -421,12 +449,12 @@ def create_server() -> FastMCP:
                 term=term,
                 since_unix_time=since_unix_time,
                 limit=limit,
+                term_required=True,
+                term_message="A term is required.",
+                pass_bounds_with_term=True,
             )
         if operation == "python.representation_inventory":
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
-            return _run_operation(
+            return _run_bounded(
                 operation,
                 repository_root,
                 lambda repository, *, since_unix_time, limit: collect_representation_inventory(
@@ -436,10 +464,7 @@ def create_server() -> FastMCP:
                 limit=limit,
             )
         if operation == "git.review_packet":
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
-            return _run_operation(
+            return _run_bounded(
                 operation,
                 repository_root,
                 lambda repository, *, since_unix_time, limit: collect_review_packet(
