@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from otter_kr.git_cli_history import GitCliHistory
+from otter_kr.evidence_context import EvidenceContext
 from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.python_neighborhood import find_python_neighborhood
 
@@ -21,11 +21,11 @@ class TermChangeEvidence:
 def collect_term_change_evidence(
     repository: Path, term: str, *, since_unix_time: int, limit: int
 ) -> TermChangeEvidence:
-    history = GitCliHistory()
+    context = EvidenceContext.from_git()
     return TermChangeEvidence(
         term,
         find_python_neighborhood(repository, term).to_dict(),
         collect_git_history_snapshot(
-            repository, since_unix_time=since_unix_time, limit=limit, changes=history
+            repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
         ).to_dict(),
     )
