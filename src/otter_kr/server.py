@@ -6,6 +6,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from otter_kr.change_evidence import collect_term_change_evidence
 from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
@@ -402,6 +403,25 @@ def create_server() -> FastMCP:
                     term=term,
                 )
             return _run_operation(operation, repository_root, describe_topic_commit, term=term)
+        if operation == "python.term_change_evidence":
+            if term is None:
+                return _invalid_query(operation, repository_root, "A term is required.")
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, value: collect_term_change_evidence(
+                    repository,
+                    value,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                ),
+                term=term,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
         if operation == "python.representation_inventory":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
             if rejection is not None:
