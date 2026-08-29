@@ -26,16 +26,38 @@ class FamilyMember:
 
 
 @dataclass(frozen=True, slots=True)
+class PathTransition:
+    """Git-reported path identity evidence encountered in family history."""
+
+    commit_sha: str
+    depth: int
+    status: str
+    path: str
+    previous_path: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "commit_sha": self.commit_sha,
+            "depth": self.depth,
+            "status": self.status,
+            "path": self.path,
+            "previous_path": self.previous_path,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FamilyReport:
     members: tuple[FamilyMember, ...]
     matches: tuple[HunkMatch, ...]
     termination: str
+    path_transitions: tuple[PathTransition, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
             "members": [m.to_dict() for m in self.members],
             "matches": [m.to_dict() for m in self.matches],
             "termination": self.termination,
+            "path_transitions": [item.to_dict() for item in self.path_transitions],
         }
 
 
@@ -70,8 +92,19 @@ def collect_topic_family(
     topic = collect_topic_hunks(repository, topic_sha).hunks
     walk = walk_topic_history(repository, topic_sha, since_unix_time=since_unix_time, limit=limit)
     candidates = []
-    for item in walk.commits[1:]:
+    path_transitions: list[PathTransition] = []
+    for depth, item in enumerate(walk.commits[1:], 1):
         commit = item["sha"]
+        for change in source.commit_changes(repository, commit):
+            path_transitions.append(
+                PathTransition(
+                    commit,
+                    depth,
+                    _path_status(change.status, change.previous_path),
+                    change.path,
+                    change.previous_path,
+                )
+            )
         metadata = source.commit_metadata(
             repository, CommitHistoryQuery(1, since_unix_time, tip_sha=commit)
         )
@@ -81,5 +114,13 @@ def collect_topic_family(
             repository, CommitPatchRequest(commit, metadata[0].parent_shas[0])
         )
         from otter_kr.git_hunks import extract_hunks
+
         candidates.append((commit, extract_hunks(patch.patch)))
-    return expand_family(topic, tuple(candidates), limit)
+    report = expand_family(topic, tuple(candidates), limit)
+    return FamilyReport(report.members, report.matches, report.termination, tuple(path_transitions))
+
+
+def _path_status(status: str, previous_path: str | None) -> str:
+    if previous_path is not None:
+        return {"R": "rename", "C": "copy"}.get(status, "path_transition")
+    return {"A": "added", "D": "deleted", "M": "modified"}.get(status, "discontinuity")
