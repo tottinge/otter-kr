@@ -35,6 +35,7 @@ from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 from otter_kr.representation_inventory import collect_representation_inventory
+from otter_kr.review_packet import collect_review_packet
 from otter_kr.seed_evidence import project_python_neighborhood
 
 
@@ -409,6 +410,19 @@ def create_server() -> FastMCP:
                 operation,
                 repository_root,
                 lambda repository, *, since_unix_time, limit: collect_representation_inventory(
+                    repository, since_unix_time=since_unix_time, limit=limit
+                ),
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
+        if operation == "git.review_packet":
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, *, since_unix_time, limit: collect_review_packet(
                     repository, since_unix_time=since_unix_time, limit=limit
                 ),
                 since_unix_time=since_unix_time,
