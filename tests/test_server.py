@@ -1131,3 +1131,30 @@ def test_research_tool_reports_line_origins(tmp_path: Path) -> None:
     report = asyncio.run(call_research())
     assert report["status"] == "ok"
     assert report["data"]["origins"][0]["text"] == "value = 1"
+
+
+def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
+    write_python(tmp_path, "service.py", "def collect():\n    return 1\n")
+    git_repository(tmp_path, "service.py")
+    git_commit(tmp_path, "initial", "service.py")
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.review_packet",
+                "since_unix_time": 1,
+                "limit": 1,
+            },
+        )
+    )
+
+    assert report["status"] == "ok"
+    assert report["data"]["scope"]["limit"] == 1
+    assert "files" in report["data"]["history"]
+    assert set(report["data"]["inventory"]) == {
+        "hotspots",
+        "duplicates",
+        "repeated_groups",
+        "distributions",
+    }
