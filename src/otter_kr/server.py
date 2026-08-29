@@ -412,7 +412,15 @@ def create_server() -> FastMCP:
             if rejection is not None:
                 return rejection
             return _run_operation(
-                operation, repository_root, walk_topic_history, term=term,
+                operation,
+                repository_root,
+                lambda repository, commit: walk_topic_history(
+                    repository,
+                    commit,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                ),
+                term=term,
                 since_unix_time=since_unix_time, limit=limit,
             )
         if operation == "git.history":
