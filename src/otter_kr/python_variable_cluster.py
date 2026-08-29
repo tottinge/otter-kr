@@ -56,10 +56,24 @@ class _OccurrenceCollector(ast.NodeVisitor):
 
     def visit_Name(self, node: ast.Name) -> None:
         if node.id == self.name:
-            role = "read" if isinstance(node.ctx, ast.Load) else "write"
+            role = (
+                "read"
+                if isinstance(node.ctx, ast.Load)
+                else "delete"
+                if isinstance(node.ctx, ast.Del)
+                else "write"
+            )
             self.occurrences.append(
                 VariableOccurrence(
                     self.path, node.lineno, node.col_offset, ".".join(self.scopes), role
+                )
+            )
+
+    def visit_arg(self, node: ast.arg) -> None:
+        if node.arg == self.name:
+            self.occurrences.append(
+                VariableOccurrence(
+                    self.path, node.lineno, node.col_offset, ".".join(self.scopes), "parameter"
                 )
             )
 
