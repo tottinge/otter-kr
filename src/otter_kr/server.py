@@ -34,6 +34,7 @@ from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
+from otter_kr.seed_evidence import project_python_neighborhood
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +70,11 @@ PYTHON_OPERATIONS = {
         requires_term=True,
         term_message="A seed is required for python.neighborhood.behavioral.",
     ),
+    "python.seed_evidence": PythonOperationSpec(
+        project_python_neighborhood,
+        requires_term=True,
+        term_message="A seed is required for python.seed_evidence.",
+    ),
     "python.graph_topology": PythonOperationSpec(build_python_import_graph),
     "python.discriminations": PythonOperationSpec(
         find_type_discriminations,
@@ -81,9 +87,7 @@ PYTHON_OPERATIONS = {
         term_message="A term is required for python.tests.",
     ),
     "python.imports": PythonOperationSpec(import_python),
-    "python.complexity": PythonOperationSpec(
-        analyze_python_complexity, catches_value_error=False
-    ),
+    "python.complexity": PythonOperationSpec(analyze_python_complexity, catches_value_error=False),
     "python.literals": PythonOperationSpec(find_repeated_literals),
     "python.groups": PythonOperationSpec(find_repeated_groups),
     "python.duplicates": PythonOperationSpec(find_duplicate_helpers),
@@ -363,6 +367,7 @@ def create_server() -> FastMCP:
         lines: list[int] | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
+
         def run(analyzer, **kwargs):
             return _run_operation(
                 operation,
@@ -398,7 +403,8 @@ def create_server() -> FastMCP:
         if operation == "git.line_origins":
             if term is None or path is None or not lines:
                 return _invalid_query(
-                    operation, repository_root,
+                    operation,
+                    repository_root,
                     "term, path, and at least one line are required for git.line_origins.",
                     term=term,
                 )
@@ -409,9 +415,14 @@ def create_server() -> FastMCP:
                     "revision": revision,
                     "path": path,
                     "origins": [
-                        origin.__dict__ if hasattr(origin, "__dict__") else {
-                            "path": origin.path, "line": origin.line, "text": origin.text,
-                            "origin_commit": origin.origin_commit, "status": origin.status,
+                        origin.__dict__
+                        if hasattr(origin, "__dict__")
+                        else {
+                            "path": origin.path,
+                            "line": origin.line,
+                            "text": origin.text,
+                            "origin_commit": origin.origin_commit,
+                            "status": origin.status,
                         }
                         for origin in GitCliHistory().line_origins(
                             repository, path, revision, tuple(lines)
@@ -431,7 +442,8 @@ def create_server() -> FastMCP:
         if operation == "git.topic_walk":
             if term is None:
                 return _invalid_query(
-                    operation, repository_root,
+                    operation,
+                    repository_root,
                     "A commit reference is required for git.topic_walk.",
                 )
             rejection = _validate_history_bounds(
@@ -449,12 +461,14 @@ def create_server() -> FastMCP:
                     limit=limit,
                 ),
                 term=term,
-                since_unix_time=since_unix_time, limit=limit,
+                since_unix_time=since_unix_time,
+                limit=limit,
             )
         if operation == "git.topic_family":
             if term is None:
                 return _invalid_query(
-                    operation, repository_root,
+                    operation,
+                    repository_root,
                     "A commit reference is required for git.topic_family.",
                 )
             rejection = _validate_history_bounds(
@@ -463,11 +477,14 @@ def create_server() -> FastMCP:
             if rejection is not None:
                 return rejection
             return _run_operation(
-                operation, repository_root,
+                operation,
+                repository_root,
                 lambda repository, commit: collect_topic_family(
                     repository, commit, since_unix_time=since_unix_time, limit=limit
                 ),
-                term=term, since_unix_time=since_unix_time, limit=limit,
+                term=term,
+                since_unix_time=since_unix_time,
+                limit=limit,
             )
         if operation == "git.history":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
