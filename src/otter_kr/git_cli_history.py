@@ -16,6 +16,8 @@ from otter_kr.git_ports import (
     CommitPatchRequest,
     CommitPatchSource,
     CommitPathChange,
+    LineOrigin,
+    LineOriginSource,
     RawCommitPatch,
 )
 
@@ -53,7 +55,11 @@ def _default_runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
 
 
 class GitCliHistory(
-    CommitMetadataSource, CommitFileChangeSource, CommitPatchSource, CommitChangeSource
+    CommitMetadataSource,
+    CommitFileChangeSource,
+    CommitPatchSource,
+    CommitChangeSource,
+    LineOriginSource,
 ):
     """Fulfill bounded history ports by invoking Git directly."""
 
@@ -110,6 +116,29 @@ class GitCliHistory(
             "--name-status", "-z", "-r", "-M", commit_sha,
         )
         return _parse_commit_changes(self._run(command))
+
+    def line_origins(
+        self, repository: Path, path: str, revision: str, lines: tuple[int, ...]
+    ) -> list[LineOrigin]:
+        origins: list[LineOrigin] = []
+        for line in lines:
+            command = (
+                "git", "-C", str(repository), "blame", "--porcelain", "-L",
+                f"{line},{line}", revision, "--", path,
+            )
+            try:
+                output = self._run(command).decode("utf-8", errors="replace").splitlines()
+                header = output[0].split() if output else []
+                text = output[-1][1:] if output and output[-1].startswith("\t") else ""
+                origins.append(
+                    LineOrigin(
+                        path, line, text, header[0] if header else None,
+                        "resolved" if header else "unavailable",
+                    )
+                )
+            except GitHistoryError:
+                origins.append(LineOrigin(path, line, "", None, "unavailable"))
+        return origins
 
     def commit_file_changes(
         self, repository: Path, query: CommitHistoryQuery

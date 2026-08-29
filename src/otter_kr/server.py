@@ -358,6 +358,8 @@ def create_server() -> FastMCP:
         limit: int | None = None,
         left_path: str | None = None,
         right_path: str | None = None,
+        path: str | None = None,
+        lines: list[int] | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
         def run(analyzer, **kwargs):
@@ -392,6 +394,31 @@ def create_server() -> FastMCP:
                     term=term,
                 )
             return _run_operation(operation, repository_root, describe_topic_commit, term=term)
+        if operation == "git.line_origins":
+            if term is None or path is None or not lines:
+                return _invalid_query(
+                    operation, repository_root,
+                    "term, path, and at least one line are required for git.line_origins.",
+                    term=term,
+                )
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, revision: {
+                    "revision": revision,
+                    "path": path,
+                    "origins": [
+                        origin.__dict__ if hasattr(origin, "__dict__") else {
+                            "path": origin.path, "line": origin.line, "text": origin.text,
+                            "origin_commit": origin.origin_commit, "status": origin.status,
+                        }
+                        for origin in GitCliHistory().line_origins(
+                            repository, path, revision, tuple(lines)
+                        )
+                    ],
+                },
+                term=term,
+            )
         if operation == "git.topic_hunks":
             if term is None:
                 return _invalid_query(

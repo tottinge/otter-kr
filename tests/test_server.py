@@ -1106,3 +1106,28 @@ def test_research_tool_rejects_python_tests_without_term() -> None:
         "code": "invalid_query",
         "message": "A term is required for python.tests.",
     }
+
+
+def test_research_tool_reports_line_origins(tmp_path: Path) -> None:
+    write_python(tmp_path, "service.py", "value = 1\n")
+    git_repository(tmp_path, "service.py")
+    git_commit(tmp_path, "initial", "service.py")
+    server = create_server()
+
+    async def call_research() -> dict:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "research",
+                {
+                    "repository_root": str(tmp_path),
+                    "operation": "git.line_origins",
+                    "term": "HEAD",
+                    "path": "service.py",
+                    "lines": [1],
+                },
+            )
+            return result.data
+
+    report = asyncio.run(call_research())
+    assert report["status"] == "ok"
+    assert report["data"]["origins"][0]["text"] == "value = 1"

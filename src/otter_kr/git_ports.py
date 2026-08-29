@@ -79,6 +79,22 @@ class CommitChangeSource(Protocol):
         """Return changed paths and statuses for one commit."""
 
 
+@dataclass(frozen=True)
+class LineOrigin:
+    path: str
+    line: int
+    text: str
+    origin_commit: str | None
+    status: str
+
+
+class LineOriginSource(Protocol):
+    def line_origins(
+        self, repository: Path, path: str, revision: str, lines: tuple[int, ...]
+    ) -> list[LineOrigin]:
+        """Return origin evidence or explicit discontinuities for requested lines."""
+
+
 class CommitMetadataSource(Protocol):
     """Read bounded commit metadata for one repository."""
 
