@@ -682,6 +682,34 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
 - **Admits:** planted fixtures for enclosed, early-exit, and rollup contracts, plus a pinned
   dogfood note when useful.
 - **Acceptance:** characterization runs under `full_test`.
+### KR-042 — Report variable-cluster evidence
+
+- **Admits:** bounded Python variable names and, later, explicitly supplied name clusters.
+- **Default reject:** unsupported languages, empty clusters, untracked files, dynamic or ambiguous
+  constructs, and analysis modes not yet admitted.
+- **Observable result:** citeable occurrences, reads, writes, guard context, construction sites,
+  aliases, tests, history links, unresolved cases, and deterministic provenance. The report is
+  evidence only; a consuming LLM may hypothesize an object or invariant.
+- **Still rejected:** semantic object identity, automatic cluster discovery, invariant claims,
+  object generation, and refactoring recommendations.
+
+#### KR-042 admission order
+
+1. **Closed skeleton:** admit no useful requests; establish the operation and rejection shape.
+2. **One exact name:** report tracked-file occurrences, scopes, coordinates, and AST roles.
+3. **Reads and writes:** classify loads, assignments, augmented assignments, deletes, and bindings.
+4. **Guard context:** report enclosing conditions and nesting without claiming protection semantics.
+5. **Explicit two-name cluster:** report shared scopes, guards, writes, and independent locations.
+6. **Construction evidence:** report initialization and constructor-like assignments.
+7. **Aliases and boundaries:** report statically visible aliases and parameter/return movement;
+   preserve unresolved dynamic cases.
+8. **Tests and history:** link cluster locations to test candidates, co-change, and hunk history.
+9. **Bounded multi-name cluster:** admit caller-supplied clusters of 2–5 names under explicit
+   budgets; retain unresolved edges and reject unconstrained whole-program inference.
+
+Priority favors the simplest high-learning evidence first: exact occurrences, reads/writes, guard
+context, and an explicit two-name cluster precede construction, aliases, tests/history, and bounded
+multi-name summaries.
 
 ## Backlog quality rules
 
