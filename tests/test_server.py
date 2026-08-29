@@ -1355,14 +1355,13 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
     }
 
 
-def test_variable_cluster_slice_zero_rejects_without_analysis() -> None:
+def test_variable_cluster_rejects_without_an_exact_name() -> None:
     report = asyncio.run(
         call_research(
             create_server(),
             {
                 "repository_root": "/repo",
                 "operation": "python.variable_cluster",
-                "term": "value",
             },
         )
     )

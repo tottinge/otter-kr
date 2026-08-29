@@ -37,6 +37,7 @@ from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
+from otter_kr.python_variable_cluster import find_variable_occurrences
 from otter_kr.representation_inventory import collect_representation_inventory
 from otter_kr.review_packet import collect_review_packet
 from otter_kr.seed_evidence import project_python_neighborhood
@@ -827,6 +828,10 @@ def create_server() -> FastMCP:
                 right_path=right_path,
             )
         if operation == "python.variable_cluster":
+            if term is not None:
+                return _run_operation(
+                    operation, repository_root, find_variable_occurrences, term=term
+                )
             return {
                 "schema_version": "1",
                 "status": "rejected",
