@@ -14,6 +14,7 @@ class HunkMatch:
     topic_path: str
     prior_path: str
     method: str = "exact_normalized_body"
+    overlap_count: int = 0
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -22,6 +23,7 @@ class HunkMatch:
             "topic_path": self.topic_path,
             "prior_path": self.prior_path,
             "method": self.method,
+            "overlap_count": self.overlap_count,
         }
 
 
@@ -40,4 +42,23 @@ def match_hunks(
                         prior_hunk.path,
                     )
                 )
+            else:
+                topic_context = {
+                    line[1:].strip() for line in topic_hunk.lines if line.startswith(" ")
+                }
+                prior_context = {
+                    line[1:].strip() for line in prior_hunk.lines if line.startswith(" ")
+                }
+                overlap = len(topic_context & prior_context)
+                if overlap:
+                    matches.append(
+                        HunkMatch(
+                            topic_hunk.fingerprint,
+                            prior_hunk.fingerprint,
+                            topic_hunk.path,
+                            prior_hunk.path,
+                            method="context_overlap",
+                            overlap_count=overlap,
+                        )
+                    )
     return tuple(matches)
