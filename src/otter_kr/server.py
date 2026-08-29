@@ -14,6 +14,7 @@ from otter_kr.git_files import GitFileSourceError
 from otter_kr.git_history_context import collect_git_history
 from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.git_hotspots import collect_git_hotspots
+from otter_kr.git_hunk_family import collect_topic_family
 from otter_kr.git_hunks import collect_topic_hunks
 from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
@@ -449,6 +450,24 @@ def create_server() -> FastMCP:
                 ),
                 term=term,
                 since_unix_time=since_unix_time, limit=limit,
+            )
+        if operation == "git.topic_family":
+            if term is None:
+                return _invalid_query(
+                    operation, repository_root,
+                    "A commit reference is required for git.topic_family.",
+                )
+            rejection = _validate_history_bounds(
+                operation, repository_root, since_unix_time, limit, term=term
+            )
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation, repository_root,
+                lambda repository, commit: collect_topic_family(
+                    repository, commit, since_unix_time=since_unix_time, limit=limit
+                ),
+                term=term, since_unix_time=since_unix_time, limit=limit,
             )
         if operation == "git.history":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
