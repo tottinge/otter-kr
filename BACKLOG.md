@@ -607,11 +607,12 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
   `{carrier, field, value, effect_when}`.
 - **Still rejected:** collapsing sites into one inferred rule.
 
-#### KR-044 — Multiplicity rollup by normalized shape
+#### KR-044 — Multiplicity rollup by normalized shape *(shipped in this slice)*
 
 - **Admits:** grouped summary over one carrier's occurrences (counts, path spread, effect-role
   tallies).
-- **Observable result:** `groups[]` with normalized key, occurrence/path counts, and location refs.
+- **Observable result:** `groups[]` with `predicate_normalized`, occurrence/path counts, paths,
+  `effect_role_counts`, and `occurrence_refs`.
 - **Still rejected:** ranked smell scores or badness weights.
 
 #### KR-045 — Richer early-exit and else-guard shapes

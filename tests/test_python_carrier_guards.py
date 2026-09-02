@@ -196,6 +196,71 @@ def test_normalized_keys_align_enclosed_equality_with_early_exit_inequality(
     )
 
 
+def test_rolls_up_multiplicity_by_normalized_shape(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/a.py",
+        (
+            "def one(order):\n"
+            "    if order.status == 'open':\n"
+            "        order.mark()\n"
+            "def two(order):\n"
+            "    if order.status == 'open':\n"
+            "        order.note = 1\n"
+        ),
+    )
+    write_python(
+        tmp_path,
+        "pkg/b.py",
+        (
+            "def three(order):\n"
+            "    if order.status != 'open':\n"
+            "        return\n"
+            "    order.flag = True\n"
+            "def other(order):\n"
+            "    if order.kind == 'x':\n"
+            "        order.mark()\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+
+    assert len(report.occurrences) == 4
+    assert [group.to_dict() for group in report.groups] == [
+        {
+            "predicate_normalized": {
+                "carrier": "order",
+                "field": "kind",
+                "value": "'x'",
+                "effect_when": "==",
+            },
+            "occurrence_count": 1,
+            "path_count": 1,
+            "paths": ["pkg/b.py"],
+            "effect_role_counts": {"modification": 1},
+            "occurrence_refs": [{"path": "pkg/b.py", "line": 6, "column": 4}],
+        },
+        {
+            "predicate_normalized": {
+                "carrier": "order",
+                "field": "status",
+                "value": "'open'",
+                "effect_when": "==",
+            },
+            "occurrence_count": 3,
+            "path_count": 2,
+            "paths": ["pkg/a.py", "pkg/b.py"],
+            "effect_role_counts": {"modification": 3},
+            "occurrence_refs": [
+                {"path": "pkg/a.py", "line": 2, "column": 4},
+                {"path": "pkg/a.py", "line": 5, "column": 4},
+                {"path": "pkg/b.py", "line": 2, "column": 4},
+            ],
+        },
+    ]
+
+
 def test_reports_parse_warnings_and_rejects_empty_carrier(tmp_path: Path) -> None:
     write_python(tmp_path, "broken.py", "def nope(:\n")
     git_repository(tmp_path, "broken.py")

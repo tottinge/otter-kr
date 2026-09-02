@@ -56,10 +56,31 @@ class CarrierGuardOccurrence:
 
 
 @dataclass(frozen=True, slots=True)
+class CarrierGuardGroup:
+    predicate_normalized: dict[str, str]
+    occurrence_count: int
+    path_count: int
+    paths: tuple[str, ...]
+    effect_role_counts: dict[str, int]
+    occurrence_refs: tuple[dict[str, int | str], ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "predicate_normalized": dict(self.predicate_normalized),
+            "occurrence_count": self.occurrence_count,
+            "path_count": self.path_count,
+            "paths": list(self.paths),
+            "effect_role_counts": dict(self.effect_role_counts),
+            "occurrence_refs": [dict(item) for item in self.occurrence_refs],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class CarrierGuardReport:
     language: str
     carrier: str
     occurrences: tuple[CarrierGuardOccurrence, ...]
+    groups: tuple[CarrierGuardGroup, ...]
     warnings: tuple[dict[str, str], ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -67,6 +88,7 @@ class CarrierGuardReport:
             "language": self.language,
             "carrier": self.carrier,
             "occurrences": [item.to_dict() for item in self.occurrences],
+            "groups": [item.to_dict() for item in self.groups],
             "warnings": list(self.warnings),
         }
 
@@ -119,6 +141,44 @@ _FLIPPED_OPERATORS = {
     "is": "is not",
     "is not": "is",
 }
+
+
+def _normalized_key(predicate_normalized: dict[str, str]) -> tuple[str, str, str, str]:
+    return (
+        predicate_normalized["carrier"],
+        predicate_normalized["field"],
+        predicate_normalized["value"],
+        predicate_normalized["effect_when"],
+    )
+
+
+def _build_groups(occurrences: tuple[CarrierGuardOccurrence, ...]) -> tuple[CarrierGuardGroup, ...]:
+    buckets: dict[tuple[str, str, str, str], list[CarrierGuardOccurrence]] = {}
+    for occurrence in occurrences:
+        buckets.setdefault(_normalized_key(occurrence.predicate_normalized), []).append(occurrence)
+
+    groups: list[CarrierGuardGroup] = []
+    for key in sorted(buckets):
+        members = buckets[key]
+        paths = tuple(sorted({item.path for item in members}))
+        role_counts: dict[str, int] = {}
+        for member in members:
+            for effect in member.effects:
+                role_counts[effect.role] = role_counts.get(effect.role, 0) + 1
+        groups.append(
+            CarrierGuardGroup(
+                predicate_normalized=dict(members[0].predicate_normalized),
+                occurrence_count=len(members),
+                path_count=len(paths),
+                paths=paths,
+                effect_role_counts=dict(sorted(role_counts.items())),
+                occurrence_refs=tuple(
+                    {"path": item.path, "line": item.line, "column": item.column}
+                    for item in members
+                ),
+            )
+        )
+    return tuple(groups)
 
 
 def _normalize_predicate(
@@ -384,9 +444,11 @@ def find_carrier_guards(
         )
     )
     warnings.sort(key=lambda item: (item["path"], item["code"]))
+    ordered = tuple(occurrences)
     return CarrierGuardReport(
         language="python",
         carrier=carrier,
-        occurrences=tuple(occurrences),
+        occurrences=ordered,
+        groups=_build_groups(ordered),
         warnings=tuple(warnings),
     )
