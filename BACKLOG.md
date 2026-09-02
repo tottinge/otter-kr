@@ -623,11 +623,12 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
   polarity still reflects the effect path.
 - **Still rejected:** treating arbitrary dual-mutate if/else as a guard.
 
-#### KR-046 — Additional predicate forms (seed-scoped)
+#### KR-046 — Additional predicate forms (seed-scoped) *(shipped in this slice)*
 
-- **Admits:** one further predicate form at a time (`isinstance`, `in`, or field truthiness),
-  chosen from dogfood frequency.
-- **Still rejected:** full dataflow and `match`/`case` until separately admitted.
+- **Admits:** `isinstance(carrier, …)` predicates (chosen from dogfood frequency on otter-kr),
+  including unary `not` and early-exit polarity normalization to `isinstance`/`not_isinstance`.
+- **Observable result:** `predicate.operator`/`effect_when` use `isinstance`; `field` is empty.
+- **Still rejected:** `in`/truthiness/`match` until separately admitted; full dataflow.
 
 #### KR-047 — Optional file/path bound for tighter bundles
 

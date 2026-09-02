@@ -335,6 +335,44 @@ def test_ignores_dual_mutate_if_else_as_guard(tmp_path: Path) -> None:
     assert report.occurrences[0].exit_kind is None
 
 
+def test_reports_isinstance_enclosed_and_early_exit(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "def enclosed(order):\n"
+            "    if isinstance(order, OpenOrder):\n"
+            "        order.mark()\n"
+            "def guarded(order):\n"
+            "    if not isinstance(order, OpenOrder):\n"
+            "        return\n"
+            "    order.mark()\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+
+    assert len(report.occurrences) == 2
+    assert report.occurrences[0].control_shape == "enclosed_branch"
+    assert report.occurrences[0].predicate == {
+        "expression": "isinstance(order, OpenOrder)",
+        "field": "",
+        "operator": "isinstance",
+        "value": "OpenOrder",
+    }
+    assert report.occurrences[0].predicate_normalized == {
+        "carrier": "order",
+        "field": "",
+        "value": "OpenOrder",
+        "effect_when": "isinstance",
+    }
+    assert report.occurrences[1].control_shape == "early_exit"
+    assert report.occurrences[1].predicate["operator"] == "isinstance"
+    assert report.occurrences[1].predicate_normalized["effect_when"] == "isinstance"
+    assert report.groups[0].occurrence_count == 2
+
+
 def test_reports_parse_warnings_and_rejects_empty_carrier(tmp_path: Path) -> None:
     write_python(tmp_path, "broken.py", "def nope(:\n")
     git_repository(tmp_path, "broken.py")

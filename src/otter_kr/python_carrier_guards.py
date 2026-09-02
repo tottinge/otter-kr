@@ -108,12 +108,27 @@ def _value_text(node: ast.AST) -> str:
 
 
 def _carrier_field_compare(node: ast.AST, carrier: str) -> tuple[str, str, str, str, bool] | None:
-    """Return expression, field, operator, value, unary_not when testing carrier.field."""
+    """Return expression, field, operator, value, unary_not for a carrier predicate."""
     compare = node
     unary_not = False
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         compare = node.operand
         unary_not = True
+    if (
+        isinstance(compare, ast.Call)
+        and isinstance(compare.func, ast.Name)
+        and compare.func.id == "isinstance"
+        and len(compare.args) == 2
+        and isinstance(compare.args[0], ast.Name)
+        and compare.args[0].id == carrier
+    ):
+        return (
+            ast.unparse(node),
+            "",
+            "isinstance",
+            _value_text(compare.args[1]),
+            unary_not,
+        )
     if not isinstance(compare, ast.Compare) or len(compare.ops) != 1:
         return None
     operator = _operator_name(compare.ops[0])
@@ -140,6 +155,8 @@ _FLIPPED_OPERATORS = {
     "!=": "==",
     "is": "is not",
     "is not": "is",
+    "isinstance": "not_isinstance",
+    "not_isinstance": "isinstance",
 }
 
 
