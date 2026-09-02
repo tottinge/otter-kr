@@ -46,12 +46,13 @@ def _module_name(relative_path: Path) -> str:
 
 
 def _resolve_relative_target(
-    source_module: str, level: int, module: str | None
+    source_module: str, level: int, module: str | None, *, source_is_package: bool = False
 ) -> tuple[str, bool]:
     if level == 0:
         return module or "", False
 
-    parent_parts = source_module.split(".")[:-1]
+    source_parts = source_module.split(".")
+    parent_parts = source_parts if source_is_package else source_parts[:-1]
     if level > len(parent_parts):
         return module or "", True
 
@@ -116,7 +117,10 @@ def import_python(
                     )
             elif isinstance(node, ast.ImportFrom):
                 target_module, unresolved = _resolve_relative_target(
-                    source_module, node.level, node.module
+                    source_module,
+                    node.level,
+                    node.module,
+                    source_is_package=relative.name == "__init__.py",
                 )
                 if unresolved:
                     warnings.append(

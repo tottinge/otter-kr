@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.python_imports import _module_name, _resolve_relative_target
 from otter_kr.python_neighborhood import _identifier_words, _node_name
 
 
@@ -59,7 +60,8 @@ def find_structural_neighborhood(
     evidence: Counter[tuple[str, str]] = Counter()
     failures: list[dict[str, object]] = []
     for path in files:
-        relative = path.relative_to(repository).as_posix()
+        relative_path = path.relative_to(repository)
+        relative = relative_path.as_posix()
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=relative)
         except (SyntaxError, UnicodeError) as error:
@@ -67,22 +69,25 @@ def find_structural_neighborhood(
             continue
         names = [name for node in ast.walk(tree) if (name := _node_name(node))]
         counts.update(names)
-        if seed not in names:
-            continue
+        source_module = _module_name(relative_path)
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.ImportFrom)
-                and node.level == 0
-                and node.module
-                and any(alias.name == seed for alias in node.names)
-            ):
-                evidence[(node.module, "import target")] += 1
-                counts[node.module] += 1
+            if isinstance(node, ast.ImportFrom) and any(alias.name == seed for alias in node.names):
+                target_module, unresolved = _resolve_relative_target(
+                    source_module,
+                    node.level,
+                    node.module,
+                    source_is_package=relative_path.name == "__init__.py",
+                )
+                if not unresolved and target_module:
+                    evidence[(target_module, "import target")] += 1
+                    counts[target_module] += 1
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.asname == seed:
                         evidence[(alias.name, "import target")] += 1
                         counts[alias.name] += 1
+        if seed not in names:
+            continue
         for name in set(names):
             if name != seed:
                 evidence[(name, "shared file")] += 1

@@ -90,3 +90,48 @@ def test_rejects_unaliased_plain_import_as_seed_target(tmp_path: Path) -> None:
     report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
 
     assert not any(edge["reason"] == "import target" for edge in report.to_dict()["edges"])
+
+
+def test_resolves_relative_from_import_target_for_seed(tmp_path: Path) -> None:
+    source = tmp_path / "pkg" / "service.py"
+    source.parent.mkdir()
+    source.write_text("from .models import Payment\nPayment()\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert {
+        "seed": "Payment",
+        "neighbor": "pkg.models",
+        "weight": 1,
+        "reason": "import target",
+    } in report.to_dict()["edges"]
+
+
+def test_resolves_relative_target_from_package_initializer(tmp_path: Path) -> None:
+    source = tmp_path / "pkg" / "__init__.py"
+    source.parent.mkdir()
+    source.write_text("from .models import Payment\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert any(edge["neighbor"] == "pkg.models" for edge in report.to_dict()["edges"])
+
+
+def test_resolves_parent_relative_from_import_target(tmp_path: Path) -> None:
+    source = tmp_path / "pkg" / "sub" / "service.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("from ..models import Payment\nPayment()\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert any(edge["neighbor"] == "pkg.models" for edge in report.to_dict()["edges"])
+
+
+def test_rejects_relative_import_that_escapes_package_boundary(tmp_path: Path) -> None:
+    source = tmp_path / "pkg" / "service.py"
+    source.parent.mkdir()
+    source.write_text("from ..models import Payment\nPayment()\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert not any(edge["reason"] == "import target" for edge in report.to_dict()["edges"])

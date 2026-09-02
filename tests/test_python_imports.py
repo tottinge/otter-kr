@@ -50,6 +50,16 @@ def test_reports_direct_import_edges_for_tracked_python_files(tmp_path: Path) ->
     assert report.warnings == ()
 
 
+def test_resolves_relative_import_from_package_initializer(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/__init__.py", "from .models import Payment\n")
+    git_repository(tmp_path, "pkg/__init__.py")
+
+    report = import_python(tmp_path)
+
+    assert report.edges[0].target_module == "pkg.models"
+    assert report.warnings == ()
+
+
 def test_ignores_present_but_untracked_python_files(tmp_path: Path) -> None:
     write_python(tmp_path, "tracked.py", "import os\n")
     write_python(tmp_path, "generated.py", "import sys\n")

@@ -352,6 +352,15 @@ must not turn deterministic association into concept identity.
 - **Still rejected:** unaliased plain imports, relative-import resolution, re-export inference, and
   repeated non-import co-occurrence.
 
+#### KR-020c — Resolve relative `from`-import target edges *(shipped in this slice)*
+
+- **Admits:** relative `from` imports of the seed when their package target resolves within the
+  tracked repository path.
+- **Observable result:** single- and multi-level imports, including package initializers, reuse the
+  canonical import resolver and report a normalized module target through the MCP operation.
+- **Still rejected:** imports escaping the tracked package boundary, re-export inference, and
+  repeated non-import co-occurrence.
+
 #### KR-021 — Add historical neighborhood edges
 
 - **Admits:** bounded co-change relationships for a seed’s files.
