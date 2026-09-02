@@ -14,9 +14,7 @@ class FakeFiles:
 def test_reports_exact_and_lexical_neighbors_without_structural_edges(tmp_path: Path) -> None:
     service = tmp_path / "service.py"
     service.write_text(
-        "def collect_payment(amount):\n"
-        "    payment_total = amount\n"
-        "    return payment_total\n",
+        "def collect_payment(amount):\n    payment_total = amount\n    return payment_total\n",
         encoding="utf-8",
     )
     report = find_python_neighborhood(tmp_path, "payment", FakeFiles([service]))
@@ -39,5 +37,5 @@ def test_reports_exact_and_lexical_neighbors_without_structural_edges(tmp_path: 
             "weight": 2,
             "discovery_pass": "lexical",
             "reason": "shared identifier word",
-        }
+        },
     ]

@@ -63,8 +63,11 @@ def extract_hunks(patch: bytes) -> tuple[TopicHunk, ...]:
             if current is not None:
                 hunks.append(_finish(path, current))
             current = (
-                int(match.group(1)), int(match.group(2) or 1),
-                int(match.group(3)), int(match.group(4) or 1), [],
+                int(match.group(1)),
+                int(match.group(2) or 1),
+                int(match.group(3)),
+                int(match.group(4) or 1),
+                [],
             )
         elif current is not None and (
             line.startswith(("+", "-", " ")) or line == "\\ No newline at end of file"
@@ -85,7 +88,10 @@ def _finish(path: str, data: tuple[int, int, int, int, list[str]]) -> TopicHunk:
 
 
 def collect_topic_hunks(
-    repository: Path, commit_sha: str, *, metadata: CommitMetadataSource | None = None,
+    repository: Path,
+    commit_sha: str,
+    *,
+    metadata: CommitMetadataSource | None = None,
     patches: CommitPatchSource | None = None,
 ) -> TopicHunkReport:
     history = metadata or GitCliHistory()

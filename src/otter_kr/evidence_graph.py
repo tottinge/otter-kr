@@ -40,8 +40,7 @@ class EvidenceGraph:
         )
         community_by_node = dict(communities)
         cross = sum(
-            community_by_node[edge.source] != community_by_node[edge.target]
-            for edge in self.edges
+            community_by_node[edge.source] != community_by_node[edge.target] for edge in self.edges
         )
         edge_count = graph.number_of_edges()
         node_count = graph.number_of_nodes()

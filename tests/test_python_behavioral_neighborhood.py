@@ -14,9 +14,7 @@ class FakeFiles:
 def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
     source = tmp_path / "service.py"
     source.write_text(
-        "def payment(amount):\n"
-        "    amount.validate()\n"
-        "    return amount == Currency.USD\n",
+        "def payment(amount):\n    amount.validate()\n    return amount == Currency.USD\n",
         encoding="utf-8",
     )
     report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))

@@ -108,17 +108,14 @@ def collect_git_distributions(
         minimum_weekly_count=min(counts, default=0),
         maximum_weekly_count=max(counts, default=0),
         average_weekly_count=round(sum(counts) / len(counts), 2) if counts else 0.0,
-        unknown_category_count=sum(
-            category.normalized_category is None for category in categories
-        ),
+        unknown_category_count=sum(category.normalized_category is None for category in categories),
     )
 
 
 def _weekly_rows(commits, since_unix_time: int) -> list[WeeklyCommitRow]:
     since = datetime.fromtimestamp(since_unix_time, tz=UTC).date()
     observed = [
-        datetime.fromtimestamp(commit.committed_unix_time, tz=UTC).date()
-        for commit in commits
+        datetime.fromtimestamp(commit.committed_unix_time, tz=UTC).date() for commit in commits
     ]
     first = _week_start(min(observed, default=since))
     latest = max(
@@ -127,9 +124,7 @@ def _weekly_rows(commits, since_unix_time: int) -> list[WeeklyCommitRow]:
     )
     grouped: dict[date, list[CommitMessageCategory]] = {}
     for commit in commits:
-        committed_date = datetime.fromtimestamp(
-            commit.committed_unix_time, tz=UTC
-        ).date()
+        committed_date = datetime.fromtimestamp(commit.committed_unix_time, tz=UTC).date()
         week = _week_start(committed_date)
         raw, normalized = _categorize(commit.subject)
         grouped.setdefault(week, []).append(

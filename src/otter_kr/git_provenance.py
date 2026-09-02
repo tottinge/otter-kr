@@ -30,6 +30,7 @@ class BoundedHistoryProvenance:
     def to_dict(self) -> dict[str, object]:
         return asdict(self) | {"source_file_filter": self.source_file_filter.to_dict()}
 
+
 def python_history_provenance(
     repository_root: str,
     *,

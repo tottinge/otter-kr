@@ -14,9 +14,7 @@ class FakeFiles:
 def test_reports_shared_file_and_ast_adjacency_as_separate_evidence(tmp_path: Path) -> None:
     source = tmp_path / "service.py"
     source.write_text(
-        "def payment(amount):\n"
-        "    total = amount\n"
-        "    return total\n",
+        "def payment(amount):\n    total = amount\n    return total\n",
         encoding="utf-8",
     )
     report = find_structural_neighborhood(tmp_path, "payment", FakeFiles([source]))

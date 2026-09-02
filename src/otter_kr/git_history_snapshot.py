@@ -30,9 +30,7 @@ class GitHistorySnapshotReport:
     files: tuple[SnapshotFile, ...]
 
     def to_dict(self) -> dict[str, object]:
-        return self.provenance.to_dict() | {
-            "files": [file.to_dict() for file in self.files]
-        }
+        return self.provenance.to_dict() | {"files": [file.to_dict() for file in self.files]}
 
 
 def collect_git_history_snapshot(

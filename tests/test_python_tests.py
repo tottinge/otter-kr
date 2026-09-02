@@ -143,9 +143,7 @@ def test_reports_plain_module_import_and_attribute_use(tmp_path: Path) -> None:
 
 def test_reports_unaliased_dotted_module_import_and_attribute_use(tmp_path: Path) -> None:
     source = (
-        "import app.service\n\n"
-        "def test_attribute_reference():\n"
-        "    app.service.collect_payment()\n"
+        "import app.service\n\ndef test_attribute_reference():\n    app.service.collect_payment()\n"
     )
     write_python(tmp_path, "tests/test_service.py", source)
     git_repository(tmp_path, "tests")

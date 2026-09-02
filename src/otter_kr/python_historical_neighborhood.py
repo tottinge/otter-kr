@@ -72,7 +72,6 @@ def find_historical_neighborhood(
         seed_paths,
         tuple(sorted(edges, key=lambda edge: (edge.seed_path, edge.neighbor_path))),
         tuple(
-            {"path": failure.path, "message": failure.message}
-            for failure in names.parse_failures
+            {"path": failure.path, "message": failure.message} for failure in names.parse_failures
         ),
     )

@@ -112,8 +112,17 @@ class GitCliHistory(
     def commit_changes(self, repository: Path, commit_sha: str) -> list[CommitPathChange]:
         commit_sha = _validate_sha(commit_sha, field_name="commit_sha")
         command = (
-            "git", "-C", str(repository), "diff-tree", "--root", "--no-commit-id",
-            "--name-status", "-z", "-r", "-M", commit_sha,
+            "git",
+            "-C",
+            str(repository),
+            "diff-tree",
+            "--root",
+            "--no-commit-id",
+            "--name-status",
+            "-z",
+            "-r",
+            "-M",
+            commit_sha,
         )
         return _parse_commit_changes(self._run(command))
 
@@ -123,8 +132,16 @@ class GitCliHistory(
         origins: list[LineOrigin] = []
         for line in lines:
             command = (
-                "git", "-C", str(repository), "blame", "--porcelain", "-L",
-                f"{line},{line}", revision, "--", path,
+                "git",
+                "-C",
+                str(repository),
+                "blame",
+                "--porcelain",
+                "-L",
+                f"{line},{line}",
+                revision,
+                "--",
+                path,
             )
             try:
                 output = self._run(command).decode("utf-8", errors="replace").splitlines()
@@ -132,7 +149,10 @@ class GitCliHistory(
                 text = output[-1][1:] if output and output[-1].startswith("\t") else ""
                 origins.append(
                     LineOrigin(
-                        path, line, text, header[0] if header else None,
+                        path,
+                        line,
+                        text,
+                        header[0] if header else None,
                         "resolved" if header else "unavailable",
                     )
                 )
