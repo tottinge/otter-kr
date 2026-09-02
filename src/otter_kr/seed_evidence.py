@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from otter_kr.python_carrier_guards import CarrierGuardReport, find_carrier_guards_for_seed
 from otter_kr.python_neighborhood import PythonNeighborhoodReport, find_python_neighborhood
 
 
@@ -17,6 +18,7 @@ class SeedEvidenceReport:
     locations: tuple[dict[str, object], ...]
     counts: dict[str, int]
     provenance: dict[str, object]
+    carrier_guards: dict[str, object] | None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -27,13 +29,20 @@ class SeedEvidenceReport:
             "locations": list(self.locations),
             "counts": self.counts,
             "provenance": self.provenance,
+            "carrier_guards": self.carrier_guards,
         }
 
 
 def project_python_neighborhood(
-    repository: Path, seed: str, neighborhood: PythonNeighborhoodReport | None = None
+    repository: Path,
+    seed: str,
+    neighborhood: PythonNeighborhoodReport | None = None,
+    carrier_guards: CarrierGuardReport | None = None,
 ) -> SeedEvidenceReport:
     evidence = neighborhood or find_python_neighborhood(repository, seed)
+    guard_evidence = carrier_guards
+    if guard_evidence is None and repository is not None:
+        guard_evidence = find_carrier_guards_for_seed(repository, seed)
     nodes = tuple(node.to_dict() for node in evidence.nodes)
     edges = tuple(edge.to_dict() for edge in evidence.edges)
     return SeedEvidenceReport(
@@ -47,4 +56,5 @@ def project_python_neighborhood(
             "operation": "python.neighborhood",
             "parse_failures": list(evidence.parse_failures),
         },
+        carrier_guards=guard_evidence.to_dict() if guard_evidence is not None else None,
     )

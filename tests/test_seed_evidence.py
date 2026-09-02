@@ -1,3 +1,4 @@
+from otter_kr.python_carrier_guards import CarrierGuardReport
 from otter_kr.python_neighborhood import (
     NeighborhoodEdge,
     NeighborhoodNode,
@@ -36,4 +37,29 @@ def test_seed_projection_preserves_neighborhood_evidence_and_provenance() -> Non
             "operation": "python.neighborhood",
             "parse_failures": [{"path": "bad.py", "message": "syntax"}],
         },
+        "carrier_guards": None,
     }
+
+
+def test_identifier_seed_projection_includes_carrier_guard_evidence() -> None:
+    neighborhood = PythonNeighborhoodReport("order", 1, (), (), ())
+    carrier_guards = CarrierGuardReport("python", "order", None, (), (), ())
+
+    report = project_python_neighborhood(None, "order", neighborhood, carrier_guards)
+
+    assert report.to_dict()["carrier_guards"] == {
+        "language": "python",
+        "carrier": "order",
+        "path_bound": None,
+        "occurrences": [],
+        "groups": [],
+        "warnings": [],
+    }
+
+
+def test_non_identifier_seed_projection_omits_carrier_guard_evidence() -> None:
+    neighborhood = PythonNeighborhoodReport("order-status", 1, (), (), ())
+
+    report = project_python_neighborhood(None, "order-status", neighborhood)
+
+    assert report.to_dict()["carrier_guards"] is None

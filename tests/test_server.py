@@ -1106,6 +1106,36 @@ def test_research_tool_reports_python_carrier_guards(tmp_path: Path) -> None:
     assert data["occurrences"][0]["exit_kind"] == "return"
 
 
+def test_seed_evidence_composite_includes_carrier_guards_for_identifier(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        "def advance(order):\n    if order.status == 'open':\n        order.close()\n",
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.seed_evidence",
+                "term": "order",
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="python.seed_evidence",
+        repository_root=str(tmp_path),
+        term="order",
+    )
+    assert data["carrier_guards"]["carrier"] == "order"
+    assert data["carrier_guards"]["occurrences"][0]["path"] == "pkg/service.py"
+
+
 def test_research_tool_rejects_python_discriminations_without_term() -> None:
     server = create_server()
 

@@ -95,6 +95,12 @@ class CarrierGuardReport:
         }
 
 
+def find_carrier_guards_for_seed(repository: Path, seed: str) -> CarrierGuardReport | None:
+    if not seed.isidentifier():
+        return None
+    return find_carrier_guards(repository, seed)
+
+
 def _operator_name(operator: ast.cmpop) -> str | None:
     mapping: dict[type[ast.cmpop], str] = {
         ast.Eq: "==",

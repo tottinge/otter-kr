@@ -637,10 +637,13 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
 - **Observable result:** report `path_bound` lists the bound; only matching tracked files contribute.
 - **Still rejected:** absolute paths, `..` segments, and implicit session-wide context.
 
-#### KR-048 — Composite hook for carrier guards
+#### KR-048 — Composite hook for carrier guards *(shipped in this slice)*
 
 - **Admits:** a minimal link from seed/term composites into carrier-guard evidence when the seed is
   an identifier.
+- **Observable result:** `python.seed_evidence` and `python.term_change_evidence` carry a distinct
+  `carrier_guards` report; non-identifier seeds leave that field empty without rejecting the
+  composite.
 - **Still rejected:** auto-running guards for every composite or interpreting results in-server.
 
 #### KR-049 — Characterize carrier-guard evidence in the regression corpus
