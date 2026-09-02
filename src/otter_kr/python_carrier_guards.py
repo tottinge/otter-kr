@@ -38,6 +38,7 @@ class CarrierGuardOccurrence:
     column: int
     control_shape: str
     predicate: dict[str, str]
+    predicate_normalized: dict[str, str]
     exit_kind: str | None
     effects: tuple[CarrierEffect, ...]
 
@@ -48,6 +49,7 @@ class CarrierGuardOccurrence:
             "column": self.column,
             "control_shape": self.control_shape,
             "predicate": dict(self.predicate),
+            "predicate_normalized": dict(self.predicate_normalized),
             "exit_kind": self.exit_kind,
             "effects": [item.to_dict() for item in self.effects],
         }
@@ -83,11 +85,13 @@ def _value_text(node: ast.AST) -> str:
     return ast.unparse(node)
 
 
-def _carrier_field_compare(node: ast.AST, carrier: str) -> tuple[str, str, str, str] | None:
-    """Return (expression, field, operator, value) when node tests carrier.field."""
+def _carrier_field_compare(node: ast.AST, carrier: str) -> tuple[str, str, str, str, bool] | None:
+    """Return expression, field, operator, value, unary_not when testing carrier.field."""
     compare = node
+    unary_not = False
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
         compare = node.operand
+        unary_not = True
     if not isinstance(compare, ast.Compare) or len(compare.ops) != 1:
         return None
     operator = _operator_name(compare.ops[0])
@@ -99,14 +103,45 @@ def _carrier_field_compare(node: ast.AST, carrier: str) -> tuple[str, str, str, 
         and isinstance(left.value, ast.Name)
         and left.value.id == carrier
     ):
-        return ast.unparse(node), left.attr, operator, _value_text(right)
+        return ast.unparse(node), left.attr, operator, _value_text(right), unary_not
     if (
         isinstance(right, ast.Attribute)
         and isinstance(right.value, ast.Name)
         and right.value.id == carrier
     ):
-        return ast.unparse(node), right.attr, operator, _value_text(left)
+        return ast.unparse(node), right.attr, operator, _value_text(left), unary_not
     return None
+
+
+_FLIPPED_OPERATORS = {
+    "==": "!=",
+    "!=": "==",
+    "is": "is not",
+    "is not": "is",
+}
+
+
+def _normalize_predicate(
+    *,
+    carrier: str,
+    field: str,
+    operator: str,
+    value: str,
+    control_shape: str,
+    unary_not: bool,
+) -> dict[str, str]:
+    """Map raw predicate onto the relation that holds on the effect path."""
+    effect_when = operator
+    if unary_not:
+        effect_when = _FLIPPED_OPERATORS[effect_when]
+    if control_shape == "early_exit":
+        effect_when = _FLIPPED_OPERATORS[effect_when]
+    return {
+        "carrier": carrier,
+        "field": field,
+        "value": value,
+        "effect_when": effect_when,
+    }
 
 
 def _is_pure_early_exit(body: list[ast.stmt]) -> str | None:
@@ -232,9 +267,10 @@ class _CarrierGuardCollector(ast.NodeVisitor):
     def visit_If(self, node: ast.If) -> None:
         predicate = _carrier_field_compare(node.test, self.carrier)
         if predicate is not None:
-            expression, field, operator, value = predicate
+            expression, field, operator, value, unary_not = predicate
             exit_kind = _is_pure_early_exit(node.body)
             if exit_kind is not None and not node.orelse:
+                control_shape = "early_exit"
                 parent = self._block_stack[-1]
                 index = parent.index(node)
                 follow = parent[index + 1 :]
@@ -245,18 +281,27 @@ class _CarrierGuardCollector(ast.NodeVisitor):
                             path=self.path,
                             line=node.lineno,
                             column=node.col_offset,
-                            control_shape="early_exit",
+                            control_shape=control_shape,
                             predicate={
                                 "expression": expression,
                                 "field": field,
                                 "operator": operator,
                                 "value": value,
                             },
+                            predicate_normalized=_normalize_predicate(
+                                carrier=self.carrier,
+                                field=field,
+                                operator=operator,
+                                value=value,
+                                control_shape=control_shape,
+                                unary_not=unary_not,
+                            ),
                             exit_kind=exit_kind,
                             effects=tuple(effects),
                         )
                     )
             else:
+                control_shape = "enclosed_branch"
                 effects = _collect_effects(list(node.body), self.carrier)
                 if effects:
                     self.occurrences.append(
@@ -264,13 +309,21 @@ class _CarrierGuardCollector(ast.NodeVisitor):
                             path=self.path,
                             line=node.lineno,
                             column=node.col_offset,
-                            control_shape="enclosed_branch",
+                            control_shape=control_shape,
                             predicate={
                                 "expression": expression,
                                 "field": field,
                                 "operator": operator,
                                 "value": value,
                             },
+                            predicate_normalized=_normalize_predicate(
+                                carrier=self.carrier,
+                                field=field,
+                                operator=operator,
+                                value=value,
+                                control_shape=control_shape,
+                                unary_not=unary_not,
+                            ),
                             exit_kind=None,
                             effects=tuple(effects),
                         )

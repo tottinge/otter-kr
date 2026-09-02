@@ -37,6 +37,12 @@ def test_reports_enclosed_branch_when_predicate_and_body_modify_carrier(tmp_path
                 "operator": "==",
                 "value": "'open'",
             },
+            "predicate_normalized": {
+                "carrier": "order",
+                "field": "status",
+                "value": "'open'",
+                "effect_when": "==",
+            },
             "exit_kind": None,
             "effects": [
                 {
@@ -84,6 +90,12 @@ def test_reports_guard_clause_with_fallthrough_access_and_modification(tmp_path:
                 "operator": "!=",
                 "value": "'open'",
             },
+            "predicate_normalized": {
+                "carrier": "order",
+                "field": "status",
+                "value": "'open'",
+                "effect_when": "==",
+            },
             "exit_kind": "return",
             "effects": [
                 {
@@ -130,6 +142,58 @@ def test_ignores_unrelated_branches_and_sorts_occurrences(tmp_path: Path) -> Non
     assert [item.path for item in report.occurrences] == ["pkg/b.py"]
     assert [item.control_shape for item in report.occurrences] == ["early_exit"]
     assert report.occurrences[0].predicate["field"] == "kind"
+
+
+def test_normalized_keys_align_enclosed_equality_with_early_exit_inequality(
+    tmp_path: Path,
+) -> None:
+    write_python(
+        tmp_path,
+        "pkg/a.py",
+        ("def enclosed(order):\n    if order.status == 'open':\n        order.mark()\n"),
+    )
+    write_python(
+        tmp_path,
+        "pkg/b.py",
+        (
+            "def guarded(order):\n"
+            "    if order.status != 'open':\n"
+            "        return\n"
+            "    order.mark()\n"
+            "def identity(order):\n"
+            "    if order.status is Status.OPEN:\n"
+            "        order.mark()\n"
+            "def identity_guard(order):\n"
+            "    if order.status is not Status.OPEN:\n"
+            "        return\n"
+            "    order.mark()\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+    keys = [item.predicate_normalized for item in report.occurrences]
+
+    assert (
+        keys[0]
+        == keys[1]
+        == {
+            "carrier": "order",
+            "field": "status",
+            "value": "'open'",
+            "effect_when": "==",
+        }
+    )
+    assert (
+        keys[2]
+        == keys[3]
+        == {
+            "carrier": "order",
+            "field": "status",
+            "value": "Status.OPEN",
+            "effect_when": "is",
+        }
+    )
 
 
 def test_reports_parse_warnings_and_rejects_empty_carrier(tmp_path: Path) -> None:

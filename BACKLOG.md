@@ -599,11 +599,12 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
   guard bodies; `isinstance`; repo-wide discovery.
 - **Acceptance:** unit and MCP contract tests green; missing `term` rejects with `invalid_query`.
 
-#### KR-043 — Normalize predicate polarity for clustering keys
+#### KR-043 — Normalize predicate polarity for clustering keys *(shipped in this slice)*
 
-- **Admits:** report-only normalized predicate metadata so complementary operators can share a
-  cluster key without rewriting control-flow meaning.
-- **Observable result:** each occurrence carries raw predicate and a deterministic normalized key.
+- **Admits:** report-only `predicate_normalized` so complementary operators can share a cluster key
+  without rewriting control-flow meaning (`effect_when` is the relation on the effect path).
+- **Observable result:** each occurrence carries raw predicate and a deterministic normalized key
+  `{carrier, field, value, effect_when}`.
 - **Still rejected:** collapsing sites into one inferred rule.
 
 #### KR-044 — Multiplicity rollup by normalized shape
