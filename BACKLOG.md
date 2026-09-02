@@ -20,6 +20,11 @@ component task.
 Durable architectural decisions live in [`docs/adr/`](docs/adr/); this file tracks iteration-sized
 admissions and validation work.
 
+The dated acceptance audit in
+[`docs/backlog-audit-2026-09-02.md`](docs/backlog-audit-2026-09-02.md) distinguishes complete
+implementations with stale labels from partial implementations that still miss written acceptance
+criteria. A matching module name alone is not treated as shipped evidence.
+
 ## Reference implementation notes: `../gitminer-dash`
 
 `../gitminer-dash` is a source of executable examples, not an authority over this project's
@@ -74,7 +79,7 @@ then a tool admission. Import-cycle checks are part of the architecture acceptan
 
 ### Foundation
 
-#### KR-001 — Start a stateless reject-everything skeleton
+#### KR-001 — Start a stateless reject-everything skeleton *(shipped in `bab9577`)*
 
 - **Source:** both specifications; statelessness, portability, and evidence-layer constraints.
 - **Admits:** MCP startup, command registration, and an explicit `repository_root` parameter on
@@ -87,7 +92,7 @@ then a tool admission. Import-cycle checks are part of the architecture acceptan
   context is retained; the server starts cleanly; unsupported requests have stable JSON shape;
   the existing `names` implementation is disabled or unreachable from the admitted MCP surface.
 
-#### KR-002 — Make evidence reports versioned and provenance-bearing
+#### KR-002 — Make evidence reports versioned and provenance-bearing *(shipped in `7c1845b`)*
 
 - **Source:** `output_contract`, `evidence_packet_example`, and Principle 2 (one authoritative
   representation).
@@ -103,7 +108,7 @@ then a tool admission. Import-cycle checks are part of the architecture acceptan
 
 These slices answer “what exists now?” and can run on a copied source tree.
 
-#### KR-003 — Inventory Python files and parse health
+#### KR-003 — Inventory Python files and parse health *(shipped in `ffb104a`)*
 
 - **Admits:** Python file inventory for one Git repository context, using Git's tracked-file list
   as the source of file identity.
@@ -172,7 +177,7 @@ These slices answer “what exists now?” and can run on a copied source tree.
 - **Observable result:** candidate tests, matched evidence, and explicit “no mapping found” output.
 - **Still rejected:** runtime coverage claims, proof of execution, and test-quality judgment.
 
-#### KR-011b — Broaden symbol-to-test import evidence beyond `from ... import ...`
+#### KR-011b — Broaden symbol-to-test import evidence beyond `from ... import ...` *(shipped in `d21695e`)*
 
 - **Admits:** additional static import shapes for one selected symbol, beginning with plain `import`
   plus attribute use, without changing the evidence-only contract.
@@ -287,7 +292,7 @@ dimensions and must not be smuggled into the weighting formula.
 - **Observable result:** canonical file identity and scores that do not split at a path rename.
 - **Still rejected:** content-semantic identity and rename inference outside Git evidence.
 
-#### KR-017a — Emit bounded, citeable history snapshots
+#### KR-017a — Emit bounded, citeable history snapshots *(shipped in `875efeb`)*
 
 - **Admits:** one bounded history window projected into a versioned snapshot.
 - **Observable result:** schema version, normalized period, total commits, per-file counts, and a
@@ -295,14 +300,14 @@ dimensions and must not be smuggled into the weighting formula.
 - **Still rejected:** narrative summaries, recommendations, and unbounded raw commit payloads.
 - **Reference sample:** `gitminer-dash/insights/models.py` and `insights/snapshot_builder.py`.
 
-#### KR-018 — Report branch constructs added across commits
+#### KR-018 — Report branch constructs added across commits *(shipped in `3e5a632`)*
 
 - **Admits:** branch or conditional constructs added in successive commits for one Python file.
 - **Observable result:** added-construct counts, locations, text, commit identities, and explicit
   first-parent/skipped-commit evidence.
 - **Still rejected:** a refactoring recommendation or assertion that growth is harmful.
 
-#### KR-018a — Report temporal and commit-message distributions
+#### KR-018a — Report temporal and commit-message distributions *(shipped in `1764992`)*
 
 - **Admits:** commits grouped into explicit calendar windows and syntactically recognized commit
   message categories.
@@ -317,7 +322,7 @@ dimensions and must not be smuggled into the weighting formula.
 These slices combine already-shipped evidence categories. They must preserve edge provenance and
 must not turn deterministic association into concept identity.
 
-#### KR-019 — Grow an exact/lexical neighborhood
+#### KR-019 — Grow an exact/lexical neighborhood *(shipped in `618383a`)*
 
 - **Admits:** one seed identifier, using exact-name and lexical-family passes only.
 - **Observable result:** nodes, weighted edges, discovery pass, and ranked neighbors with reasons.
