@@ -23,6 +23,7 @@ from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
+from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import find_duplicate_helpers
@@ -84,6 +85,11 @@ PYTHON_OPERATIONS = {
         find_type_discriminations,
         requires_term=True,
         term_message="A term is required for python.discriminations.",
+    ),
+    "python.carrier_guards": PythonOperationSpec(
+        find_carrier_guards,
+        requires_term=True,
+        term_message="A carrier name is required for python.carrier_guards.",
     ),
     "python.tests": PythonOperationSpec(
         find_tests_for_symbol,

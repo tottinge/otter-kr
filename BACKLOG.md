@@ -583,6 +583,65 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 - **Acceptance:** the corpus runs in `full_test`; failures identify the evidence contract that
   changed; real repositories are pinned by immutable revision rather than a moving branch.
 
+### Seed-scoped carrier-guard evidence (misplaced-semantics observation)
+
+These slices observe field-predicated access/modification of one named carrier. They never label
+"misplaced semantics," recommend refactors, or rank smells. Queries are seed-scoped (`term` =
+carrier identifier). Restart the otter-kr MCP from the current tree before each dogfood run.
+
+#### KR-042 — Admit seed-scoped carrier-guard evidence *(shipped in this slice)*
+
+- **Admits:** `python.carrier_guards` for one carrier identifier across tracked Python files.
+- **Observable result:** `enclosed_branch` and pure single-exit `early_exit` occurrences with
+  predicate `{expression, field, operator, value}`, `exit_kind`, carrier effects
+  (`attribute_store`, `mutative_call`, `attribute_load`), stable ordering, and parse warnings.
+- **Still rejected:** judgment labels; non-identifier carriers; `match`/`case`; multi-statement
+  guard bodies; `isinstance`; repo-wide discovery.
+- **Acceptance:** unit and MCP contract tests green; missing `term` rejects with `invalid_query`.
+
+#### KR-043 — Normalize predicate polarity for clustering keys
+
+- **Admits:** report-only normalized predicate metadata so complementary operators can share a
+  cluster key without rewriting control-flow meaning.
+- **Observable result:** each occurrence carries raw predicate and a deterministic normalized key.
+- **Still rejected:** collapsing sites into one inferred rule.
+
+#### KR-044 — Multiplicity rollup by normalized shape
+
+- **Admits:** grouped summary over one carrier's occurrences (counts, path spread, effect-role
+  tallies).
+- **Observable result:** `groups[]` with normalized key, occurrence/path counts, and location refs.
+- **Still rejected:** ranked smell scores or badness weights.
+
+#### KR-045 — Richer early-exit and else-guard shapes
+
+- **Admits:** additional pure-exit guard phrasings and else-return shapes with distinct
+  `control_shape` values when needed.
+- **Still rejected:** treating arbitrary dual-mutate if/else as a guard.
+
+#### KR-046 — Additional predicate forms (seed-scoped)
+
+- **Admits:** one further predicate form at a time (`isinstance`, `in`, or field truthiness),
+  chosen from dogfood frequency.
+- **Still rejected:** full dataflow and `match`/`case` until separately admitted.
+
+#### KR-047 — Optional file/path bound for tighter bundles
+
+- **Admits:** optional path bound so a consumer can restrict the scan to a file bundle.
+- **Still rejected:** implicit session-wide repository context.
+
+#### KR-048 — Composite hook for carrier guards
+
+- **Admits:** a minimal link from seed/term composites into carrier-guard evidence when the seed is
+  an identifier.
+- **Still rejected:** auto-running guards for every composite or interpreting results in-server.
+
+#### KR-049 — Characterize carrier-guard evidence in the regression corpus
+
+- **Admits:** planted fixtures for enclosed, early-exit, and rollup contracts, plus a pinned
+  dogfood note when useful.
+- **Acceptance:** characterization runs under `full_test`.
+
 ## Backlog quality rules
 
 Use the refactoring skills as review criteria, not as a reason to pre-build abstractions:

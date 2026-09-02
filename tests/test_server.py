@@ -1070,6 +1070,42 @@ def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_pa
         assert source_line[item["column"] :].startswith(item["imported_name"])
 
 
+def test_research_tool_reports_python_carrier_guards(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "def advance(order):\n"
+            "    if order.status != 'open':\n"
+            "        return\n"
+            "    order.closed = True\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.carrier_guards",
+                "term": "order",
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="python.carrier_guards",
+        repository_root=str(tmp_path),
+        term="order",
+    )
+    assert data["carrier"] == "order"
+    assert [item["control_shape"] for item in data["occurrences"]] == ["early_exit"]
+    assert data["occurrences"][0]["exit_kind"] == "return"
+
+
 def test_research_tool_rejects_python_discriminations_without_term() -> None:
     server = create_server()
 
@@ -1086,6 +1122,22 @@ def test_research_tool_rejects_python_discriminations_without_term() -> None:
     assert rejection["error"] == {
         "code": "invalid_query",
         "message": "A term is required for python.discriminations.",
+    }
+
+
+def test_research_tool_rejects_python_carrier_guards_without_term() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {"repository_root": "/repo", "operation": "python.carrier_guards"},
+        )
+    )
+
+    assert rejection["error"] == {
+        "code": "invalid_query",
+        "message": "A carrier name is required for python.carrier_guards.",
     }
 
 
