@@ -78,6 +78,11 @@ def find_structural_neighborhood(
             ):
                 evidence[(node.module, "import target")] += 1
                 counts[node.module] += 1
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.asname == seed:
+                        evidence[(alias.name, "import target")] += 1
+                        counts[alias.name] += 1
         for name in set(names):
             if name != seed:
                 evidence[(name, "shared file")] += 1

@@ -67,3 +67,26 @@ def test_aggregates_repeated_direct_import_targets(tmp_path: Path) -> None:
         "reason": "import target",
     } in report.to_dict()["edges"]
     assert {"name": "app.models", "occurrence_count": 2} in report.to_dict()["nodes"]
+
+
+def test_reports_plain_import_alias_target_for_seed(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text("import app.models as Payment\nPayment.quote()\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert {
+        "seed": "Payment",
+        "neighbor": "app.models",
+        "weight": 1,
+        "reason": "import target",
+    } in report.to_dict()["edges"]
+
+
+def test_rejects_unaliased_plain_import_as_seed_target(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text("import app.models\nPayment()\n", encoding="utf-8")
+
+    report = find_structural_neighborhood(tmp_path, "Payment", FakeFiles([source]))
+
+    assert not any(edge["reason"] == "import target" for edge in report.to_dict()["edges"])

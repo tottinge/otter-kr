@@ -344,6 +344,14 @@ must not turn deterministic association into concept identity.
 - **Still rejected:** plain imports, relative-import resolution, re-export inference, and repeated
   non-import co-occurrence.
 
+#### KR-020b — Add plain-import alias target edges *(shipped in this slice)*
+
+- **Admits:** an explicit `import module as Seed` declaration as import-target evidence.
+- **Observable result:** the structural neighborhood reports the imported module under the existing
+  `import target` reason through both the domain API and MCP operation.
+- **Still rejected:** unaliased plain imports, relative-import resolution, re-export inference, and
+  repeated non-import co-occurrence.
+
 #### KR-021 — Add historical neighborhood edges
 
 - **Admits:** bounded co-change relationships for a seed’s files.

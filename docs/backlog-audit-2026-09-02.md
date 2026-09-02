@@ -25,7 +25,7 @@ Python files with no warnings.
 
 | Item | Existing evidence | Acceptance gap |
 | --- | --- | --- |
-| KR-020 | structural neighborhood reports shared-file, AST-adjacency, and absolute `from`-import target edges | plain/relative imports and repeated non-import co-occurrence are not admitted as separate structural evidence |
+| KR-020 | structural neighborhood reports shared-file, AST-adjacency, absolute `from`-import targets, and plain-import alias targets | relative imports and repeated non-import co-occurrence are not admitted as separate structural evidence |
 | KR-021 | historical neighborhood emits bounded co-change weights | edges lack explicit window/filter provenance in the report |
 | KR-022 | behavioral neighborhood reports calls, field access, and comparisons | shared field manipulation and selected-type behavior are not represented with citeable locations |
 | KR-022a | graph topology reports counts, averages, connected-component IDs, and bridge scores | algorithm/filter parameters, cross-community edge totals, bridge ratios, and their formulas are absent |
