@@ -14,6 +14,7 @@ otter-kr = "otter_kr.server:main"
 
 [dependency-groups]
 dev = [
+    "mutmut==3.7.0",
     "pytest==8.4.2",
     "ruff==0.12.11",
 ]
@@ -25,6 +26,11 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
+
+[tool.mutmut]
+source_paths = ["src/otter_kr"]
+mutate_only_covered_lines = true
+pytest_add_cli_args = ["-q"]
 
 [tool.ruff]
 line-length = 100

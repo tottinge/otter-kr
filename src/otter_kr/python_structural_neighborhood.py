@@ -69,6 +69,15 @@ def find_structural_neighborhood(
         counts.update(names)
         if seed not in names:
             continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.level == 0
+                and node.module
+                and any(alias.name == seed for alias in node.names)
+            ):
+                evidence[(node.module, "import target")] += 1
+                counts[node.module] += 1
         for name in set(names):
             if name != seed:
                 evidence[(name, "shared file")] += 1

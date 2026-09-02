@@ -765,6 +765,40 @@ def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
     }
 
 
+def test_research_tool_reports_structural_import_target_edges(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "service.py",
+        "from app.models import Payment\n\ndef quote():\n    return Payment()\n",
+    )
+    git_repository(tmp_path, "service.py")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.structural",
+                "term": "Payment",
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.structural",
+        repository_root=str(tmp_path),
+        term="Payment",
+    )
+    assert {
+        "seed": "Payment",
+        "neighbor": "app.models",
+        "weight": 1,
+        "reason": "import target",
+    } in data["edges"]
+
+
 def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
     write_python(
         tmp_path,

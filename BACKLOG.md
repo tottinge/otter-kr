@@ -335,6 +335,15 @@ must not turn deterministic association into concept identity.
 - **Observable result:** structural edges are added with separate provenance and weights.
 - **Still rejected:** Git intimacy and call-graph claims.
 
+#### KR-020a — Add direct `from`-import target edges *(shipped in this slice)*
+
+- **Admits:** an absolute `from module import Seed` declaration as a distinct structural edge from
+  the selected seed to its import target module.
+- **Observable result:** repeated declarations aggregate under the `import target` reason with a
+  deterministic weight and module occurrence count.
+- **Still rejected:** plain imports, relative-import resolution, re-export inference, and repeated
+  non-import co-occurrence.
+
 #### KR-021 — Add historical neighborhood edges
 
 - **Admits:** bounded co-change relationships for a seed’s files.
