@@ -261,6 +261,80 @@ def test_rolls_up_multiplicity_by_normalized_shape(tmp_path: Path) -> None:
     ]
 
 
+def test_reports_multi_statement_pure_early_exit(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "def advance(order):\n"
+            "    if order.status != 'open':\n"
+            "        raise ValueError('closed')\n"
+            "        return\n"
+            "    order.mark()\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+
+    assert len(report.occurrences) == 1
+    item = report.occurrences[0]
+    assert item.control_shape == "early_exit"
+    assert item.exit_kind == "raise"
+    assert item.predicate_normalized["effect_when"] == "=="
+    assert [effect.kind for effect in item.effects] == ["mutative_call"]
+
+
+def test_reports_else_exit_when_then_modifies_carrier(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "def advance(order):\n"
+            "    if order.status == 'open':\n"
+            "        order.mark()\n"
+            "    else:\n"
+            "        return\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+
+    assert len(report.occurrences) == 1
+    item = report.occurrences[0]
+    assert item.control_shape == "else_exit"
+    assert item.exit_kind == "return"
+    assert item.predicate_normalized == {
+        "carrier": "order",
+        "field": "status",
+        "value": "'open'",
+        "effect_when": "==",
+    }
+    assert [effect.kind for effect in item.effects] == ["mutative_call"]
+
+
+def test_ignores_dual_mutate_if_else_as_guard(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/service.py",
+        (
+            "def advance(order, other):\n"
+            "    if order.status == 'open':\n"
+            "        order.mark()\n"
+            "    else:\n"
+            "        other.mark()\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order")
+
+    assert len(report.occurrences) == 1
+    assert report.occurrences[0].control_shape == "enclosed_branch"
+    assert report.occurrences[0].exit_kind is None
+
+
 def test_reports_parse_warnings_and_rejects_empty_carrier(tmp_path: Path) -> None:
     write_python(tmp_path, "broken.py", "def nope(:\n")
     git_repository(tmp_path, "broken.py")

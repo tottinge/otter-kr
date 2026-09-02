@@ -195,6 +195,7 @@ def _normalize_predicate(
     if unary_not:
         effect_when = _FLIPPED_OPERATORS[effect_when]
     if control_shape == "early_exit":
+        # Effects run on the fall-through path (condition false).
         effect_when = _FLIPPED_OPERATORS[effect_when]
     return {
         "carrier": carrier,
@@ -204,10 +205,7 @@ def _normalize_predicate(
     }
 
 
-def _is_pure_early_exit(body: list[ast.stmt]) -> str | None:
-    if len(body) != 1:
-        return None
-    statement = body[0]
+def _exit_kind(statement: ast.stmt) -> str | None:
     if isinstance(statement, ast.Return):
         return "return"
     if isinstance(statement, ast.Raise):
@@ -217,6 +215,16 @@ def _is_pure_early_exit(body: list[ast.stmt]) -> str | None:
     if isinstance(statement, ast.Break):
         return "break"
     return None
+
+
+def _is_pure_early_exit(body: list[ast.stmt]) -> str | None:
+    """Return the first exit kind when every statement is a pure exit."""
+    if not body:
+        return None
+    kinds = [_exit_kind(statement) for statement in body]
+    if any(kind is None for kind in kinds):
+        return None
+    return kinds[0]
 
 
 def _carrier_name(node: ast.AST, carrier: str) -> bool:
@@ -324,70 +332,91 @@ class _CarrierGuardCollector(ast.NodeVisitor):
 
     visit_AsyncWith = visit_With
 
+    def _record(
+        self,
+        *,
+        node: ast.If,
+        expression: str,
+        field: str,
+        operator: str,
+        value: str,
+        unary_not: bool,
+        control_shape: str,
+        exit_kind: str | None,
+        effects: list[CarrierEffect],
+    ) -> None:
+        if not effects:
+            return
+        self.occurrences.append(
+            CarrierGuardOccurrence(
+                path=self.path,
+                line=node.lineno,
+                column=node.col_offset,
+                control_shape=control_shape,
+                predicate={
+                    "expression": expression,
+                    "field": field,
+                    "operator": operator,
+                    "value": value,
+                },
+                predicate_normalized=_normalize_predicate(
+                    carrier=self.carrier,
+                    field=field,
+                    operator=operator,
+                    value=value,
+                    control_shape=control_shape,
+                    unary_not=unary_not,
+                ),
+                exit_kind=exit_kind,
+                effects=tuple(effects),
+            )
+        )
+
     def visit_If(self, node: ast.If) -> None:
         predicate = _carrier_field_compare(node.test, self.carrier)
         if predicate is not None:
             expression, field, operator, value, unary_not = predicate
-            exit_kind = _is_pure_early_exit(node.body)
-            if exit_kind is not None and not node.orelse:
-                control_shape = "early_exit"
+            body_exit = _is_pure_early_exit(node.body)
+            else_exit = _is_pure_early_exit(node.orelse)
+            if body_exit is not None and not node.orelse:
                 parent = self._block_stack[-1]
                 index = parent.index(node)
                 follow = parent[index + 1 :]
-                effects = _collect_effects(list(follow), self.carrier)
-                if effects:
-                    self.occurrences.append(
-                        CarrierGuardOccurrence(
-                            path=self.path,
-                            line=node.lineno,
-                            column=node.col_offset,
-                            control_shape=control_shape,
-                            predicate={
-                                "expression": expression,
-                                "field": field,
-                                "operator": operator,
-                                "value": value,
-                            },
-                            predicate_normalized=_normalize_predicate(
-                                carrier=self.carrier,
-                                field=field,
-                                operator=operator,
-                                value=value,
-                                control_shape=control_shape,
-                                unary_not=unary_not,
-                            ),
-                            exit_kind=exit_kind,
-                            effects=tuple(effects),
-                        )
-                    )
+                self._record(
+                    node=node,
+                    expression=expression,
+                    field=field,
+                    operator=operator,
+                    value=value,
+                    unary_not=unary_not,
+                    control_shape="early_exit",
+                    exit_kind=body_exit,
+                    effects=_collect_effects(list(follow), self.carrier),
+                )
+            elif else_exit is not None and body_exit is None:
+                self._record(
+                    node=node,
+                    expression=expression,
+                    field=field,
+                    operator=operator,
+                    value=value,
+                    unary_not=unary_not,
+                    control_shape="else_exit",
+                    exit_kind=else_exit,
+                    effects=_collect_effects(list(node.body), self.carrier),
+                )
             else:
-                control_shape = "enclosed_branch"
-                effects = _collect_effects(list(node.body), self.carrier)
-                if effects:
-                    self.occurrences.append(
-                        CarrierGuardOccurrence(
-                            path=self.path,
-                            line=node.lineno,
-                            column=node.col_offset,
-                            control_shape=control_shape,
-                            predicate={
-                                "expression": expression,
-                                "field": field,
-                                "operator": operator,
-                                "value": value,
-                            },
-                            predicate_normalized=_normalize_predicate(
-                                carrier=self.carrier,
-                                field=field,
-                                operator=operator,
-                                value=value,
-                                control_shape=control_shape,
-                                unary_not=unary_not,
-                            ),
-                            exit_kind=None,
-                            effects=tuple(effects),
-                        )
-                    )
+                self._record(
+                    node=node,
+                    expression=expression,
+                    field=field,
+                    operator=operator,
+                    value=value,
+                    unary_not=unary_not,
+                    control_shape="enclosed_branch",
+                    exit_kind=None,
+                    effects=_collect_effects(list(node.body), self.carrier),
+                )
         self.visit(node.test)
         self._visit_block(list(node.body))
         self._visit_block(list(node.orelse))

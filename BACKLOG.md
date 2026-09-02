@@ -615,10 +615,12 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
   `effect_role_counts`, and `occurrence_refs`.
 - **Still rejected:** ranked smell scores or badness weights.
 
-#### KR-045 — Richer early-exit and else-guard shapes
+#### KR-045 — Richer early-exit and else-guard shapes *(shipped in this slice)*
 
-- **Admits:** additional pure-exit guard phrasings and else-return shapes with distinct
-  `control_shape` values when needed.
+- **Admits:** multi-statement pure-exit guard bodies and `else_exit` when the else arm is only
+  exits and the then arm carries carrier effects.
+- **Observable result:** `control_shape` values `early_exit` and `else_exit` with `exit_kind`;
+  polarity still reflects the effect path.
 - **Still rejected:** treating arbitrary dual-mutate if/else as a guard.
 
 #### KR-046 — Additional predicate forms (seed-scoped)
