@@ -373,6 +373,32 @@ def test_reports_isinstance_enclosed_and_early_exit(tmp_path: Path) -> None:
     assert report.groups[0].occurrence_count == 2
 
 
+def test_path_bound_limits_scan_and_rejects_unsafe_paths(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/a.py",
+        ("def one(order):\n    if order.status == 'open':\n        order.mark()\n"),
+    )
+    write_python(
+        tmp_path,
+        "pkg/b.py",
+        ("def two(order):\n    if order.status == 'open':\n        order.mark()\n"),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = find_carrier_guards(tmp_path, "order", paths=("pkg/b.py",))
+
+    assert report.path_bound == ("pkg/b.py",)
+    assert [item.path for item in report.occurrences] == ["pkg/b.py"]
+
+    try:
+        find_carrier_guards(tmp_path, "order", paths=("../outside.py",))
+    except ValueError as error:
+        assert "path_bound" in str(error) or ".." in str(error)
+    else:
+        raise AssertionError("expected unsafe path_bound to raise ValueError")
+
+
 def test_reports_parse_warnings_and_rejects_empty_carrier(tmp_path: Path) -> None:
     write_python(tmp_path, "broken.py", "def nope(:\n")
     git_repository(tmp_path, "broken.py")

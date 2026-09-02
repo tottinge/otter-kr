@@ -630,10 +630,12 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
 - **Observable result:** `predicate.operator`/`effect_when` use `isinstance`; `field` is empty.
 - **Still rejected:** `in`/truthiness/`match` until separately admitted; full dataflow.
 
-#### KR-047 — Optional file/path bound for tighter bundles
+#### KR-047 — Optional file/path bound for tighter bundles *(shipped in this slice)*
 
-- **Admits:** optional path bound so a consumer can restrict the scan to a file bundle.
-- **Still rejected:** implicit session-wide repository context.
+- **Admits:** optional repository-relative `path` bound on `python.carrier_guards` (analyzer also
+  accepts a `paths` tuple).
+- **Observable result:** report `path_bound` lists the bound; only matching tracked files contribute.
+- **Still rejected:** absolute paths, `..` segments, and implicit session-wide context.
 
 #### KR-048 — Composite hook for carrier guards
 

@@ -86,11 +86,6 @@ PYTHON_OPERATIONS = {
         requires_term=True,
         term_message="A term is required for python.discriminations.",
     ),
-    "python.carrier_guards": PythonOperationSpec(
-        find_carrier_guards,
-        requires_term=True,
-        term_message="A carrier name is required for python.carrier_guards.",
-    ),
     "python.tests": PythonOperationSpec(
         find_tests_for_symbol,
         requires_term=True,
@@ -430,6 +425,33 @@ def create_server() -> FastMCP:
                 require_term=python_spec.requires_term,
                 term_message=python_spec.term_message,
                 catches_value_error=python_spec.catches_value_error,
+            )
+
+        if operation == "python.carrier_guards":
+            if term is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A carrier name is required for python.carrier_guards.",
+                    term=term,
+                )
+            bound: tuple[str, ...] | None = None
+            if path is not None:
+                text = path.strip()
+                candidate = Path(text)
+                if not text or candidate.is_absolute() or ".." in candidate.parts:
+                    return _invalid_query(
+                        operation,
+                        repository_root,
+                        "path must be a repository-relative path without '..'.",
+                        term=term,
+                    )
+                bound = (candidate.as_posix(),)
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, carrier: find_carrier_guards(repository, carrier, paths=bound),
+                term=term,
             )
 
         if operation == "git.topic":

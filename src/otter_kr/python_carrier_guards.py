@@ -79,6 +79,7 @@ class CarrierGuardGroup:
 class CarrierGuardReport:
     language: str
     carrier: str
+    path_bound: tuple[str, ...] | None
     occurrences: tuple[CarrierGuardOccurrence, ...]
     groups: tuple[CarrierGuardGroup, ...]
     warnings: tuple[dict[str, str], ...]
@@ -87,6 +88,7 @@ class CarrierGuardReport:
         return {
             "language": self.language,
             "carrier": self.carrier,
+            "path_bound": list(self.path_bound) if self.path_bound is not None else None,
             "occurrences": [item.to_dict() for item in self.occurrences],
             "groups": [item.to_dict() for item in self.groups],
             "warnings": list(self.warnings),
@@ -439,21 +441,40 @@ class _CarrierGuardCollector(ast.NodeVisitor):
         self._visit_block(list(node.orelse))
 
 
+def _normalize_path_bound(paths: tuple[str, ...] | None) -> tuple[str, ...] | None:
+    if paths is None:
+        return None
+    normalized: list[str] = []
+    for raw in paths:
+        text = raw.strip()
+        if not text:
+            raise ValueError("path_bound entries must be non-empty repository-relative paths.")
+        candidate = Path(text)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            raise ValueError("path_bound entries must be repository-relative paths without '..'.")
+        normalized.append(candidate.as_posix())
+    return tuple(sorted(set(normalized)))
+
+
 def find_carrier_guards(
     repository: Path,
     carrier: str,
     file_source: TrackedFileSource | None = None,
+    paths: tuple[str, ...] | None = None,
 ) -> CarrierGuardReport:
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
     if not carrier or not carrier.isidentifier():
         raise ValueError("A non-empty carrier identifier is required.")
+    path_bound = _normalize_path_bound(paths)
 
     occurrences: list[CarrierGuardOccurrence] = []
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
+        if path_bound is not None and relative not in path_bound:
+            continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=relative)
         except UnicodeError:
@@ -494,6 +515,7 @@ def find_carrier_guards(
     return CarrierGuardReport(
         language="python",
         carrier=carrier,
+        path_bound=path_bound,
         occurrences=ordered,
         groups=_build_groups(ordered),
         warnings=tuple(warnings),

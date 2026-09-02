@@ -1141,6 +1141,25 @@ def test_research_tool_rejects_python_carrier_guards_without_term() -> None:
     }
 
 
+def test_research_tool_rejects_unsafe_carrier_guards_path() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "python.carrier_guards",
+                "term": "order",
+                "path": "../secret.py",
+            },
+        )
+    )
+
+    assert rejection["status"] == "rejected"
+    assert rejection["error"]["code"] == "invalid_query"
+
+
 def test_research_tool_rejects_python_tests_without_term() -> None:
     server = create_server()
 
