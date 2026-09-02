@@ -646,7 +646,7 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
   composite.
 - **Still rejected:** auto-running guards for every composite or interpreting results in-server.
 
-#### KR-049 — Characterize carrier-guard evidence in the regression corpus
+#### KR-049 — Characterize carrier-guard evidence in the regression corpus *(shipped in this slice)*
 
 - **Admits:** planted fixtures for enclosed, early-exit, and rollup contracts, plus a pinned
   dogfood note when useful.

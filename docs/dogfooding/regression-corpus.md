@@ -10,6 +10,7 @@ oracles; human interpretations never replace them.
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |
 | merge commit | `tests/test_git_characterization.py` | multiple parents are preserved |
 | current Python inventory | `tests/test_python_characterization.py` | tracked files and parse warnings agree with independent AST facts |
+| carrier-guard polarity and rollup | `tests/test_python_carrier_guard_characterization.py` | enclosed and early-exit forms retain their locations while sharing one normalized group |
 | mature-history triangulation | `docs/dogfooding/kr038-history-triangulation.md` | revisions and query bounds are pinned |
 | blind discovery protocol | `docs/dogfooding/kr039-blind-discovery.md` | analyst claims remain separate from MCP evidence |
 | repeatability measure | `docs/dogfooding/kr040-operational-viability.md` | unchanged requests serialize byte-stably |
