@@ -37,7 +37,7 @@ from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
-from otter_kr.python_variable_cluster import find_variable_occurrences
+from otter_kr.python_variable_cluster import find_variable_cluster, find_variable_occurrences
 from otter_kr.representation_inventory import collect_representation_inventory
 from otter_kr.review_packet import collect_review_packet
 from otter_kr.seed_evidence import project_python_neighborhood
@@ -107,10 +107,13 @@ def _query(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    terms: list[str] | tuple[str, ...] | None = None,
 ) -> dict:
     query = {"repository_root": repository_root}
     if term is not None:
         query["term"] = term
+    if terms is not None:
+        query["terms"] = list(terms)
     if since_unix_time is not None:
         query["since_unix_time"] = since_unix_time
     if limit is not None:
@@ -127,6 +130,7 @@ def _success(
     repository_root: str,
     data: dict,
     term: str | None = None,
+    terms: list[str] | tuple[str, ...] | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
     left_path: str | None = None,
@@ -134,7 +138,15 @@ def _success(
 ) -> dict:
     return EvidenceEnvelope(
         operation,
-        _query(repository_root, term, since_unix_time, limit, left_path, right_path),
+        _query(
+            repository_root,
+            term,
+            since_unix_time,
+            limit,
+            left_path,
+            right_path,
+            terms,
+        ),
         data,
     ).to_dict()
 
@@ -145,6 +157,7 @@ def _invalid_query(
     message: str,
     *,
     term: str | None = None,
+    terms: list[str] | tuple[str, ...] | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
     left_path: str | None = None,
@@ -154,7 +167,15 @@ def _invalid_query(
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
+        "query": _query(
+            repository_root,
+            term,
+            since_unix_time,
+            limit,
+            left_path,
+            right_path,
+            terms,
+        ),
         "error": {
             "code": "invalid_query",
             "message": message,
@@ -167,6 +188,7 @@ def _not_a_repository(
     repository_root: str,
     error: ValueError,
     term: str | None = None,
+    terms: tuple[str, ...] | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
     left_path: str | None = None,
@@ -176,7 +198,9 @@ def _not_a_repository(
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
+        "query": _query(
+            repository_root, term, since_unix_time, limit, left_path, right_path, terms
+        ),
         "error": {
             "code": "not_a_repository",
             "message": str(error),
@@ -189,6 +213,7 @@ def _repository_access_failed(
     repository_root: str,
     error: GitFileSourceError,
     term: str | None = None,
+    terms: tuple[str, ...] | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
     left_path: str | None = None,
@@ -198,7 +223,9 @@ def _repository_access_failed(
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
-        "query": _query(repository_root, term, since_unix_time, limit, left_path, right_path),
+        "query": _query(
+            repository_root, term, since_unix_time, limit, left_path, right_path, terms
+        ),
         "error": {
             "code": "repository_access_failed",
             "message": str(error),
@@ -250,11 +277,13 @@ def _run_operation(
     analyzer,
     *,
     term: str | None = None,
+    terms: tuple[str, ...] | None = None,
     since_unix_time: int | None = None,
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
     query_term: str | None = None,
+    query_terms: tuple[str, ...] | None = None,
     query_since_unix_time: int | None = None,
     query_limit: int | None = None,
     query_left_path: str | None = None,
@@ -277,6 +306,7 @@ def _run_operation(
             repository_root,
             term_message or "A term is required.",
             term=term,
+            terms=query_terms,
             since_unix_time=since_unix_time,
             limit=limit,
             left_path=left_path,
@@ -286,7 +316,9 @@ def _run_operation(
     repository = Path(repository_root)
 
     try:
-        if term is not None and pass_bounds_with_term:
+        if terms is not None:
+            report = analyzer(repository, terms)
+        elif term is not None and pass_bounds_with_term:
             report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:
             report = analyzer(repository, term)
@@ -300,6 +332,7 @@ def _run_operation(
             repository_root,
             str(error),
             term=query_term,
+            terms=query_terms,
             since_unix_time=query_since_unix_time,
             limit=query_limit,
             left_path=query_left_path,
@@ -312,6 +345,7 @@ def _run_operation(
                 repository_root,
                 error,
                 query_term,
+                query_terms,
                 query_since_unix_time,
                 query_limit,
                 query_left_path,
@@ -324,6 +358,7 @@ def _run_operation(
             repository_root,
             error,
             term,
+            terms,
             since_unix_time,
             limit,
             left_path,
@@ -336,6 +371,7 @@ def _run_operation(
         repository_root,
         data,
         term,
+        terms,
         since_unix_time,
         limit,
         left_path,
@@ -396,6 +432,7 @@ def create_server() -> FastMCP:
         repository_root: str,
         operation: str,
         term: str | None = None,
+        terms: list[str] | None = None,
         since_unix_time: int | None = None,
         limit: int | None = None,
         left_path: str | None = None,
@@ -828,6 +865,27 @@ def create_server() -> FastMCP:
                 right_path=right_path,
             )
         if operation == "python.variable_cluster":
+            if terms is not None:
+                if (
+                    term is not None
+                    or not isinstance(terms, list)
+                    or len(terms) != 2
+                    or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
+                    or len(set(terms)) != 2
+                ):
+                    return _invalid_query(
+                        operation,
+                        repository_root,
+                        "terms must contain exactly two distinct Python identifiers.",
+                        terms=terms,
+                    )
+                return _run_operation(
+                    operation,
+                    repository_root,
+                    find_variable_cluster,
+                    terms=tuple(terms),
+                    query_terms=tuple(terms),
+                )
             if term is not None:
                 return _run_operation(
                     operation, repository_root, find_variable_occurrences, term=term

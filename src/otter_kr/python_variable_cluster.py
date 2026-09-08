@@ -11,6 +11,7 @@ from otter_kr.git_files import GitCliFileSource
 
 @dataclass(frozen=True, slots=True)
 class GuardContext:
+    path: str
     kind: str
     line: int
     column: int
@@ -23,7 +24,17 @@ class GuardContext:
 
 
 @dataclass(frozen=True, slots=True)
+class SharedScope:
+    path: str
+    scope: str
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class VariableOccurrence:
+    name: str
     path: str
     line: int
     column: int
@@ -33,6 +44,7 @@ class VariableOccurrence:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "name": self.name,
             "path": self.path,
             "line": self.line,
             "column": self.column,
@@ -47,12 +59,16 @@ class VariableClusterReport:
     names: tuple[str, ...]
     occurrences: tuple[VariableOccurrence, ...]
     warnings: tuple[dict[str, str], ...]
+    shared_scopes: tuple[SharedScope, ...] = ()
+    shared_guards: tuple[GuardContext, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
             "names": list(self.names),
             "occurrences": [item.to_dict() for item in self.occurrences],
             "warnings": list(self.warnings),
+            "shared_scopes": [scope.to_dict() for scope in self.shared_scopes],
+            "shared_guards": [guard.to_dict() for guard in self.shared_guards],
         }
 
 
@@ -68,6 +84,7 @@ class _OccurrenceCollector(ast.NodeVisitor):
     def _guard(self, node: ast.AST, branch: str, kind: str) -> GuardContext:
         expression = ast.get_source_segment(self.source, node) or ""
         return GuardContext(
+            self.path,
             kind,
             node.lineno,
             node.col_offset,
@@ -124,6 +141,7 @@ class _OccurrenceCollector(ast.NodeVisitor):
             )
             self.occurrences.append(
                 VariableOccurrence(
+                    self.name,
                     self.path,
                     node.lineno,
                     node.col_offset,
@@ -137,6 +155,7 @@ class _OccurrenceCollector(ast.NodeVisitor):
         if node.arg == self.name:
             self.occurrences.append(
                 VariableOccurrence(
+                    self.name,
                     self.path,
                     node.lineno,
                     node.col_offset,
@@ -147,9 +166,16 @@ class _OccurrenceCollector(ast.NodeVisitor):
             )
 
 
-def find_variable_occurrences(repository: Path, name: str) -> VariableClusterReport:
-    if not name.isidentifier():
-        raise ValueError("name must be a Python identifier")
+def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -> None:
+    if exact_count is not None and len(names) != exact_count:
+        raise ValueError(f"exactly {exact_count} names are required")
+    if not names or any(not name.isidentifier() for name in names):
+        raise ValueError("names must be Python identifiers")
+    if len(set(names)) != len(names):
+        raise ValueError("names must be distinct")
+
+
+def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> VariableClusterReport:
     occurrences: list[VariableOccurrence] = []
     warnings: list[dict[str, str]] = []
     for path in GitCliFileSource().python_files(repository.resolve()):
@@ -160,7 +186,47 @@ def find_variable_occurrences(repository: Path, name: str) -> VariableClusterRep
         except (OSError, UnicodeError, SyntaxError) as error:
             warnings.append({"path": relative, "message": str(error)})
             continue
-        collector = _OccurrenceCollector(relative, name, source)
-        collector.visit(tree)
-        occurrences.extend(collector.occurrences)
-    return VariableClusterReport((name,), tuple(occurrences), tuple(warnings))
+        for name in names:
+            collector = _OccurrenceCollector(relative, name, source)
+            collector.visit(tree)
+            occurrences.extend(collector.occurrences)
+    occurrences.sort(key=lambda item: (item.path, item.line, item.column, item.name, item.role))
+    by_name = {name: tuple(item for item in occurrences if item.name == name) for name in names}
+    if len(names) > 1:
+        shared_scope_keys = set.intersection(
+            *(set((item.path, item.scope) for item in by_name[name]) for name in names)
+        )
+        shared_scopes = tuple(SharedScope(path, scope) for path, scope in sorted(shared_scope_keys))
+        context_sets = [
+            {(item.path, item.scope, item.guards) for item in by_name[name]} for name in names
+        ]
+        shared_contexts = set.intersection(*context_sets)
+        shared_guards = tuple(
+            sorted(
+                {guard for _, _, guards in shared_contexts for guard in guards},
+                key=lambda guard: (
+                    guard.path,
+                    guard.line,
+                    guard.column,
+                    guard.kind,
+                    guard.expression,
+                    guard.branch,
+                ),
+            )
+        )
+    else:
+        shared_scopes = ()
+        shared_guards = ()
+    return VariableClusterReport(
+        names, tuple(occurrences), tuple(warnings), shared_scopes, shared_guards
+    )
+
+
+def find_variable_occurrences(repository: Path, name: str) -> VariableClusterReport:
+    _validate_names((name,))
+    return _find_variable_cluster(repository, (name,))
+
+
+def find_variable_cluster(repository: Path, names: tuple[str, str]) -> VariableClusterReport:
+    _validate_names(names, exact_count=2)
+    return _find_variable_cluster(repository, names)

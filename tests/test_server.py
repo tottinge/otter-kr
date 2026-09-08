@@ -1371,3 +1371,65 @@ def test_variable_cluster_rejects_without_an_exact_name() -> None:
         "code": "not_implemented",
         "message": "Variable-cluster evidence has not been admitted yet.",
     }
+
+
+def test_variable_cluster_admits_two_explicit_names(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "sample.py",
+        "def adjust(count, limit):\n"
+        "    if count < limit:\n"
+        "        count += 1\n"
+        "        limit -= 1\n",
+    )
+    git_repository(tmp_path, "sample.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.variable_cluster",
+                "terms": ["count", "limit"],
+            },
+        )
+    )
+
+    assert report["status"] == "ok"
+    assert report["query"]["terms"] == ["count", "limit"]
+    assert report["data"]["names"] == ["count", "limit"]
+    assert report["data"]["shared_scopes"] == [{"path": "sample.py", "scope": "adjust"}]
+    assert report["data"]["shared_guards"][0]["expression"] == "count < limit"
+    assert {item["name"] for item in report["data"]["occurrences"]} == {"count", "limit"}
+
+
+def test_variable_cluster_rejects_more_than_two_names() -> None:
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": "/repo",
+                "operation": "python.variable_cluster",
+                "terms": ["one", "two", "three"],
+            },
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["error"]["code"] == "invalid_query"
+
+
+def test_variable_cluster_preserves_terms_on_repository_error() -> None:
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": "/repo/missing",
+                "operation": "python.variable_cluster",
+                "terms": ["count", "limit"],
+            },
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["query"]["terms"] == ["count", "limit"]
