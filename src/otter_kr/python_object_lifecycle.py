@@ -19,6 +19,24 @@ class FieldOperation:
     scope: str
     kind: str
     expression: str
+    guards: tuple[GuardContext, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            **asdict(self),
+            "guards": [guard.to_dict() for guard in self.guards],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GuardContext:
+    path: str
+    kind: str
+    line: int
+    column: int
+    expression: str
+    branch: str
+    depth: int
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -75,6 +93,7 @@ class _LifecycleCollector(ast.NodeVisitor):
         self.path = path
         self.source = source
         self.scopes: list[str] = []
+        self.guards: list[GuardContext] = []
         self.constructions: list[ConstructionSite] = []
         self.operations: list[FieldOperation] = []
 
@@ -105,6 +124,36 @@ class _LifecycleCollector(ast.NodeVisitor):
         ):
             self._construction(node, "annotated_assignment")
         self.generic_visit(node)
+
+    def visit_If(self, node: ast.If) -> None:
+        self.visit(node.test)
+        self._visit_guarded(node.test, node.body, "body", "if")
+        self._visit_guarded(node.test, node.orelse, "else", "if")
+
+    def visit_While(self, node: ast.While) -> None:
+        self.visit(node.test)
+        self._visit_guarded(node.test, node.body, "body", "while")
+        self._visit_statements(node.orelse)
+
+    def _visit_guarded(
+        self, test: ast.AST, statements: list[ast.stmt], branch: str, kind: str
+    ) -> None:
+        guard = GuardContext(
+            self.path,
+            kind,
+            test.lineno,
+            test.col_offset,
+            ast.get_source_segment(self.source, test) or "",
+            branch,
+            len(self.guards) + 1,
+        )
+        self.guards.append(guard)
+        self._visit_statements(statements)
+        self.guards.pop()
+
+    def _visit_statements(self, statements: list[ast.stmt]) -> None:
+        for statement in statements:
+            self.visit(statement)
 
     def _construction(self, node: ast.Assign | ast.AnnAssign, kind: str) -> None:
         value = node.value
@@ -158,6 +207,7 @@ class _LifecycleCollector(ast.NodeVisitor):
             ".".join(self.scopes),
             kind,
             ast.get_source_segment(self.source, node) or "",
+            tuple(self.guards),
         )
 
 

@@ -54,6 +54,7 @@ order.items.append(value)
                 "scope": "",
                 "kind": "field_write",
                 "expression": "order.total",
+                "guards": [],
             },
             {
                 "carrier": "order",
@@ -64,6 +65,7 @@ order.items.append(value)
                 "scope": "",
                 "kind": "field_read",
                 "expression": "order.total",
+                "guards": [],
             },
             {
                 "carrier": "order",
@@ -74,6 +76,7 @@ order.items.append(value)
                 "scope": "",
                 "kind": "field_delete",
                 "expression": "order.total",
+                "guards": [],
             },
             {
                 "carrier": "order",
@@ -84,6 +87,7 @@ order.items.append(value)
                 "scope": "",
                 "kind": "mutative_call",
                 "expression": "order.items",
+                "guards": [],
             },
         ],
         "parse_failures": [],
@@ -97,3 +101,29 @@ def test_rejects_non_identifier_carrier(tmp_path: Path) -> None:
         assert str(error) == "Carrier must be a Python identifier"
     else:
         raise AssertionError("expected invalid carrier to be rejected")
+
+
+def test_attaches_guard_context_to_field_operation(tmp_path: Path) -> None:
+    source = tmp_path / "pkg.py"
+    source.write_text(
+        """
+def update(order):
+    if order.ready:
+        order.total = 1
+""",
+        encoding="utf-8",
+    )
+
+    report = find_object_lifecycle(tmp_path, "order", file_source=SingleFileSource(source))
+
+    operation = report.operations[-1]
+    assert operation.kind == "field_write"
+    assert operation.guards[0].to_dict() == {
+        "path": "pkg.py",
+        "kind": "if",
+        "line": 3,
+        "column": 7,
+        "expression": "order.ready",
+        "branch": "body",
+        "depth": 1,
+    }
