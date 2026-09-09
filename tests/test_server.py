@@ -1436,3 +1436,18 @@ def test_variable_cluster_preserves_terms_on_repository_error() -> None:
 
     assert report["status"] == "rejected"
     assert report["query"]["terms"] == ["count", "limit"]
+
+
+def test_research_tool_rejects_object_lifecycle_without_term() -> None:
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {"repository_root": "/repo", "operation": "python.object_lifecycle"},
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["error"] == {
+        "code": "invalid_query",
+        "message": "A carrier name is required for python.object_lifecycle.",
+    }

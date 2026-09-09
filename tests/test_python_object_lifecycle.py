@@ -1,0 +1,99 @@
+from pathlib import Path
+
+from otter_kr.python_object_lifecycle import find_object_lifecycle
+
+
+class SingleFileSource:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def python_files(self, repository: Path) -> list[Path]:
+        return [self.path]
+
+
+def test_reports_construction_and_field_operations(tmp_path: Path) -> None:
+    source = tmp_path / "pkg.py"
+    source.write_text(
+        """
+class Order:
+    pass
+
+order = Order()
+order.total = 1
+value = order.total
+del order.total
+order.items.append(value)
+""",
+        encoding="utf-8",
+    )
+
+    report = find_object_lifecycle(tmp_path, "order", file_source=SingleFileSource(source))
+
+    assert report.to_dict() == {
+        "language": "python",
+        "carrier": "order",
+        "files_scanned": 1,
+        "constructions": [
+            {
+                "carrier": "order",
+                "path": "pkg.py",
+                "line": 5,
+                "column": 0,
+                "scope": "",
+                "kind": "assignment",
+                "expression": "Order()",
+            }
+        ],
+        "operations": [
+            {
+                "carrier": "order",
+                "field": "total",
+                "path": "pkg.py",
+                "line": 6,
+                "column": 0,
+                "scope": "",
+                "kind": "field_write",
+                "expression": "order.total",
+            },
+            {
+                "carrier": "order",
+                "field": "total",
+                "path": "pkg.py",
+                "line": 7,
+                "column": 8,
+                "scope": "",
+                "kind": "field_read",
+                "expression": "order.total",
+            },
+            {
+                "carrier": "order",
+                "field": "total",
+                "path": "pkg.py",
+                "line": 8,
+                "column": 4,
+                "scope": "",
+                "kind": "field_delete",
+                "expression": "order.total",
+            },
+            {
+                "carrier": "order",
+                "field": "items",
+                "path": "pkg.py",
+                "line": 9,
+                "column": 0,
+                "scope": "",
+                "kind": "mutative_call",
+                "expression": "order.items",
+            },
+        ],
+        "parse_failures": [],
+    }
+
+
+def test_rejects_non_identifier_carrier(tmp_path: Path) -> None:
+    try:
+        find_object_lifecycle(tmp_path, "order.total")
+    except ValueError as error:
+        assert str(error) == "Carrier must be a Python identifier"
+    else:
+        raise AssertionError("expected invalid carrier to be rejected")

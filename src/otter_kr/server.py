@@ -35,6 +35,7 @@ from otter_kr.python_inventory import inventory_python
 from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
+from otter_kr.python_object_lifecycle import find_object_lifecycle
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 from otter_kr.python_variable_cluster import find_variable_cluster, find_variable_occurrences
@@ -473,6 +474,16 @@ def create_server() -> FastMCP:
                 term_message=python_spec.term_message,
                 catches_value_error=python_spec.catches_value_error,
             )
+
+        if operation == "python.object_lifecycle":
+            if term is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "A carrier name is required for python.object_lifecycle.",
+                    term=term,
+                )
+            return _run_operation(operation, repository_root, find_object_lifecycle, term=term)
 
         if operation == "python.carrier_guards":
             if term is None:
