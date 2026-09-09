@@ -90,6 +90,52 @@ order.items.append(value)
                 "guards": [],
             },
         ],
+        "operation_groups": [
+            {
+                "field": "items",
+                "kind": "mutative_call",
+                "occurrence_count": 1,
+                "occurrence_refs": [{"path": "pkg.py", "line": 9, "column": 0}],
+            },
+            {
+                "field": "total",
+                "kind": "field_delete",
+                "occurrence_count": 1,
+                "occurrence_refs": [{"path": "pkg.py", "line": 8, "column": 4}],
+            },
+            {
+                "field": "total",
+                "kind": "field_read",
+                "occurrence_count": 1,
+                "occurrence_refs": [{"path": "pkg.py", "line": 7, "column": 8}],
+            },
+            {
+                "field": "total",
+                "kind": "field_write",
+                "occurrence_count": 1,
+                "occurrence_refs": [{"path": "pkg.py", "line": 6, "column": 0}],
+            },
+        ],
+        "transitions": [
+            {
+                "path": "pkg.py",
+                "scope": "",
+                "field": "total",
+                "from_kind": "field_write",
+                "to_kind": "field_read",
+                "from_line": 6,
+                "to_line": 7,
+            },
+            {
+                "path": "pkg.py",
+                "scope": "",
+                "field": "total",
+                "from_kind": "field_read",
+                "to_kind": "field_delete",
+                "from_line": 7,
+                "to_line": 8,
+            },
+        ],
         "parse_failures": [],
     }
 

@@ -57,11 +57,46 @@ class ConstructionSite:
 
 
 @dataclass(frozen=True, slots=True)
+class OperationGroup:
+    field: str
+    kind: str
+    occurrence_count: int
+    occurrence_refs: tuple[tuple[str, int, int], ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "field": self.field,
+            "kind": self.kind,
+            "occurrence_count": self.occurrence_count,
+            "occurrence_refs": [
+                {"path": path, "line": line, "column": column}
+                for path, line, column in self.occurrence_refs
+            ],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class TransitionObservation:
+    path: str
+    scope: str
+    field: str
+    from_kind: str
+    to_kind: str
+    from_line: int
+    to_line: int
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class ObjectLifecycleReport:
     carrier: str
     files_scanned: int
     constructions: tuple[ConstructionSite, ...]
     operations: tuple[FieldOperation, ...]
+    operation_groups: tuple[OperationGroup, ...]
+    transitions: tuple[TransitionObservation, ...]
     parse_failures: tuple[dict[str, object], ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -71,6 +106,8 @@ class ObjectLifecycleReport:
             "files_scanned": self.files_scanned,
             "constructions": [item.to_dict() for item in self.constructions],
             "operations": [item.to_dict() for item in self.operations],
+            "operation_groups": [item.to_dict() for item in self.operation_groups],
+            "transitions": [item.to_dict() for item in self.transitions],
             "parse_failures": list(self.parse_failures),
         }
 
@@ -237,10 +274,54 @@ def find_object_lifecycle(
         operations.extend(collector.operations)
     constructions.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
     operations.sort(key=lambda item: (item.path, item.line, item.column, item.kind, item.field))
+    groups = _group_operations(operations)
+    transitions = _observe_transitions(operations)
     return ObjectLifecycleReport(
         carrier,
         len(files),
         tuple(constructions),
         tuple(operations),
+        groups,
+        transitions,
         tuple(failures),
     )
+
+
+def _group_operations(operations: list[FieldOperation]) -> tuple[OperationGroup, ...]:
+    grouped: dict[tuple[str, str], list[FieldOperation]] = {}
+    for operation in operations:
+        grouped.setdefault((operation.field, operation.kind), []).append(operation)
+    return tuple(
+        OperationGroup(
+            field,
+            kind,
+            len(items),
+            tuple((item.path, item.line, item.column) for item in items),
+        )
+        for (field, kind), items in sorted(grouped.items())
+    )
+
+
+def _observe_transitions(
+    operations: list[FieldOperation],
+) -> tuple[TransitionObservation, ...]:
+    transitions: list[TransitionObservation] = []
+    for previous, current in zip(operations, operations[1:], strict=False):
+        if (previous.path, previous.scope, previous.field) != (
+            current.path,
+            current.scope,
+            current.field,
+        ):
+            continue
+        transitions.append(
+            TransitionObservation(
+                current.path,
+                current.scope,
+                current.field,
+                previous.kind,
+                current.kind,
+                previous.line,
+                current.line,
+            )
+        )
+    return tuple(transitions)
