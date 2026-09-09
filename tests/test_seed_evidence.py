@@ -38,6 +38,7 @@ def test_seed_projection_preserves_neighborhood_evidence_and_provenance() -> Non
             "parse_failures": [{"path": "bad.py", "message": "syntax"}],
         },
         "carrier_guards": None,
+        "object_lifecycle": None,
     }
 
 
@@ -63,3 +64,4 @@ def test_non_identifier_seed_projection_omits_carrier_guard_evidence() -> None:
     report = project_python_neighborhood(None, "order-status", neighborhood)
 
     assert report.to_dict()["carrier_guards"] is None
+    assert report.to_dict()["object_lifecycle"] is None

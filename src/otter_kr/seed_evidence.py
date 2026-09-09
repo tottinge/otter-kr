@@ -7,6 +7,7 @@ from pathlib import Path
 
 from otter_kr.python_carrier_guards import CarrierGuardReport, find_carrier_guards_for_seed
 from otter_kr.python_neighborhood import PythonNeighborhoodReport, find_python_neighborhood
+from otter_kr.python_object_lifecycle import find_object_lifecycle
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +20,7 @@ class SeedEvidenceReport:
     counts: dict[str, int]
     provenance: dict[str, object]
     carrier_guards: dict[str, object] | None
+    object_lifecycle: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -30,6 +32,7 @@ class SeedEvidenceReport:
             "counts": self.counts,
             "provenance": self.provenance,
             "carrier_guards": self.carrier_guards,
+            "object_lifecycle": self.object_lifecycle,
         }
 
 
@@ -43,6 +46,11 @@ def project_python_neighborhood(
     guard_evidence = carrier_guards
     if guard_evidence is None and repository is not None:
         guard_evidence = find_carrier_guards_for_seed(repository, seed)
+    lifecycle = (
+        find_object_lifecycle(repository, seed).to_dict()
+        if repository is not None and seed.isidentifier()
+        else None
+    )
     nodes = tuple(node.to_dict() for node in evidence.nodes)
     edges = tuple(edge.to_dict() for edge in evidence.edges)
     return SeedEvidenceReport(
@@ -57,4 +65,5 @@ def project_python_neighborhood(
             "parse_failures": list(evidence.parse_failures),
         },
         carrier_guards=guard_evidence.to_dict() if guard_evidence is not None else None,
+        object_lifecycle=lifecycle,
     )

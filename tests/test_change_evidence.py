@@ -11,4 +11,5 @@ def test_term_change_evidence_keeps_current_and_history_distinct() -> None:
         "current": {"nodes": []},
         "history": {"files": []},
         "carrier_guards": {"carrier": "Widget", "occurrences": []},
+        "object_lifecycle": None,
     }
