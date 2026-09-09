@@ -136,6 +136,8 @@ order.items.append(value)
                 "to_line": 8,
             },
         ],
+        "aliases": [],
+        "boundaries": [],
         "parse_failures": [],
     }
 
@@ -173,3 +175,32 @@ def update(order):
         "branch": "body",
         "depth": 1,
     }
+
+
+def test_reports_static_alias_and_boundary_links(tmp_path: Path) -> None:
+    source = tmp_path / "pkg.py"
+    source.write_text(
+        """
+def forward(order):
+    alias = order
+    return alias
+
+def invoke(order):
+    consume(order)
+""",
+        encoding="utf-8",
+    )
+
+    report = find_object_lifecycle(tmp_path, "order", file_source=SingleFileSource(source))
+
+    assert [item.to_dict() for item in report.aliases] == [
+        {
+            "source": "order",
+            "target": "alias",
+            "path": "pkg.py",
+            "line": 3,
+            "column": 4,
+            "scope": "forward",
+        }
+    ]
+    assert [item.kind for item in report.boundaries] == ["parameter", "parameter", "argument"]

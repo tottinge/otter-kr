@@ -90,6 +90,32 @@ class TransitionObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class AliasLink:
+    source: str
+    target: str
+    path: str
+    line: int
+    column: int
+    scope: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class BoundaryLink:
+    kind: str
+    path: str
+    line: int
+    column: int
+    scope: str
+    detail: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class ObjectLifecycleReport:
     carrier: str
     files_scanned: int
@@ -97,6 +123,8 @@ class ObjectLifecycleReport:
     operations: tuple[FieldOperation, ...]
     operation_groups: tuple[OperationGroup, ...]
     transitions: tuple[TransitionObservation, ...]
+    aliases: tuple[AliasLink, ...]
+    boundaries: tuple[BoundaryLink, ...]
     parse_failures: tuple[dict[str, object], ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -108,6 +136,8 @@ class ObjectLifecycleReport:
             "operations": [item.to_dict() for item in self.operations],
             "operation_groups": [item.to_dict() for item in self.operation_groups],
             "transitions": [item.to_dict() for item in self.transitions],
+            "aliases": [item.to_dict() for item in self.aliases],
+            "boundaries": [item.to_dict() for item in self.boundaries],
             "parse_failures": list(self.parse_failures),
         }
 
@@ -133,13 +163,8 @@ class _LifecycleCollector(ast.NodeVisitor):
         self.guards: list[GuardContext] = []
         self.constructions: list[ConstructionSite] = []
         self.operations: list[FieldOperation] = []
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self.scopes.append(node.name)
-        self.generic_visit(node)
-        self.scopes.pop()
-
-    visit_AsyncFunctionDef = visit_FunctionDef
+        self.aliases: list[AliasLink] = []
+        self.boundaries: list[BoundaryLink] = []
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.scopes.append(node.name)
@@ -151,6 +176,38 @@ class _LifecycleCollector(ast.NodeVisitor):
             isinstance(target, ast.Name) and target.id == self.carrier for target in node.targets
         ):
             self._construction(node, "assignment")
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            target = node.targets[0].id
+            if (
+                isinstance(node.value, ast.Name)
+                and node.value.id == self.carrier
+                and target != self.carrier
+            ):
+                self.aliases.append(
+                    AliasLink(
+                        self.carrier,
+                        target,
+                        self.path,
+                        node.lineno,
+                        node.col_offset,
+                        ".".join(self.scopes),
+                    )
+                )
+            elif (
+                target == self.carrier
+                and isinstance(node.value, ast.Name)
+                and node.value.id != self.carrier
+            ):
+                self.aliases.append(
+                    AliasLink(
+                        node.value.id,
+                        self.carrier,
+                        self.path,
+                        node.lineno,
+                        node.col_offset,
+                        ".".join(self.scopes),
+                    )
+                )
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
@@ -160,6 +217,39 @@ class _LifecycleCollector(ast.NodeVisitor):
             and node.value is not None
         ):
             self._construction(node, "annotated_assignment")
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        arguments = (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+        if any(argument.arg == self.carrier for argument in arguments):
+            self.boundaries.append(
+                BoundaryLink(
+                    "parameter",
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    ".".join(self.scopes),
+                    self.carrier,
+                )
+            )
+        self.scopes.append(node.name)
+        self.generic_visit(node)
+        self.scopes.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Return(self, node: ast.Return) -> None:
+        if isinstance(node.value, ast.Name) and node.value.id == self.carrier:
+            self.boundaries.append(
+                BoundaryLink(
+                    "return",
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    ".".join(self.scopes),
+                    self.carrier,
+                )
+            )
         self.generic_visit(node)
 
     def visit_If(self, node: ast.If) -> None:
@@ -218,6 +308,33 @@ class _LifecycleCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
+        if any(
+            isinstance(argument, ast.Name) and argument.id == self.carrier for argument in node.args
+        ):
+            self.boundaries.append(
+                BoundaryLink(
+                    "argument",
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    ".".join(self.scopes),
+                    self.carrier,
+                )
+            )
+        if any(
+            isinstance(keyword.value, ast.Name) and keyword.value.id == self.carrier
+            for keyword in node.keywords
+        ):
+            self.boundaries.append(
+                BoundaryLink(
+                    "keyword_argument",
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    ".".join(self.scopes),
+                    self.carrier,
+                )
+            )
         is_mutator = (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Attribute)
@@ -259,6 +376,8 @@ def find_object_lifecycle(
     files = (file_source or GitCliFileSource()).python_files(repository)
     constructions: list[ConstructionSite] = []
     operations: list[FieldOperation] = []
+    aliases: list[AliasLink] = []
+    boundaries: list[BoundaryLink] = []
     failures: list[dict[str, object]] = []
     for path in files:
         relative = path.relative_to(repository).as_posix()
@@ -272,10 +391,14 @@ def find_object_lifecycle(
         collector.visit(tree)
         constructions.extend(collector.constructions)
         operations.extend(collector.operations)
+        aliases.extend(collector.aliases)
+        boundaries.extend(collector.boundaries)
     constructions.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
     operations.sort(key=lambda item: (item.path, item.line, item.column, item.kind, item.field))
     groups = _group_operations(operations)
     transitions = _observe_transitions(operations)
+    aliases.sort(key=lambda item: (item.path, item.line, item.column, item.source, item.target))
+    boundaries.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
     return ObjectLifecycleReport(
         carrier,
         len(files),
@@ -283,6 +406,8 @@ def find_object_lifecycle(
         tuple(operations),
         groups,
         transitions,
+        tuple(aliases),
+        tuple(boundaries),
         tuple(failures),
     )
 
