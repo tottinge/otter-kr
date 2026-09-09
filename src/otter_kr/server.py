@@ -292,6 +292,7 @@ def _run_operation(
     term_message: str | None = None,
     catches_value_error: bool = True,
     pass_bounds_with_term: bool = False,
+    pass_bounds_with_terms: bool = False,
 ) -> dict:
     query_term = term if query_term is None else query_term
     query_since_unix_time = (
@@ -317,7 +318,15 @@ def _run_operation(
 
     try:
         if terms is not None:
-            report = analyzer(repository, terms)
+            if pass_bounds_with_terms:
+                report = analyzer(
+                    repository,
+                    terms,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            else:
+                report = analyzer(repository, terms)
         elif term is not None and pass_bounds_with_term:
             report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:
@@ -885,6 +894,9 @@ def create_server() -> FastMCP:
                     find_variable_cluster,
                     terms=tuple(terms),
                     query_terms=tuple(terms),
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    pass_bounds_with_terms=True,
                 )
             if term is not None:
                 return _run_operation(

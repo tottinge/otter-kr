@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from otter_kr.python_variable_cluster import find_variable_cluster, find_variable_occurrences
-from tests.support import git_repository, write_python
+from tests.support import git_commit, git_repository, write_python
 
 
 def test_exact_variable_occurrences_include_scope_and_role(tmp_path: Path) -> None:
@@ -140,6 +140,26 @@ def test_occurrences_report_aliases_and_parameter_return_boundaries(tmp_path: Pa
     assert [(item.source, item.target, item.kind) for item in report.aliases] == [
         ("value", "alias", "assignment"),
         ("alias", "value", "assignment"),
+    ]
+
+
+def test_cluster_links_test_candidates_and_bounded_history(tmp_path: Path) -> None:
+    write_python(tmp_path, "sample.py", "def adjust(value):\n    return value\n")
+    write_python(
+        tmp_path,
+        "test_sample.py",
+        "def test_adjust():\n    value = 1\n    assert value == 1\n",
+    )
+    git_repository(tmp_path, "sample.py", "test_sample.py")
+    git_commit(tmp_path, "initial", "sample.py", "test_sample.py")
+
+    report = find_variable_occurrences(tmp_path, "value", since_unix_time=1, limit=5)
+
+    test_report = report.test_evidence[0]["report"]
+    assert test_report["candidates"][0]["path"] == "test_sample.py"
+    assert [item["path"] for item in report.history_evidence["files"]] == [
+        "sample.py",
+        "test_sample.py",
     ]
     assert [(item.kind, item.detail) for item in report.boundaries] == [
         ("parameter", "value"),

@@ -6,7 +6,10 @@ import ast
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from otter_kr.git_cli_history import GitCliHistory
 from otter_kr.git_files import GitCliFileSource
+from otter_kr.git_history_snapshot import collect_git_history_snapshot
+from otter_kr.python_tests import find_tests_for_symbol
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +111,8 @@ class VariableClusterReport:
     construction_sites: tuple[ConstructionSite, ...] = ()
     aliases: tuple[AliasEvidence, ...] = ()
     boundaries: tuple[BoundaryEvidence, ...] = ()
+    test_evidence: tuple[dict[str, object], ...] = ()
+    history_evidence: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -119,6 +124,8 @@ class VariableClusterReport:
             "construction_sites": [site.to_dict() for site in self.construction_sites],
             "aliases": [alias.to_dict() for alias in self.aliases],
             "boundaries": [boundary.to_dict() for boundary in self.boundaries],
+            "test_evidence": list(self.test_evidence),
+            "history_evidence": self.history_evidence,
         }
 
 
@@ -313,7 +320,13 @@ def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -
         raise ValueError("names must be distinct")
 
 
-def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> VariableClusterReport:
+def _find_variable_cluster(
+    repository: Path,
+    names: tuple[str, ...],
+    *,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> VariableClusterReport:
     occurrences: list[VariableOccurrence] = []
     construction_sites: list[ConstructionSite] = []
     aliases: list[AliasEvidence] = []
@@ -366,6 +379,22 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
     else:
         shared_scopes = ()
         shared_guards = ()
+    test_evidence = tuple(
+        {"name": name, "report": find_tests_for_symbol(repository, name).to_dict()}
+        for name in names
+    )
+    history_evidence = None
+    if since_unix_time is not None and limit is not None:
+        snapshot = collect_git_history_snapshot(
+            repository,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            changes=GitCliHistory(),
+        ).to_dict()
+        paths = {item.path for item in occurrences}
+        history_evidence = snapshot | {
+            "files": [item for item in snapshot["files"] if item["path"] in paths]
+        }
     return VariableClusterReport(
         names,
         tuple(occurrences),
@@ -375,14 +404,28 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
         tuple(construction_sites),
         tuple(aliases),
         tuple(boundaries),
+        test_evidence,
+        history_evidence,
     )
 
 
-def find_variable_occurrences(repository: Path, name: str) -> VariableClusterReport:
+def find_variable_occurrences(
+    repository: Path,
+    name: str,
+    *,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> VariableClusterReport:
     _validate_names((name,))
-    return _find_variable_cluster(repository, (name,))
+    return _find_variable_cluster(repository, (name,), since_unix_time=since_unix_time, limit=limit)
 
 
-def find_variable_cluster(repository: Path, names: tuple[str, str]) -> VariableClusterReport:
+def find_variable_cluster(
+    repository: Path,
+    names: tuple[str, str],
+    *,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+) -> VariableClusterReport:
     _validate_names(names, exact_count=2)
-    return _find_variable_cluster(repository, names)
+    return _find_variable_cluster(repository, names, since_unix_time=since_unix_time, limit=limit)

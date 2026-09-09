@@ -1383,6 +1383,7 @@ def test_variable_cluster_admits_two_explicit_names(tmp_path: Path) -> None:
         "        limit -= 1\n",
     )
     git_repository(tmp_path, "sample.py")
+    git_commit(tmp_path, "initial", "sample.py")
 
     report = asyncio.run(
         call_research(
@@ -1391,6 +1392,8 @@ def test_variable_cluster_admits_two_explicit_names(tmp_path: Path) -> None:
                 "repository_root": str(tmp_path),
                 "operation": "python.variable_cluster",
                 "terms": ["count", "limit"],
+                "since_unix_time": 1,
+                "limit": 5,
             },
         )
     )
