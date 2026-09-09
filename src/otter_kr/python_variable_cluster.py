@@ -48,6 +48,35 @@ class ConstructionSite:
 
 
 @dataclass(frozen=True, slots=True)
+class AliasEvidence:
+    name: str
+    path: str
+    line: int
+    column: int
+    scope: str
+    source: str
+    target: str
+    kind: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class BoundaryEvidence:
+    name: str
+    path: str
+    line: int
+    column: int
+    scope: str
+    kind: str
+    detail: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class VariableOccurrence:
     name: str
     path: str
@@ -77,6 +106,8 @@ class VariableClusterReport:
     shared_scopes: tuple[SharedScope, ...] = ()
     shared_guards: tuple[GuardContext, ...] = ()
     construction_sites: tuple[ConstructionSite, ...] = ()
+    aliases: tuple[AliasEvidence, ...] = ()
+    boundaries: tuple[BoundaryEvidence, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -86,6 +117,8 @@ class VariableClusterReport:
             "shared_scopes": [scope.to_dict() for scope in self.shared_scopes],
             "shared_guards": [guard.to_dict() for guard in self.shared_guards],
             "construction_sites": [site.to_dict() for site in self.construction_sites],
+            "aliases": [alias.to_dict() for alias in self.aliases],
+            "boundaries": [boundary.to_dict() for boundary in self.boundaries],
         }
 
 
@@ -98,6 +131,8 @@ class _OccurrenceCollector(ast.NodeVisitor):
         self.guards: list[GuardContext] = []
         self.occurrences: list[VariableOccurrence] = []
         self.construction_sites: list[ConstructionSite] = []
+        self.aliases: list[AliasEvidence] = []
+        self.boundaries: list[BoundaryEvidence] = []
 
     def _record_assignment(self, target: ast.AST, value: ast.AST, kind: str) -> None:
         target_name = None
@@ -123,9 +158,31 @@ class _OccurrenceCollector(ast.NodeVisitor):
         )
 
     def visit_Assign(self, node: ast.Assign) -> None:
+        if (
+            len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Name)
+        ):
+            target, source = node.targets[0].id, node.value.id
+            if self.name in (source, target) and source != target:
+                self._record_alias(source, target, node)
         for target in node.targets:
             self._record_assignment(target, node.value, "assignment")
         self.generic_visit(node)
+
+    def _record_alias(self, source: str, target: str, node: ast.Assign) -> None:
+        self.aliases.append(
+            AliasEvidence(
+                self.name,
+                self.path,
+                node.lineno,
+                node.col_offset,
+                ".".join(self.scopes),
+                source,
+                target,
+                "assignment",
+            )
+        )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value is not None:
@@ -208,6 +265,17 @@ class _OccurrenceCollector(ast.NodeVisitor):
 
     def visit_arg(self, node: ast.arg) -> None:
         if node.arg == self.name:
+            self.boundaries.append(
+                BoundaryEvidence(
+                    self.name,
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    ".".join(self.scopes),
+                    "parameter",
+                    node.arg,
+                )
+            )
             self.occurrences.append(
                 VariableOccurrence(
                     self.name,
@@ -219,6 +287,21 @@ class _OccurrenceCollector(ast.NodeVisitor):
                     tuple(self.guards),
                 )
             )
+
+    def visit_Return(self, node: ast.Return) -> None:
+        if isinstance(node.value, ast.Name) and node.value.id == self.name:
+            self.boundaries.append(
+                BoundaryEvidence(
+                    self.name,
+                    self.path,
+                    node.value.lineno,
+                    node.value.col_offset,
+                    ".".join(self.scopes),
+                    "return",
+                    node.value.id,
+                )
+            )
+        self.generic_visit(node)
 
 
 def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -> None:
@@ -233,6 +316,8 @@ def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -
 def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> VariableClusterReport:
     occurrences: list[VariableOccurrence] = []
     construction_sites: list[ConstructionSite] = []
+    aliases: list[AliasEvidence] = []
+    boundaries: list[BoundaryEvidence] = []
     warnings: list[dict[str, str]] = []
     for path in GitCliFileSource().python_files(repository.resolve()):
         relative = path.relative_to(repository.resolve()).as_posix()
@@ -247,10 +332,14 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
             collector.visit(tree)
             occurrences.extend(collector.occurrences)
             construction_sites.extend(collector.construction_sites)
+            aliases.extend(collector.aliases)
+            boundaries.extend(collector.boundaries)
     occurrences.sort(key=lambda item: (item.path, item.line, item.column, item.name, item.role))
     construction_sites.sort(
         key=lambda item: (item.path, item.line, item.column, item.name, item.kind)
     )
+    aliases.sort(key=lambda item: (item.path, item.line, item.column, item.source, item.target))
+    boundaries.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
     by_name = {name: tuple(item for item in occurrences if item.name == name) for name in names}
     if len(names) > 1:
         shared_scope_keys = set.intersection(
@@ -284,6 +373,8 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
         shared_scopes,
         shared_guards,
         tuple(construction_sites),
+        tuple(aliases),
+        tuple(boundaries),
     )
 
 

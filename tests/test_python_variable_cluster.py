@@ -125,3 +125,23 @@ def test_occurrences_report_initialization_and_attribute_assignments(tmp_path: P
         ("self.value", "attribute_assignment", "Counter.__init__", "value"),
         ("value", "assignment", "Counter.__init__", "0"),
     ]
+
+
+def test_occurrences_report_aliases_and_parameter_return_boundaries(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "sample.py",
+        "def forward(value):\n    alias = value\n    value = alias\n    return value\n",
+    )
+    git_repository(tmp_path, "sample.py")
+
+    report = find_variable_occurrences(tmp_path, "value")
+
+    assert [(item.source, item.target, item.kind) for item in report.aliases] == [
+        ("value", "alias", "assignment"),
+        ("alias", "value", "assignment"),
+    ]
+    assert [(item.kind, item.detail) for item in report.boundaries] == [
+        ("parameter", "value"),
+        ("return", "value"),
+    ]
