@@ -311,9 +311,13 @@ class _OccurrenceCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -> None:
-    if exact_count is not None and len(names) != exact_count:
-        raise ValueError(f"exactly {exact_count} names are required")
+def _validate_names(
+    names: tuple[str, ...], *, minimum: int = 1, maximum: int | None = None
+) -> None:
+    if len(names) < minimum:
+        raise ValueError(f"at least {minimum} names are required")
+    if maximum is not None and len(names) > maximum:
+        raise ValueError(f"at most {maximum} names are supported")
     if not names or any(not name.isidentifier() for name in names):
         raise ValueError("names must be Python identifiers")
     if len(set(names)) != len(names):
@@ -422,10 +426,10 @@ def find_variable_occurrences(
 
 def find_variable_cluster(
     repository: Path,
-    names: tuple[str, str],
+    names: tuple[str, ...],
     *,
     since_unix_time: int | None = None,
     limit: int | None = None,
 ) -> VariableClusterReport:
-    _validate_names(names, exact_count=2)
+    _validate_names(names, minimum=2, maximum=5)
     return _find_variable_cluster(repository, names, since_unix_time=since_unix_time, limit=limit)

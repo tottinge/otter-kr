@@ -877,15 +877,15 @@ def create_server() -> FastMCP:
             if terms is not None:
                 if (
                     term is not None
-                    or not isinstance(terms, list)
-                    or len(terms) != 2
+                    or not isinstance(terms, list | tuple)
+                    or not 2 <= len(terms) <= 5
                     or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
-                    or len(set(terms)) != 2
+                    or len(set(terms)) != len(terms)
                 ):
                     return _invalid_query(
                         operation,
                         repository_root,
-                        "terms must contain exactly two distinct Python identifiers.",
+                        "terms must contain 2 to 5 distinct Python identifiers.",
                         terms=terms,
                     )
                 return _run_operation(

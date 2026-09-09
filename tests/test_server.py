@@ -1406,14 +1406,14 @@ def test_variable_cluster_admits_two_explicit_names(tmp_path: Path) -> None:
     assert {item["name"] for item in report["data"]["occurrences"]} == {"count", "limit"}
 
 
-def test_variable_cluster_rejects_more_than_two_names() -> None:
+def test_variable_cluster_rejects_more_than_five_names() -> None:
     report = asyncio.run(
         call_research(
             create_server(),
             {
                 "repository_root": "/repo",
                 "operation": "python.variable_cluster",
-                "terms": ["one", "two", "three"],
+                "terms": ["one", "two", "three", "four", "five", "six"],
             },
         )
     )

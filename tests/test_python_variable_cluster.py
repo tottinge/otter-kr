@@ -141,6 +141,10 @@ def test_occurrences_report_aliases_and_parameter_return_boundaries(tmp_path: Pa
         ("value", "alias", "assignment"),
         ("alias", "value", "assignment"),
     ]
+    assert [(item.kind, item.detail) for item in report.boundaries] == [
+        ("parameter", "value"),
+        ("return", "value"),
+    ]
 
 
 def test_cluster_links_test_candidates_and_bounded_history(tmp_path: Path) -> None:
@@ -161,7 +165,20 @@ def test_cluster_links_test_candidates_and_bounded_history(tmp_path: Path) -> No
         "sample.py",
         "test_sample.py",
     ]
-    assert [(item.kind, item.detail) for item in report.boundaries] == [
-        ("parameter", "value"),
-        ("return", "value"),
-    ]
+
+
+def test_bounded_cluster_accepts_three_explicit_names(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "sample.py",
+        "def adjust(count, limit, step):\n"
+        "    if count < limit:\n"
+        "        count += step\n"
+        "        limit -= step\n",
+    )
+    git_repository(tmp_path, "sample.py")
+
+    report = find_variable_cluster(tmp_path, ("count", "limit", "step"))
+
+    assert report.names == ("count", "limit", "step")
+    assert {item.name for item in report.occurrences} == {"count", "limit", "step"}
