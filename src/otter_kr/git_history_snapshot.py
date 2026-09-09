@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from otter_kr.git_history_report import BoundedFileHistoryReport
 from otter_kr.git_hotspots import collect_git_hotspots
 from otter_kr.git_ports import CommitFileChangeSource
-from otter_kr.git_provenance import BoundedHistoryProvenance
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,12 +25,8 @@ class SnapshotFile:
 
 
 @dataclass(frozen=True, slots=True)
-class GitHistorySnapshotReport:
-    provenance: BoundedHistoryProvenance
-    files: tuple[SnapshotFile, ...]
-
-    def to_dict(self) -> dict[str, object]:
-        return self.provenance.to_dict() | {"files": [file.to_dict() for file in self.files]}
+class GitHistorySnapshotReport(BoundedFileHistoryReport[SnapshotFile]):
+    """Per-file history snapshots with their bounded evidence provenance."""
 
 
 def collect_git_history_snapshot(

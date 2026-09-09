@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from otter_kr.git_history_report import BoundedFileHistoryReport
 from otter_kr.git_history_window import collect_bounded_file_changes
 from otter_kr.git_ports import CommitFileChange, CommitFileChangeSource
-from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
+from otter_kr.git_provenance import python_history_provenance
 
 _REPORT_VERSION = "1"
 _TIP_REVISION = "HEAD"
@@ -29,20 +30,8 @@ class HotspotFile:
 
 
 @dataclass(frozen=True, slots=True)
-class GitHotspotReport:
-    provenance: BoundedHistoryProvenance
-    files: tuple[HotspotFile, ...]
-
-    @property
-    def commit_count(self) -> int:
-        return self.provenance.commit_count
-
-    @property
-    def truncated(self) -> bool:
-        return self.provenance.truncated
-
-    def to_dict(self) -> dict[str, object]:
-        return self.provenance.to_dict() | {"files": [file.to_dict() for file in self.files]}
+class GitHotspotReport(BoundedFileHistoryReport[HotspotFile]):
+    """Per-file churn hotspots with their bounded evidence provenance."""
 
 
 def collect_git_hotspots(
