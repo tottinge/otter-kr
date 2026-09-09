@@ -483,6 +483,22 @@ def create_server() -> FastMCP:
                     "A carrier name is required for python.object_lifecycle.",
                     term=term,
                 )
+            if since_unix_time is not None or limit is not None:
+                return _run_bounded(
+                    operation,
+                    repository_root,
+                    lambda repository, value, *, since_unix_time, limit: find_object_lifecycle(
+                        repository,
+                        value,
+                        since_unix_time=since_unix_time,
+                        limit=limit,
+                    ),
+                    term=term,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    term_required=True,
+                    pass_bounds_with_term=True,
+                )
             return _run_operation(operation, repository_root, find_object_lifecycle, term=term)
 
         if operation == "python.carrier_guards":

@@ -11,6 +11,11 @@ class SingleFileSource:
         return [self.path]
 
 
+class EmptyChanges:
+    def commit_file_changes(self, repository: Path, query):
+        return []
+
+
 def test_reports_construction_and_field_operations(tmp_path: Path) -> None:
     source = tmp_path / "pkg.py"
     source.write_text(
@@ -138,6 +143,7 @@ order.items.append(value)
         ],
         "aliases": [],
         "boundaries": [],
+        "history_evidence": None,
         "parse_failures": [],
     }
 
@@ -204,3 +210,20 @@ def invoke(order):
         }
     ]
     assert [item.kind for item in report.boundaries] == ["parameter", "parameter", "argument"]
+
+
+def test_can_attach_bounded_history_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "pkg.py"
+    source.write_text("order = object()\n", encoding="utf-8")
+
+    report = find_object_lifecycle(
+        tmp_path,
+        "order",
+        file_source=SingleFileSource(source),
+        since_unix_time=1,
+        limit=2,
+        changes=EmptyChanges(),
+    )
+
+    assert report.history_evidence is not None
+    assert report.history_evidence["commit_count"] == 0

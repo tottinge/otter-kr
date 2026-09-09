@@ -6,7 +6,10 @@ import ast
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from otter_kr.git_cli_history import GitCliHistory
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.git_history_snapshot import collect_git_history_snapshot
+from otter_kr.git_ports import CommitFileChangeSource
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +129,7 @@ class ObjectLifecycleReport:
     aliases: tuple[AliasLink, ...]
     boundaries: tuple[BoundaryLink, ...]
     parse_failures: tuple[dict[str, object], ...]
+    history_evidence: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -138,6 +142,7 @@ class ObjectLifecycleReport:
             "transitions": [item.to_dict() for item in self.transitions],
             "aliases": [item.to_dict() for item in self.aliases],
             "boundaries": [item.to_dict() for item in self.boundaries],
+            "history_evidence": self.history_evidence,
             "parse_failures": list(self.parse_failures),
         }
 
@@ -366,7 +371,13 @@ class _LifecycleCollector(ast.NodeVisitor):
 
 
 def find_object_lifecycle(
-    repository: Path, carrier: str, file_source: TrackedFileSource | None = None
+    repository: Path,
+    carrier: str,
+    file_source: TrackedFileSource | None = None,
+    *,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
+    changes: CommitFileChangeSource | None = None,
 ) -> ObjectLifecycleReport:
     repository = repository.resolve()
     if not repository.is_dir():
@@ -397,6 +408,14 @@ def find_object_lifecycle(
     operations.sort(key=lambda item: (item.path, item.line, item.column, item.kind, item.field))
     groups = _group_operations(operations)
     transitions = _observe_transitions(operations)
+    history_evidence = None
+    if since_unix_time is not None and limit is not None:
+        history_evidence = collect_git_history_snapshot(
+            repository,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            changes=changes or GitCliHistory(),
+        ).to_dict()
     aliases.sort(key=lambda item: (item.path, item.line, item.column, item.source, item.target))
     boundaries.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
     return ObjectLifecycleReport(
@@ -409,6 +428,7 @@ def find_object_lifecycle(
         tuple(aliases),
         tuple(boundaries),
         tuple(failures),
+        history_evidence,
     )
 
 
