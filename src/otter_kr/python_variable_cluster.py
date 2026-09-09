@@ -33,6 +33,21 @@ class SharedScope:
 
 
 @dataclass(frozen=True, slots=True)
+class ConstructionSite:
+    name: str
+    path: str
+    line: int
+    column: int
+    scope: str
+    target: str
+    kind: str
+    value: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class VariableOccurrence:
     name: str
     path: str
@@ -61,6 +76,7 @@ class VariableClusterReport:
     warnings: tuple[dict[str, str], ...]
     shared_scopes: tuple[SharedScope, ...] = ()
     shared_guards: tuple[GuardContext, ...] = ()
+    construction_sites: tuple[ConstructionSite, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -69,6 +85,7 @@ class VariableClusterReport:
             "warnings": list(self.warnings),
             "shared_scopes": [scope.to_dict() for scope in self.shared_scopes],
             "shared_guards": [guard.to_dict() for guard in self.shared_guards],
+            "construction_sites": [site.to_dict() for site in self.construction_sites],
         }
 
 
@@ -80,6 +97,44 @@ class _OccurrenceCollector(ast.NodeVisitor):
         self.scopes: list[str] = []
         self.guards: list[GuardContext] = []
         self.occurrences: list[VariableOccurrence] = []
+        self.construction_sites: list[ConstructionSite] = []
+
+    def _record_assignment(self, target: ast.AST, value: ast.AST, kind: str) -> None:
+        target_name = None
+        if isinstance(target, ast.Name) and target.id == self.name:
+            target_name = target.id
+        elif isinstance(target, ast.Attribute) and target.attr == self.name:
+            target_name = ast.get_source_segment(self.source, target)
+        if target_name is None:
+            return
+        if isinstance(target, ast.Attribute):
+            kind = "attribute_assignment"
+        self.construction_sites.append(
+            ConstructionSite(
+                self.name,
+                self.path,
+                target.lineno,
+                target.col_offset,
+                ".".join(self.scopes),
+                target_name,
+                kind,
+                ast.get_source_segment(self.source, value) or "",
+            )
+        )
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        for target in node.targets:
+            self._record_assignment(target, node.value, "assignment")
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            self._record_assignment(node.target, node.value, "annotated_assignment")
+        self.generic_visit(node)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        self._record_assignment(node.target, node.value, "named_assignment")
+        self.generic_visit(node)
 
     def _guard(self, node: ast.AST, branch: str, kind: str) -> GuardContext:
         expression = ast.get_source_segment(self.source, node) or ""
@@ -177,6 +232,7 @@ def _validate_names(names: tuple[str, ...], *, exact_count: int | None = None) -
 
 def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> VariableClusterReport:
     occurrences: list[VariableOccurrence] = []
+    construction_sites: list[ConstructionSite] = []
     warnings: list[dict[str, str]] = []
     for path in GitCliFileSource().python_files(repository.resolve()):
         relative = path.relative_to(repository.resolve()).as_posix()
@@ -190,7 +246,11 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
             collector = _OccurrenceCollector(relative, name, source)
             collector.visit(tree)
             occurrences.extend(collector.occurrences)
+            construction_sites.extend(collector.construction_sites)
     occurrences.sort(key=lambda item: (item.path, item.line, item.column, item.name, item.role))
+    construction_sites.sort(
+        key=lambda item: (item.path, item.line, item.column, item.name, item.kind)
+    )
     by_name = {name: tuple(item for item in occurrences if item.name == name) for name in names}
     if len(names) > 1:
         shared_scope_keys = set.intersection(
@@ -218,7 +278,12 @@ def _find_variable_cluster(repository: Path, names: tuple[str, ...]) -> Variable
         shared_scopes = ()
         shared_guards = ()
     return VariableClusterReport(
-        names, tuple(occurrences), tuple(warnings), shared_scopes, shared_guards
+        names,
+        tuple(occurrences),
+        tuple(warnings),
+        shared_scopes,
+        shared_guards,
+        tuple(construction_sites),
     )
 
 

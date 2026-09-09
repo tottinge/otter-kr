@@ -104,3 +104,24 @@ def test_two_name_cluster_does_not_merge_opposite_guard_branches(tmp_path: Path)
     report = find_variable_cluster(tmp_path, ("count", "limit"))
 
     assert report.shared_guards == ()
+
+
+def test_occurrences_report_initialization_and_attribute_assignments(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "sample.py",
+        "class Counter:\n"
+        "    def __init__(self, value):\n"
+        "        self.value = value\n"
+        "        value = 0\n",
+    )
+    git_repository(tmp_path, "sample.py")
+
+    report = find_variable_occurrences(tmp_path, "value")
+
+    assert [
+        (site.target, site.kind, site.scope, site.value) for site in report.construction_sites
+    ] == [
+        ("self.value", "attribute_assignment", "Counter.__init__", "value"),
+        ("value", "assignment", "Counter.__init__", "0"),
+    ]
