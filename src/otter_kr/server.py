@@ -1,6 +1,5 @@
 """FastMCP transport for repository evidence tools."""
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -22,6 +21,7 @@ from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
+from otter_kr.operation_registry import OperationRegistry, PythonOperationSpec
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
@@ -43,62 +43,57 @@ from otter_kr.representation_inventory import collect_representation_inventory
 from otter_kr.review_packet import collect_review_packet
 from otter_kr.seed_evidence import project_python_neighborhood
 
-
-@dataclass(frozen=True, slots=True)
-class PythonOperationSpec:
-    analyzer: object
-    requires_term: bool = False
-    term_message: str | None = None
-    catches_value_error: bool = True
-
-
-PYTHON_OPERATIONS = {
-    "python.inventory": PythonOperationSpec(inventory_python),
-    "python.names": PythonOperationSpec(
-        find_names, requires_term=True, term_message="A term is required for python.names."
-    ),
-    "python.neighborhood": PythonOperationSpec(
-        find_python_neighborhood,
-        requires_term=True,
-        term_message="A seed is required for python.neighborhood.",
-    ),
-    "python.neighborhood.structural": PythonOperationSpec(
-        find_structural_neighborhood,
-        requires_term=True,
-        term_message="A seed is required for python.neighborhood.structural.",
-    ),
-    "python.neighborhood.historical": PythonOperationSpec(
-        find_historical_neighborhood,
-        requires_term=True,
-        term_message="A seed is required for python.neighborhood.historical.",
-    ),
-    "python.neighborhood.behavioral": PythonOperationSpec(
-        find_behavioral_neighborhood,
-        requires_term=True,
-        term_message="A seed is required for python.neighborhood.behavioral.",
-    ),
-    "python.seed_evidence": PythonOperationSpec(
-        project_python_neighborhood,
-        requires_term=True,
-        term_message="A seed is required for python.seed_evidence.",
-    ),
-    "python.graph_topology": PythonOperationSpec(build_python_import_graph),
-    "python.discriminations": PythonOperationSpec(
-        find_type_discriminations,
-        requires_term=True,
-        term_message="A term is required for python.discriminations.",
-    ),
-    "python.tests": PythonOperationSpec(
-        find_tests_for_symbol,
-        requires_term=True,
-        term_message="A term is required for python.tests.",
-    ),
-    "python.imports": PythonOperationSpec(import_python),
-    "python.complexity": PythonOperationSpec(analyze_python_complexity, catches_value_error=False),
-    "python.literals": PythonOperationSpec(find_repeated_literals),
-    "python.groups": PythonOperationSpec(find_repeated_groups),
-    "python.duplicates": PythonOperationSpec(find_duplicate_helpers),
-}
+PYTHON_OPERATIONS = OperationRegistry(
+    {
+        "python.inventory": PythonOperationSpec(inventory_python),
+        "python.names": PythonOperationSpec(
+            find_names, requires_term=True, term_message="A term is required for python.names."
+        ),
+        "python.neighborhood": PythonOperationSpec(
+            find_python_neighborhood,
+            requires_term=True,
+            term_message="A seed is required for python.neighborhood.",
+        ),
+        "python.neighborhood.structural": PythonOperationSpec(
+            find_structural_neighborhood,
+            requires_term=True,
+            term_message="A seed is required for python.neighborhood.structural.",
+        ),
+        "python.neighborhood.historical": PythonOperationSpec(
+            find_historical_neighborhood,
+            requires_term=True,
+            term_message="A seed is required for python.neighborhood.historical.",
+        ),
+        "python.neighborhood.behavioral": PythonOperationSpec(
+            find_behavioral_neighborhood,
+            requires_term=True,
+            term_message="A seed is required for python.neighborhood.behavioral.",
+        ),
+        "python.seed_evidence": PythonOperationSpec(
+            project_python_neighborhood,
+            requires_term=True,
+            term_message="A seed is required for python.seed_evidence.",
+        ),
+        "python.graph_topology": PythonOperationSpec(build_python_import_graph),
+        "python.discriminations": PythonOperationSpec(
+            find_type_discriminations,
+            requires_term=True,
+            term_message="A term is required for python.discriminations.",
+        ),
+        "python.tests": PythonOperationSpec(
+            find_tests_for_symbol,
+            requires_term=True,
+            term_message="A term is required for python.tests.",
+        ),
+        "python.imports": PythonOperationSpec(import_python),
+        "python.complexity": PythonOperationSpec(
+            analyze_python_complexity, catches_value_error=False
+        ),
+        "python.literals": PythonOperationSpec(find_repeated_literals),
+        "python.groups": PythonOperationSpec(find_repeated_groups),
+        "python.duplicates": PythonOperationSpec(find_duplicate_helpers),
+    }
+)
 
 
 def _query(
@@ -465,7 +460,7 @@ def create_server() -> FastMCP:
                 **kwargs,
             )
 
-        python_spec = PYTHON_OPERATIONS.get(operation)
+        python_spec = PYTHON_OPERATIONS.find(operation)
         if python_spec is not None:
             return run(
                 python_spec.analyzer,
