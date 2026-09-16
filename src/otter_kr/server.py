@@ -21,7 +21,7 @@ from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
-from otter_kr.operation_registry import OperationRegistry, OperationSpec
+from otter_kr.operation_registry import BoundedTermOperationSpec, OperationRegistry, OperationSpec
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
@@ -56,6 +56,10 @@ OPERATION_REGISTRY = OperationRegistry(
             requires_term=True,
             term_message="A commit reference is required for git.topic_hunks.",
             echo_unused_query_fields=False,
+        ),
+        "git.topic_walk": BoundedTermOperationSpec(
+            walk_topic_history,
+            term_message="A commit reference is required for git.topic_walk.",
         ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
@@ -471,7 +475,19 @@ def create_server() -> FastMCP:
             )
 
         spec = OPERATION_REGISTRY.find(operation)
-        if spec is not None:
+        if isinstance(spec, BoundedTermOperationSpec):
+            if term is None:
+                return _invalid_query(operation, repository_root, spec.term_message)
+            return _run_bounded(
+                operation,
+                repository_root,
+                spec.analyzer,
+                term=term,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                pass_bounds_with_term=True,
+            )
+        if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
                     spec.analyzer,
@@ -610,31 +626,6 @@ def create_server() -> FastMCP:
                     ],
                 },
                 term=term,
-            )
-        if operation == "git.topic_walk":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A commit reference is required for git.topic_walk.",
-                )
-            rejection = _validate_history_bounds(
-                operation, repository_root, since_unix_time, limit, term=term
-            )
-            if rejection is not None:
-                return rejection
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, commit: walk_topic_history(
-                    repository,
-                    commit,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                ),
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
             )
         if operation == "git.topic_family":
             if term is None:

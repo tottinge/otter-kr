@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 
+import pytest
 from fastmcp import Client
 
 from otter_kr.server import create_server
@@ -284,6 +285,133 @@ def test_git_topic_hunks_reports_one_commit_without_irrelevant_bounds_in_query(
     assert len(data["hunks"]) == 1
     assert data["hunks"][0]["path"] == "pkg/service.py"
     assert data["hunks"][0]["lines"] == ["-value = 1", "+value = 2"]
+
+
+def test_git_topic_walk_missing_commit_rejects_without_bounds_in_query() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic_walk",
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic_walk",
+        "query": {"repository_root": "/repo"},
+        "error": {
+            "code": "invalid_query",
+            "message": "A commit reference is required for git.topic_walk.",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ("bounds", "query", "message"),
+    [
+        (
+            {"limit": 2},
+            {"repository_root": "/repo", "term": "topic", "limit": 2},
+            "A positive since_unix_time is required for git.topic_walk.",
+        ),
+        (
+            {"since_unix_time": 0, "limit": 2},
+            {
+                "repository_root": "/repo",
+                "term": "topic",
+                "since_unix_time": 0,
+                "limit": 2,
+            },
+            "A positive since_unix_time is required for git.topic_walk.",
+        ),
+        (
+            {"since_unix_time": 1},
+            {"repository_root": "/repo", "term": "topic", "since_unix_time": 1},
+            "A positive limit is required for git.topic_walk.",
+        ),
+        (
+            {"since_unix_time": 1, "limit": 0},
+            {
+                "repository_root": "/repo",
+                "term": "topic",
+                "since_unix_time": 1,
+                "limit": 0,
+            },
+            "A positive limit is required for git.topic_walk.",
+        ),
+    ],
+)
+def test_git_topic_walk_rejects_missing_or_non_positive_bounds(
+    bounds: dict[str, int], query: dict[str, object], message: str
+) -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic_walk",
+                "term": "topic",
+                **bounds,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic_walk",
+        "query": query,
+        "error": {"code": "invalid_query", "message": message},
+    }
+
+
+def test_git_topic_walk_reports_bounded_first_parent_history(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    first = git_commit(tmp_path, "initial import")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    second = git_commit(tmp_path, "adjust service", "pkg/service.py")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic_walk",
+                "term": second,
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="git.topic_walk",
+        repository_root=str(tmp_path),
+        term=second,
+        since_unix_time=1,
+        limit=2,
+    )
+    assert data == {
+        "topic_sha": second,
+        "commits": [
+            {"sha": second, "parent_shas": [first], "skipped": None},
+            {"sha": first, "parent_shas": [], "skipped": None},
+        ],
+        "termination": "root",
+    }
 
 
 def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> None:

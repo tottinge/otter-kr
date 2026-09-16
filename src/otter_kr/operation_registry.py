@@ -16,12 +16,21 @@ class OperationSpec:
     echo_unused_query_fields: bool = True
 
 
+@dataclass(frozen=True, slots=True)
+class BoundedTermOperationSpec:
+    analyzer: object
+    term_message: str
+
+
+RegisteredOperation = OperationSpec | BoundedTermOperationSpec
+
+
 class OperationRegistry:
     """Immutable lookup boundary for admitted operations."""
 
-    def __init__(self, specifications: Mapping[str, OperationSpec]) -> None:
+    def __init__(self, specifications: Mapping[str, RegisteredOperation]) -> None:
         self._specifications = MappingProxyType(dict(specifications))
 
-    def find(self, operation: str) -> OperationSpec | None:
+    def find(self, operation: str) -> RegisteredOperation | None:
         """Return the admitted specification, or ``None`` for rejection."""
         return self._specifications.get(operation)
