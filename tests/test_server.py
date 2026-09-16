@@ -224,6 +224,68 @@ def test_git_topic_invalid_commit_retains_invalid_query_envelope(tmp_path: Path)
     }
 
 
+def test_git_topic_hunks_missing_commit_rejects_without_irrelevant_bounds_in_query() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic_hunks",
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic_hunks",
+        "query": {"repository_root": "/repo"},
+        "error": {
+            "code": "invalid_query",
+            "message": "A commit reference is required for git.topic_hunks.",
+        },
+    }
+
+
+def test_git_topic_hunks_reports_one_commit_without_irrelevant_bounds_in_query(
+    tmp_path: Path,
+) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    git_commit(tmp_path, "initial import")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    commit_sha = git_commit(tmp_path, "adjust service", "pkg/service.py")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic_hunks",
+                "term": commit_sha,
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="git.topic_hunks",
+        repository_root=str(tmp_path),
+        term=commit_sha,
+    )
+    assert data["commit_sha"] == commit_sha
+    assert len(data["hunks"]) == 1
+    assert data["hunks"][0]["path"] == "pkg/service.py"
+    assert data["hunks"][0]["lines"] == ["-value = 1", "+value = 2"]
+
+
 def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> None:
     write_python(tmp_path, "pkg/service.py", "value = 1\n")
     git_repository(tmp_path, "pkg")

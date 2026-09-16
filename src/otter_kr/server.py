@@ -51,6 +51,12 @@ OPERATION_REGISTRY = OperationRegistry(
             term_message="A commit reference is required for git.topic.",
             echo_unused_query_fields=False,
         ),
+        "git.topic_hunks": OperationSpec(
+            collect_topic_hunks,
+            requires_term=True,
+            term_message="A commit reference is required for git.topic_hunks.",
+            echo_unused_query_fields=False,
+        ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
             find_names, requires_term=True, term_message="A term is required for python.names."
@@ -605,14 +611,6 @@ def create_server() -> FastMCP:
                 },
                 term=term,
             )
-        if operation == "git.topic_hunks":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A commit reference is required for git.topic_hunks.",
-                )
-            return _run_operation(operation, repository_root, collect_topic_hunks, term=term)
         if operation == "git.topic_walk":
             if term is None:
                 return _invalid_query(

@@ -17,6 +17,6 @@ def test_registry_rejects_an_unknown_operation() -> None:
 
 def test_git_topic_is_the_only_admitted_git_topic_operation() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
-    assert OPERATION_REGISTRY.find("git.topic_hunks") is None
+    assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
     assert OPERATION_REGISTRY.find("git.topic_walk") is None
     assert OPERATION_REGISTRY.find("git.topic_family") is None
