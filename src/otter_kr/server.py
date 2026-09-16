@@ -21,7 +21,7 @@ from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
-from otter_kr.operation_registry import OperationRegistry, PythonOperationSpec
+from otter_kr.operation_registry import OperationRegistry, OperationSpec
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
@@ -43,55 +43,59 @@ from otter_kr.representation_inventory import collect_representation_inventory
 from otter_kr.review_packet import collect_review_packet
 from otter_kr.seed_evidence import project_python_neighborhood
 
-PYTHON_OPERATIONS = OperationRegistry(
+OPERATION_REGISTRY = OperationRegistry(
     {
-        "python.inventory": PythonOperationSpec(inventory_python),
-        "python.names": PythonOperationSpec(
+        "git.topic": OperationSpec(
+            describe_topic_commit,
+            requires_term=True,
+            term_message="A commit reference is required for git.topic.",
+            echo_unused_query_fields=False,
+        ),
+        "python.inventory": OperationSpec(inventory_python),
+        "python.names": OperationSpec(
             find_names, requires_term=True, term_message="A term is required for python.names."
         ),
-        "python.neighborhood": PythonOperationSpec(
+        "python.neighborhood": OperationSpec(
             find_python_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.",
         ),
-        "python.neighborhood.structural": PythonOperationSpec(
+        "python.neighborhood.structural": OperationSpec(
             find_structural_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.structural.",
         ),
-        "python.neighborhood.historical": PythonOperationSpec(
+        "python.neighborhood.historical": OperationSpec(
             find_historical_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.historical.",
         ),
-        "python.neighborhood.behavioral": PythonOperationSpec(
+        "python.neighborhood.behavioral": OperationSpec(
             find_behavioral_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.behavioral.",
         ),
-        "python.seed_evidence": PythonOperationSpec(
+        "python.seed_evidence": OperationSpec(
             project_python_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.seed_evidence.",
         ),
-        "python.graph_topology": PythonOperationSpec(build_python_import_graph),
-        "python.discriminations": PythonOperationSpec(
+        "python.graph_topology": OperationSpec(build_python_import_graph),
+        "python.discriminations": OperationSpec(
             find_type_discriminations,
             requires_term=True,
             term_message="A term is required for python.discriminations.",
         ),
-        "python.tests": PythonOperationSpec(
+        "python.tests": OperationSpec(
             find_tests_for_symbol,
             requires_term=True,
             term_message="A term is required for python.tests.",
         ),
-        "python.imports": PythonOperationSpec(import_python),
-        "python.complexity": PythonOperationSpec(
-            analyze_python_complexity, catches_value_error=False
-        ),
-        "python.literals": PythonOperationSpec(find_repeated_literals),
-        "python.groups": PythonOperationSpec(find_repeated_groups),
-        "python.duplicates": PythonOperationSpec(find_duplicate_helpers),
+        "python.imports": OperationSpec(import_python),
+        "python.complexity": OperationSpec(analyze_python_complexity, catches_value_error=False),
+        "python.literals": OperationSpec(find_repeated_literals),
+        "python.groups": OperationSpec(find_repeated_groups),
+        "python.duplicates": OperationSpec(find_duplicate_helpers),
     }
 )
 
@@ -460,14 +464,24 @@ def create_server() -> FastMCP:
                 **kwargs,
             )
 
-        python_spec = PYTHON_OPERATIONS.find(operation)
-        if python_spec is not None:
-            return run(
-                python_spec.analyzer,
-                term=term if python_spec.requires_term else None,
-                require_term=python_spec.requires_term,
-                term_message=python_spec.term_message,
-                catches_value_error=python_spec.catches_value_error,
+        spec = OPERATION_REGISTRY.find(operation)
+        if spec is not None:
+            if spec.echo_unused_query_fields:
+                return run(
+                    spec.analyzer,
+                    term=term if spec.requires_term else None,
+                    require_term=spec.requires_term,
+                    term_message=spec.term_message,
+                    catches_value_error=spec.catches_value_error,
+                )
+            return _run_operation(
+                operation,
+                repository_root,
+                spec.analyzer,
+                term=term if spec.requires_term else None,
+                require_term=spec.requires_term,
+                term_message=spec.term_message,
+                catches_value_error=spec.catches_value_error,
             )
 
         if operation == "python.object_lifecycle":
@@ -523,15 +537,6 @@ def create_server() -> FastMCP:
                 term=term,
             )
 
-        if operation == "git.topic":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A commit reference is required for git.topic.",
-                    term=term,
-                )
-            return _run_operation(operation, repository_root, describe_topic_commit, term=term)
         if operation == "python.term_change_evidence":
             return _run_bounded(
                 operation,

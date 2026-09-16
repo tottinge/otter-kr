@@ -135,6 +135,95 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
     }
 
 
+def test_git_topic_missing_commit_rejects_without_irrelevant_bounds_in_query() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic",
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic",
+        "query": {"repository_root": "/repo"},
+        "error": {
+            "code": "invalid_query",
+            "message": "A commit reference is required for git.topic.",
+        },
+    }
+
+
+def test_git_topic_reports_one_commit_without_irrelevant_bounds_in_query(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    commit_sha = git_commit(tmp_path, "initial import")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic",
+                "term": commit_sha,
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="git.topic",
+        repository_root=str(tmp_path),
+        term=commit_sha,
+    )
+    assert data["commit_sha"] == commit_sha
+    assert data["subject"] == "initial import"
+    assert data["status"] == "initial"
+    assert data["changes"] == [{"status": "A", "path": "pkg/service.py", "previous_path": None}]
+
+
+def test_git_topic_invalid_commit_retains_invalid_query_envelope(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    git_commit(tmp_path, "initial import")
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic",
+                "term": "missing-commit",
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic",
+        "query": {"repository_root": str(tmp_path), "term": "missing-commit"},
+        "error": {
+            "code": "invalid_query",
+            "message": "tip_sha must be a Git SHA: missing-commit",
+        },
+    }
+
+
 def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> None:
     write_python(tmp_path, "pkg/service.py", "value = 1\n")
     git_repository(tmp_path, "pkg")
