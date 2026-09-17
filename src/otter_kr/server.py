@@ -23,6 +23,7 @@ from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
+    BoundedPairOperationSpec,
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     OperationRegistry,
@@ -121,6 +122,23 @@ OPERATION_REGISTRY = OperationRegistry(
             ),
             term_message="A focus file term is required for git.cochange.file.",
             path_message="focus_path must be repository-relative.",
+        ),
+        "git.cochange.pair": BoundedPairOperationSpec(
+            lambda repository,
+            *,
+            left_path,
+            right_path,
+            since_unix_time,
+            limit: collect_pair_cochange(
+                repository,
+                left_path,
+                right_path,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                changes=GitCliHistory(),
+            ),
+            pair_message="left_path and right_path are required for git.cochange.pair.",
+            path_message="file paths must be repository-relative.",
         ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
@@ -364,6 +382,7 @@ def _run_operation(
     catches_value_error: bool = True,
     pass_bounds_with_term: bool = False,
     pass_bounds_with_terms: bool = False,
+    pass_pair_paths: bool = False,
 ) -> dict:
     query_term = term if query_term is None else query_term
     query_since_unix_time = (
@@ -402,6 +421,14 @@ def _run_operation(
             report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:
             report = analyzer(repository, term)
+        elif pass_pair_paths:
+            report = analyzer(
+                repository,
+                left_path=left_path,
+                right_path=right_path,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
         elif since_unix_time is not None or limit is not None:
             report = analyzer(repository, since_unix_time=since_unix_time, limit=limit)
         else:
@@ -589,6 +616,56 @@ def create_server() -> FastMCP:
                 limit=limit,
                 pass_bounds_with_term=True,
             )
+        if isinstance(spec, BoundedPairOperationSpec):
+            if left_path is None or right_path is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    spec.pair_message,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if left_path == right_path:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "left_path and right_path must be different files.",
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            if any(
+                not value
+                or value.startswith("/")
+                or "\\" in value
+                or any(part == ".." for part in value.split("/"))
+                for value in (left_path, right_path)
+            ):
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    spec.path_message,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                    left_path=left_path,
+                    right_path=right_path,
+                )
+            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
+            if rejection is not None:
+                return rejection
+            return _run_operation(
+                operation,
+                repository_root,
+                spec.analyzer,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                left_path=left_path,
+                right_path=right_path,
+                pass_pair_paths=True,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -758,80 +835,6 @@ def create_server() -> FastMCP:
                 term=term,
                 since_unix_time=since_unix_time,
                 limit=limit,
-            )
-        if operation == "git.cochange.pair":
-            if left_path is None or right_path is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "left_path and right_path are required for git.cochange.pair.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            if since_unix_time is None or since_unix_time <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive since_unix_time is required for git.cochange.pair.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            if limit is None or limit <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive limit is required for git.cochange.pair.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            if left_path == right_path:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "left_path and right_path must be different files.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            if (
-                left_path.startswith("/")
-                or right_path.startswith("/")
-                or "\\" in left_path
-                or "\\" in right_path
-                or any(part == ".." for part in left_path.split("/"))
-                or any(part == ".." for part in right_path.split("/"))
-            ):
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "file paths must be repository-relative.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, **_: collect_pair_cochange(
-                    repository,
-                    left_path,
-                    right_path,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    changes=GitCliHistory(),
-                ),
-                since_unix_time=since_unix_time,
-                limit=limit,
-                left_path=left_path,
-                right_path=right_path,
             )
         if operation == "python.variable_cluster":
             if terms is not None:

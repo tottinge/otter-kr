@@ -1,5 +1,6 @@
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
+    BoundedPairOperationSpec,
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     OperationRegistry,
@@ -32,3 +33,4 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.hotspots"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.cochange"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.file"), BoundedPathOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("git.cochange.pair"), BoundedPairOperationSpec)

@@ -34,8 +34,19 @@ class BoundedPathOperationSpec:
     path_message: str
 
 
+@dataclass(frozen=True, slots=True)
+class BoundedPairOperationSpec:
+    analyzer: object
+    pair_message: str
+    path_message: str
+
+
 RegisteredOperation = (
-    OperationSpec | BoundedTermOperationSpec | BoundedOperationSpec | BoundedPathOperationSpec
+    OperationSpec
+    | BoundedTermOperationSpec
+    | BoundedOperationSpec
+    | BoundedPathOperationSpec
+    | BoundedPairOperationSpec
 )
 
 
