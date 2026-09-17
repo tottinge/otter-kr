@@ -5,6 +5,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    CarrierGuardsOperationSpec,
+    CarrierGuardsQuery,
     LifecycleOperationSpec,
     LifecycleQuery,
     LineOriginsOperationSpec,
@@ -74,6 +76,12 @@ def test_lifecycle_query_develops_its_validation_boundary() -> None:
     assert query == LifecycleQuery("state", 1, 2)
 
 
+def test_carrier_guards_query_develops_its_path_boundary() -> None:
+    query = CarrierGuardsQuery.create("state", "pkg/service.py")
+
+    assert query == CarrierGuardsQuery("state", ("pkg/service.py",))
+
+
 def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
@@ -87,6 +95,7 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.file"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.branch_additions"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("python.object_lifecycle"), LifecycleOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("python.carrier_guards"), CarrierGuardsOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.line_origins"), LineOriginsOperationSpec)
     assert isinstance(
         OPERATION_REGISTRY.find("python.variable_cluster"), VariableClusterOperationSpec

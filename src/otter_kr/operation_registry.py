@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from types import MappingProxyType
 
 
@@ -149,6 +150,24 @@ class LifecycleQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class CarrierGuardsQuery:
+    carrier: str
+    paths: tuple[str, ...] | None
+
+    @classmethod
+    def create(cls, carrier: str | None, path: str | None) -> CarrierGuardsQuery:
+        if carrier is None:
+            raise InvalidOperationQuery("A carrier name is required for python.carrier_guards.")
+        if path is None:
+            return cls(carrier, None)
+        text = path.strip()
+        candidate = Path(text)
+        if not text or candidate.is_absolute() or ".." in candidate.parts:
+            raise InvalidOperationQuery("path must be a repository-relative path without '..'.")
+        return cls(carrier, (candidate.as_posix(),))
+
+
+@dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
     requires_term: bool = False
@@ -196,6 +215,11 @@ class LifecycleOperationSpec:
     analyzer: object
 
 
+@dataclass(frozen=True, slots=True)
+class CarrierGuardsOperationSpec:
+    analyzer: object
+
+
 RegisteredOperation = (
     OperationSpec
     | BoundedTermOperationSpec
@@ -205,6 +229,7 @@ RegisteredOperation = (
     | LineOriginsOperationSpec
     | VariableClusterOperationSpec
     | LifecycleOperationSpec
+    | CarrierGuardsOperationSpec
 )
 
 

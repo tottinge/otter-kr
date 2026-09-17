@@ -28,6 +28,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    CarrierGuardsOperationSpec,
+    CarrierGuardsQuery,
     LifecycleOperationSpec,
     LifecycleQuery,
     LineOriginsOperationSpec,
@@ -169,6 +171,7 @@ OPERATION_REGISTRY = OperationRegistry(
             occurrence_analyzer=find_variable_occurrences,
         ),
         "python.object_lifecycle": LifecycleOperationSpec(find_object_lifecycle),
+        "python.carrier_guards": CarrierGuardsOperationSpec(find_carrier_guards),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,
@@ -732,6 +735,17 @@ def create_server() -> FastMCP:
                     pass_bounds_with_term=True,
                 )
             return _run_operation(operation, repository_root, spec.analyzer, term=query.carrier)
+        if isinstance(spec, CarrierGuardsOperationSpec):
+            try:
+                query = CarrierGuardsQuery.create(term, path)
+            except ValueError as error:
+                return _invalid_query(operation, repository_root, str(error), term=term)
+            return _run_operation(
+                operation,
+                repository_root,
+                lambda repository, carrier: spec.analyzer(repository, carrier, paths=query.paths),
+                term=query.carrier,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -749,33 +763,6 @@ def create_server() -> FastMCP:
                 require_term=spec.requires_term,
                 term_message=spec.term_message,
                 catches_value_error=spec.catches_value_error,
-            )
-
-        if operation == "python.carrier_guards":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A carrier name is required for python.carrier_guards.",
-                    term=term,
-                )
-            bound: tuple[str, ...] | None = None
-            if path is not None:
-                text = path.strip()
-                candidate = Path(text)
-                if not text or candidate.is_absolute() or ".." in candidate.parts:
-                    return _invalid_query(
-                        operation,
-                        repository_root,
-                        "path must be a repository-relative path without '..'.",
-                        term=term,
-                    )
-                bound = (candidate.as_posix(),)
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, carrier: find_carrier_guards(repository, carrier, paths=bound),
-                term=term,
             )
 
         if operation == "python.term_change_evidence":
