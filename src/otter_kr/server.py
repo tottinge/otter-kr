@@ -23,6 +23,7 @@ from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
+    BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     OperationRegistry,
     OperationSpec,
@@ -109,6 +110,17 @@ OPERATION_REGISTRY = OperationRegistry(
                 limit=limit,
                 changes=GitCliHistory(),
             )
+        ),
+        "git.cochange.file": BoundedPathOperationSpec(
+            lambda repository, focus_path, *, since_unix_time, limit: collect_scoped_cochange(
+                repository,
+                focus_path,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                changes=GitCliHistory(),
+            ),
+            term_message="A focus file term is required for git.cochange.file.",
+            path_message="focus_path must be repository-relative.",
         ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
@@ -544,6 +556,39 @@ def create_server() -> FastMCP:
                 since_unix_time=since_unix_time,
                 limit=limit,
             )
+        if isinstance(spec, BoundedPathOperationSpec):
+            if term is None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    spec.term_message,
+                    term=term,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            if (
+                not term
+                or term.startswith("/")
+                or "\\" in term
+                or any(part == ".." for part in term.split("/"))
+            ):
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    spec.path_message,
+                    term=term,
+                    since_unix_time=since_unix_time,
+                    limit=limit,
+                )
+            return _run_bounded(
+                operation,
+                repository_root,
+                spec.analyzer,
+                term=term,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                pass_bounds_with_term=True,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -709,62 +754,6 @@ def create_server() -> FastMCP:
                     limit=limit,
                     history=GitCliHistory(),
                     patches=GitCliHistory(),
-                ),
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
-            )
-        if operation == "git.cochange.file":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A focus file term is required for git.cochange.file.",
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if (
-                not term
-                or term.startswith("/")
-                or "\\" in term
-                or any(part == ".." for part in term.split("/"))
-            ):
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "focus_path must be repository-relative.",
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if since_unix_time is None or since_unix_time <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive since_unix_time is required for git.cochange.file.",
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            if limit is None or limit <= 0:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A positive limit is required for git.cochange.file.",
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, focus_path: collect_scoped_cochange(
-                    repository,
-                    focus_path,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    changes=GitCliHistory(),
                 ),
                 term=term,
                 since_unix_time=since_unix_time,

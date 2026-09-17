@@ -27,7 +27,16 @@ class BoundedOperationSpec:
     analyzer: object
 
 
-RegisteredOperation = OperationSpec | BoundedTermOperationSpec | BoundedOperationSpec
+@dataclass(frozen=True, slots=True)
+class BoundedPathOperationSpec:
+    analyzer: object
+    term_message: str
+    path_message: str
+
+
+RegisteredOperation = (
+    OperationSpec | BoundedTermOperationSpec | BoundedOperationSpec | BoundedPathOperationSpec
+)
 
 
 class OperationRegistry:
