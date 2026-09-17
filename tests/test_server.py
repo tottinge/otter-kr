@@ -989,15 +989,12 @@ def test_research_tool_reports_python_complexity(tmp_path: Path) -> None:
     git_repository(tmp_path, "pkg")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.complexity"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = asyncio.run(
+        call_research(
+            server,
+            {"repository_root": str(tmp_path), "operation": "python.complexity"},
+        )
+    )
     data = assert_ok_report(
         report,
         operation="python.complexity",
@@ -1052,15 +1049,12 @@ def test_research_tool_reports_python_complexity_parse_warnings(tmp_path: Path) 
     git_repository(tmp_path, "broken.py", "bad_encoding.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.complexity"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = asyncio.run(
+        call_research(
+            server,
+            {"repository_root": str(tmp_path), "operation": "python.complexity"},
+        )
+    )
     data = assert_ok_report(
         report,
         operation="python.complexity",
