@@ -134,6 +134,21 @@ class VariableOccurrenceQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class LifecycleQuery:
+    carrier: str
+    since_unix_time: int | None
+    limit: int | None
+
+    @classmethod
+    def create(
+        cls, carrier: str | None, since_unix_time: int | None, limit: int | None
+    ) -> LifecycleQuery:
+        if carrier is None:
+            raise InvalidOperationQuery("A carrier name is required for python.object_lifecycle.")
+        return cls(carrier, since_unix_time, limit)
+
+
+@dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
     requires_term: bool = False
@@ -176,6 +191,11 @@ class VariableClusterOperationSpec:
     occurrence_analyzer: object
 
 
+@dataclass(frozen=True, slots=True)
+class LifecycleOperationSpec:
+    analyzer: object
+
+
 RegisteredOperation = (
     OperationSpec
     | BoundedTermOperationSpec
@@ -184,6 +204,7 @@ RegisteredOperation = (
     | BoundedPairOperationSpec
     | LineOriginsOperationSpec
     | VariableClusterOperationSpec
+    | LifecycleOperationSpec
 )
 
 

@@ -28,6 +28,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    LifecycleOperationSpec,
+    LifecycleQuery,
     LineOriginsOperationSpec,
     LineOriginsQuery,
     OperationRegistry,
@@ -166,6 +168,7 @@ OPERATION_REGISTRY = OperationRegistry(
             cluster_analyzer=find_variable_cluster,
             occurrence_analyzer=find_variable_occurrences,
         ),
+        "python.object_lifecycle": LifecycleOperationSpec(find_object_lifecycle),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,
@@ -712,6 +715,23 @@ def create_server() -> FastMCP:
                 limit=query.limit,
                 pass_bounds_with_terms=True,
             )
+        if isinstance(spec, LifecycleOperationSpec):
+            try:
+                query = LifecycleQuery.create(term, since_unix_time, limit)
+            except ValueError as error:
+                return _invalid_query(operation, repository_root, str(error), term=term)
+            if query.since_unix_time is not None or query.limit is not None:
+                return _run_bounded(
+                    operation,
+                    repository_root,
+                    spec.analyzer,
+                    term=query.carrier,
+                    since_unix_time=query.since_unix_time,
+                    limit=query.limit,
+                    term_required=True,
+                    pass_bounds_with_term=True,
+                )
+            return _run_operation(operation, repository_root, spec.analyzer, term=query.carrier)
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -730,32 +750,6 @@ def create_server() -> FastMCP:
                 term_message=spec.term_message,
                 catches_value_error=spec.catches_value_error,
             )
-
-        if operation == "python.object_lifecycle":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A carrier name is required for python.object_lifecycle.",
-                    term=term,
-                )
-            if since_unix_time is not None or limit is not None:
-                return _run_bounded(
-                    operation,
-                    repository_root,
-                    lambda repository, value, *, since_unix_time, limit: find_object_lifecycle(
-                        repository,
-                        value,
-                        since_unix_time=since_unix_time,
-                        limit=limit,
-                    ),
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    term_required=True,
-                    pass_bounds_with_term=True,
-                )
-            return _run_operation(operation, repository_root, find_object_lifecycle, term=term)
 
         if operation == "python.carrier_guards":
             if term is None:

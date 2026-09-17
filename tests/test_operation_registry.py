@@ -5,6 +5,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    LifecycleOperationSpec,
+    LifecycleQuery,
     LineOriginsOperationSpec,
     LineOriginsQuery,
     OperationRegistry,
@@ -66,6 +68,12 @@ def test_variable_occurrence_query_develops_its_validation_boundary() -> None:
     assert query == VariableOccurrenceQuery("count")
 
 
+def test_lifecycle_query_develops_its_validation_boundary() -> None:
+    query = LifecycleQuery.create("state", 1, 2)
+
+    assert query == LifecycleQuery("state", 1, 2)
+
+
 def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
@@ -78,6 +86,7 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.cochange"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.file"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.branch_additions"), BoundedPathOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("python.object_lifecycle"), LifecycleOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.line_origins"), LineOriginsOperationSpec)
     assert isinstance(
         OPERATION_REGISTRY.find("python.variable_cluster"), VariableClusterOperationSpec
