@@ -24,6 +24,7 @@ from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
     BoundedPairOperationSpec,
+    BoundedPairQuery,
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     OperationRegistry,
@@ -137,8 +138,6 @@ OPERATION_REGISTRY = OperationRegistry(
                 limit=limit,
                 changes=GitCliHistory(),
             ),
-            pair_message="left_path and right_path are required for git.cochange.pair.",
-            path_message="file paths must be repository-relative.",
         ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
@@ -617,53 +616,26 @@ def create_server() -> FastMCP:
                 pass_bounds_with_term=True,
             )
         if isinstance(spec, BoundedPairOperationSpec):
-            if left_path is None or right_path is None:
+            try:
+                query = BoundedPairQuery.create(left_path, right_path, since_unix_time, limit)
+            except ValueError as error:
                 return _invalid_query(
                     operation,
                     repository_root,
-                    spec.pair_message,
+                    str(error),
                     since_unix_time=since_unix_time,
                     limit=limit,
                     left_path=left_path,
                     right_path=right_path,
                 )
-            if left_path == right_path:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "left_path and right_path must be different files.",
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            if any(
-                not value
-                or value.startswith("/")
-                or "\\" in value
-                or any(part == ".." for part in value.split("/"))
-                for value in (left_path, right_path)
-            ):
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    spec.path_message,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
             return _run_operation(
                 operation,
                 repository_root,
                 spec.analyzer,
-                since_unix_time=since_unix_time,
-                limit=limit,
-                left_path=left_path,
-                right_path=right_path,
+                since_unix_time=query.since_unix_time,
+                limit=query.limit,
+                left_path=query.left_path,
+                right_path=query.right_path,
                 pass_pair_paths=True,
             )
         if isinstance(spec, OperationSpec):

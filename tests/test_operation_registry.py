@@ -1,6 +1,7 @@
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
     BoundedPairOperationSpec,
+    BoundedPairQuery,
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     OperationRegistry,
@@ -20,6 +21,12 @@ def test_registry_rejects_an_unknown_operation() -> None:
     registry = OperationRegistry({})
 
     assert registry.find("python.unknown") is None
+
+
+def test_bounded_pair_query_develops_its_validation_boundary() -> None:
+    query = BoundedPairQuery.create("src/a.py", "src/b.py", 1, 2)
+
+    assert query == BoundedPairQuery("src/a.py", "src/b.py", 1, 2)
 
 
 def test_registry_admits_bounded_topic_operations() -> None:

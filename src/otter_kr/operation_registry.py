@@ -7,6 +7,48 @@ from dataclasses import dataclass
 from types import MappingProxyType
 
 
+class InvalidOperationQuery(ValueError):
+    """A query failed the admitted operation's shape or bounds contract."""
+
+
+@dataclass(frozen=True, slots=True)
+class BoundedPairQuery:
+    left_path: str
+    right_path: str
+    since_unix_time: int
+    limit: int
+
+    @classmethod
+    def create(
+        cls,
+        left_path: str | None,
+        right_path: str | None,
+        since_unix_time: int | None,
+        limit: int | None,
+    ) -> BoundedPairQuery:
+        if left_path is None or right_path is None:
+            raise InvalidOperationQuery(
+                "left_path and right_path are required for git.cochange.pair."
+            )
+        if left_path == right_path:
+            raise InvalidOperationQuery("left_path and right_path must be different files.")
+        if any(
+            not value
+            or value.startswith("/")
+            or "\\" in value
+            or any(part == ".." for part in value.split("/"))
+            for value in (left_path, right_path)
+        ):
+            raise InvalidOperationQuery("file paths must be repository-relative.")
+        if since_unix_time is None or since_unix_time <= 0:
+            raise InvalidOperationQuery(
+                "A positive since_unix_time is required for git.cochange.pair."
+            )
+        if limit is None or limit <= 0:
+            raise InvalidOperationQuery("A positive limit is required for git.cochange.pair.")
+        return cls(left_path, right_path, since_unix_time, limit)
+
+
 @dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
@@ -37,8 +79,6 @@ class BoundedPathOperationSpec:
 @dataclass(frozen=True, slots=True)
 class BoundedPairOperationSpec:
     analyzer: object
-    pair_message: str
-    path_message: str
 
 
 RegisteredOperation = (
