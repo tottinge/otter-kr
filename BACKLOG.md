@@ -328,7 +328,7 @@ must not turn deterministic association into concept identity.
 - **Observable result:** nodes, weighted edges, discovery pass, and ranked neighbors with reasons.
 - **Still rejected:** structural, historical, and behavioral edges.
 
-#### KR-020 — Add structural neighborhood edges
+#### KR-020 — Add structural neighborhood edges *(shipped in `d45e3aa`)*
 
 - **Admits:** repeated co-occurrence, shared files, imports, and explicit AST adjacency around an
   existing seed.
@@ -361,19 +361,19 @@ must not turn deterministic association into concept identity.
 - **Still rejected:** imports escaping the tracked package boundary, re-export inference, and
   repeated non-import co-occurrence.
 
-#### KR-021 — Add historical neighborhood edges
+#### KR-021 — Add historical neighborhood edges *(shipped in `5773aa8`)*
 
 - **Admits:** bounded co-change relationships for a seed’s files.
 - **Observable result:** historical edges and scores are distinguishable from structural edges.
 - **Still rejected:** semantic clustering and agent-authored interpretation.
 
-#### KR-022 — Add behavioral neighborhood edges
+#### KR-022 — Add behavioral neighborhood edges *(shipped in `251a6bd`)*
 
 - **Admits:** statically visible calls, shared field manipulation, and selected enum/type behavior.
 - **Observable result:** behavioral edges with evidence locations and edge reasons.
 - **Still rejected:** dynamic dispatch certainty and inferred business concepts.
 
-#### KR-022a — Report graph topology and bridge observations
+#### KR-022a — Report graph topology and bridge observations *(shipped in `d6b02c7`)*
 
 - **Admits:** an already-built weighted file graph with an explicit algorithm, seed, and filtering
   parameters.
@@ -396,7 +396,7 @@ history, and explicit overlap evidence. It is narrower than this capability: it 
 file touches, favors short-term fix-like follow-ups, and hashes complete patch bodies. It does not
 walk a topic backward through a recursive hunk family or establish line ancestry.
 
-#### KR-023 — Validate and describe one topic commit
+#### KR-023 — Validate and describe one topic commit *(shipped in `5355606`)*
 
 - **Admits:** one commit reference in one Git repository.
 - **Observable result:** commit identity, parent identities, timestamp, message, changed paths,
@@ -406,7 +406,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** initial commits, missing commits, binary files, renames, and merge commits have
   explicit evidence/status rather than silent fallback.
 
-#### KR-024 — Extract stable topic hunk evidence
+#### KR-024 — Extract stable topic hunk evidence *(shipped in `1be7348`)*
 
 - **Admits:** the topic commit's textual hunks for supported text files.
 - **Observable result:** file identity, old/new ranges, added/deleted/context lines, normalized
@@ -415,7 +415,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** identical edits at different line numbers match; changed context, duplicate hunks,
   encoding failures, and binary patches remain distinguishable or explicitly uncertain.
 
-#### KR-025 — Walk backward through first-parent history
+#### KR-025 — Walk backward through first-parent history *(shipped in `98e19fb`)*
 
 - **Admits:** prior commits touching files represented by the topic hunks, within an explicit
   commit/time/depth budget.
@@ -425,7 +425,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** traversal stops at the root, honors depth and time bounds, skips or reports merges
   according to policy, and never follows an unrelated file silently.
 
-#### KR-026 — Match topic hunks to prior hunks
+#### KR-026 — Match topic hunks to prior hunks *(shipped in `6662617`)*
 
 - **Admits:** exact normalized hunk-body matches between the active topic family and one prior
   candidate commit.
@@ -435,7 +435,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** no-match candidates are represented; duplicate fingerprints do not collapse
   unrelated locations; every match is traceable to both diffs.
 
-#### KR-027 — Add line/context overlap matching
+#### KR-027 — Add line/context overlap matching *(shipped in `d18c332`)*
 
 - **Admits:** a second deterministic matcher for hunks whose exact bodies changed but whose line
   context or mapped ranges overlap.
@@ -446,7 +446,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** the report preserves separate evidence for exact, context, and range matches so
   an LLM can choose how much trust to place in each.
 
-#### KR-027a — Trace topic preimage lines to prior origins
+#### KR-027a — Trace topic preimage lines to prior origins *(shipped in `f82abcf`)*
 
 - **Admits:** deleted or replaced lines from the topic hunk, resolved against the topic commit's
   first parent using Git blame or an equivalent line-origin operation.
@@ -458,7 +458,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
   explicit origin candidates or discontinuity records; the report distinguishes line origin from
   hunk-text similarity.
 
-#### KR-028 — Expand a matched hunk family backward
+#### KR-028 — Expand a matched hunk family backward *(shipped in `bcbada0`)*
 
 - **Admits:** when a prior match is found, that prior hunk becomes an active family member and the
   walk continues toward its parent.
@@ -468,14 +468,14 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** family expansion is deterministic, deduplicated, budgeted, and preserves branches
   where multiple prior hunks match the active family.
 
-#### KR-029 — Resolve path changes in a hunk family
+#### KR-029 — Resolve path changes in a hunk family *(shipped in `9d28b36`)*
 
 - **Admits:** Git rename/copy evidence while following an active hunk family across paths.
 - **Observable result:** path transition records, old/new path identities, rename evidence, and
   explicit discontinuities where identity cannot be established.
 - **Still rejected:** content-only guesses presented as Git identity and silent family breaks.
 
-#### KR-030 — Emit a topic family-history report
+#### KR-030 — Emit a topic family-history report *(shipped in `0afa5d6`)*
 
 - **Admits:** the complete evidence graph from one topic commit under the selected policies.
 - **Observable result:** topic metadata, family members ordered by ancestry, match edges, unmatched
@@ -485,7 +485,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Acceptance:** a consuming debugging skill can cite a prior commit and hunk without rescanning
   raw Git history; incomplete evidence is visible in the report.
 
-#### KR-031 — Cache and compare topic histories
+#### KR-031 — Cache and compare topic histories *(shipped in `7e6a02b`)*
 
 - **Admits:** repeat requests for the same repository revision, topic commit, matching policy, and
   budget.
@@ -495,7 +495,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 
 ### Composite evidence packages
 
-#### KR-032 — Project a seed evidence report
+#### KR-032 — Project a seed evidence report *(shipped in `6e69957`)*
 
 - **Admits:** a user-supplied seed plus an existing evidence neighborhood.
 - **Observable result:** a report that organizes matching nodes, edges, locations, counts, and
@@ -503,7 +503,7 @@ walk a topic backward through a recursive hunk family or establish line ancestry
 - **Still rejected:** concept identity, LLM reasoning, recommendations, and unsupported evidence
   re-derivation.
 
-#### KR-033 — Inventory representation signals
+#### KR-033 — Inventory representation signals *(shipped in `9b9c721`)*
 
 - **Admits:** a bounded composite of hotspots, duplication candidates, branch growth, repeated
   groups, and ownership-related observations already available from prior tools.
@@ -511,14 +511,14 @@ walk a topic backward through a recursive hunk family or establish line ancestry
   evidence. Categories describe the measurement, not whether the code is good or bad.
 - **Still rejected:** pressure judgments, virtue scores, automatic refactoring, and design advice.
 
-#### KR-034 — Generate a review evidence packet
+#### KR-034 — Generate a review evidence packet *(shipped in `6c2a630`)*
 
 - **Admits:** a selected set of changed files or a commit range.
 - **Observable result:** one deterministic, machine-readable packet for an agent or reviewer,
   including relevant names, dependencies, tests, history, and pressure signals.
 - **Still rejected:** approval/rejection of the change and invented semantic conclusions.
 
-#### KR-035 — Generate change-oriented evidence for one term
+#### KR-035 — Generate change-oriented evidence for one term *(shipped in `7076657`)*
 
 - **Admits:** one term mapped through the existing neighborhood and signal inventories.
 - **Observable result:** evidence organized by names, ownership observations, multiplicity,
@@ -549,7 +549,7 @@ triangulate on mature references, then run blind discovery. Treat every interpre
 hypothesis until it is supported by citeable evidence. For each run, retain repository revision,
 tool/report versions, query parameters, elapsed time, warnings, and the raw evidence packet.
 
-### KR-036 — Build a planted Git characterization corpus
+### KR-036 — Build a planted Git characterization corpus *(shipped in `d2a30bd`)*
 
 - **Admits:** a versioned fixture suite covering empty and initial repositories, focused two-file
   commits, broad commits, repeated edits, moved files, merge commits, binary files, deleted files,
@@ -560,7 +560,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 - **Acceptance:** each fixture states its invariant in prose and executable assertions; fixtures
   are deterministic to regenerate and include negative cases where no relationship exists.
 
-### KR-037 — Characterize current-state Python evidence
+### KR-037 — Characterize current-state Python evidence *(shipped in `7ed7c58`)*
 
 - **Admits:** the current-state tools against the fixture corpus and a clean checkout of this
   project.
@@ -570,7 +570,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
 - **Acceptance:** compare selected results with independent scripts or standard-library AST walks;
   record false positives, false negatives, unreadable-file behavior, and runtime/resource bounds.
 
-### KR-038 — Triangulate Git-history evidence on mature references
+### KR-038 — Triangulate Git-history evidence on mature references *(shipped in `69489d9`)*
 
 - **Admits:** bounded history, hotspots, affinity, and topic-history reports for the default
   dogfooding set pinned to immutable revisions.
@@ -581,7 +581,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
   first-parent bounds, path identity, and topic-family termination; discrepancies become fixtures
   or explicit limitations.
 
-### KR-039 — Run a blind discovery study
+### KR-039 — Run a blind discovery study *(shipped in `1ae16ee`)*
 
 - **Admits:** a fixed query budget over reference repositories, with the analyst initially blinded
   to expected hotspots or known refactor targets.
@@ -593,7 +593,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
   marked as directly observed, derived by the consumer, or unresolved; unsupported findings are
   counted rather than silently discarded.
 
-### KR-040 — Evaluate evidence usefulness and operational viability
+### KR-040 — Evaluate evidence usefulness and operational viability *(shipped in `975aab6`)*
 
 - **Admits:** repeat runs and independent review of the same packets across corpus classes.
 - **Observable result:** correctness discrepancies, coverage of intended cases, reproducibility,
@@ -604,7 +604,7 @@ tool/report versions, query parameters, elapsed time, warnings, and the raw evid
   stable; changed revisions invalidate caches; every discovered gap gets a backlog item with a
   concrete admission boundary.
 
-### KR-041 — Maintain a regression corpus from dogfooding
+### KR-041 — Maintain a regression corpus from dogfooding *(shipped in `1aa4ef9`)*
 
 - **Admits:** every confirmed discrepancy, surprising edge case, and useful blind-discovery query
   as a minimized fixture or golden evidence packet.
