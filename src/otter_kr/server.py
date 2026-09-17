@@ -34,6 +34,7 @@ from otter_kr.operation_registry import (
     OperationSpec,
     VariableClusterOperationSpec,
     VariableClusterQuery,
+    VariableOccurrenceQuery,
 )
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
@@ -161,7 +162,10 @@ OPERATION_REGISTRY = OperationRegistry(
                 ],
             }
         ),
-        "python.variable_cluster": VariableClusterOperationSpec(find_variable_cluster),
+        "python.variable_cluster": VariableClusterOperationSpec(
+            cluster_analyzer=find_variable_cluster,
+            occurrence_analyzer=find_variable_occurrences,
+        ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,
@@ -701,7 +705,7 @@ def create_server() -> FastMCP:
             return _run_operation(
                 operation,
                 repository_root,
-                spec.analyzer,
+                spec.cluster_analyzer,
                 terms=query.terms,
                 query_terms=query.terms,
                 since_unix_time=query.since_unix_time,
@@ -819,8 +823,12 @@ def create_server() -> FastMCP:
             )
         if operation == "python.variable_cluster":
             if term is not None:
+                try:
+                    query = VariableOccurrenceQuery.create(term)
+                except ValueError as error:
+                    return _invalid_query(operation, repository_root, str(error), term=term)
                 return _run_operation(
-                    operation, repository_root, find_variable_occurrences, term=term
+                    operation, repository_root, spec.occurrence_analyzer, term=query.term
                 )
             return {
                 "schema_version": "1",

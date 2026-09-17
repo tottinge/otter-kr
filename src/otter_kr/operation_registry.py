@@ -123,6 +123,17 @@ class VariableClusterQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class VariableOccurrenceQuery:
+    term: str
+
+    @classmethod
+    def create(cls, term: str | None) -> VariableOccurrenceQuery:
+        if term is None:
+            raise InvalidOperationQuery("A term is required for python.variable_cluster.")
+        return cls(term)
+
+
+@dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
     requires_term: bool = False
@@ -161,7 +172,8 @@ class LineOriginsOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class VariableClusterOperationSpec:
-    analyzer: object
+    cluster_analyzer: object
+    occurrence_analyzer: object
 
 
 RegisteredOperation = (

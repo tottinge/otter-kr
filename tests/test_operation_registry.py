@@ -11,6 +11,7 @@ from otter_kr.operation_registry import (
     OperationSpec,
     VariableClusterOperationSpec,
     VariableClusterQuery,
+    VariableOccurrenceQuery,
 )
 from otter_kr.server import OPERATION_REGISTRY
 
@@ -57,6 +58,12 @@ def test_variable_cluster_query_develops_its_validation_boundary() -> None:
     query = VariableClusterQuery.create(["count", "limit"], 1, 2)
 
     assert query == VariableClusterQuery(("count", "limit"), 1, 2)
+
+
+def test_variable_occurrence_query_develops_its_validation_boundary() -> None:
+    query = VariableOccurrenceQuery.create("count")
+
+    assert query == VariableOccurrenceQuery("count")
 
 
 def test_registry_admits_bounded_topic_operations() -> None:
