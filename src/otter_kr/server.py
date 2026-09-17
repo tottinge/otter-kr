@@ -122,6 +122,20 @@ OPERATION_REGISTRY = OperationRegistry(
                 limit=limit,
                 changes=GitCliHistory(),
             ),
+            term_message="A focus file term is required for git.cochange.file.",
+            path_message="focus_path must be repository-relative.",
+        ),
+        "git.branch_additions": BoundedPathOperationSpec(
+            lambda repository, path, *, since_unix_time, limit: collect_branch_additions(
+                repository,
+                path,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                history=GitCliHistory(),
+                patches=GitCliHistory(),
+            ),
+            term_message="A Python file path is required for git.branch_additions.",
+            path_message="path must be a repository-relative path without '..'.",
         ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
@@ -583,7 +597,14 @@ def create_server() -> FastMCP:
             )
         if isinstance(spec, BoundedPathOperationSpec):
             try:
-                query = BoundedPathQuery.create(term, since_unix_time, limit)
+                query = BoundedPathQuery.create(
+                    term,
+                    since_unix_time,
+                    limit,
+                    operation=operation,
+                    term_message=spec.term_message,
+                    path_message=spec.path_message,
+                )
             except ValueError as error:
                 return _invalid_query(
                     operation,
@@ -764,36 +785,6 @@ def create_server() -> FastMCP:
                     ],
                 },
                 term=term,
-            )
-        if operation == "git.branch_additions":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A Python file path is required for git.branch_additions.",
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            rejection = _validate_history_bounds(
-                operation, repository_root, since_unix_time, limit, term=term
-            )
-            if rejection is not None:
-                return rejection
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, path: collect_branch_additions(
-                    repository,
-                    path,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    history=GitCliHistory(),
-                    patches=GitCliHistory(),
-                ),
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
             )
         if operation == "python.variable_cluster":
             if terms is not None:
