@@ -28,3 +28,4 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.history"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.snapshot"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.distributions"), BoundedOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("git.hotspots"), BoundedOperationSpec)
