@@ -28,6 +28,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    LineOriginsOperationSpec,
+    LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
 )
@@ -136,6 +138,26 @@ OPERATION_REGISTRY = OperationRegistry(
             ),
             term_message="A Python file path is required for git.branch_additions.",
             path_message="path must be a repository-relative path without '..'.",
+        ),
+        "git.line_origins": LineOriginsOperationSpec(
+            lambda repository, query: {
+                "revision": query.revision,
+                "path": query.path,
+                "origins": [
+                    origin.__dict__
+                    if hasattr(origin, "__dict__")
+                    else {
+                        "path": origin.path,
+                        "line": origin.line,
+                        "text": origin.text,
+                        "origin_commit": origin.origin_commit,
+                        "status": origin.status,
+                    }
+                    for origin in GitCliHistory().line_origins(
+                        repository, query.path, query.revision, query.lines
+                    )
+                ],
+            }
         ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
@@ -395,6 +417,7 @@ def _run_operation(
     pass_bounds_with_term: bool = False,
     pass_bounds_with_terms: bool = False,
     pass_pair_paths: bool = False,
+    query_object: object | None = None,
 ) -> dict:
     query_term = term if query_term is None else query_term
     query_since_unix_time = (
@@ -419,7 +442,9 @@ def _run_operation(
     repository = Path(repository_root)
 
     try:
-        if terms is not None:
+        if query_object is not None:
+            report = analyzer(repository, query_object)
+        elif terms is not None:
             if pass_bounds_with_terms:
                 report = analyzer(
                     repository,
@@ -646,6 +671,18 @@ def create_server() -> FastMCP:
                 right_path=query.right_path,
                 pass_pair_paths=True,
             )
+        if isinstance(spec, LineOriginsOperationSpec):
+            try:
+                query = LineOriginsQuery.create(term, path, lines)
+            except ValueError as error:
+                return _invalid_query(operation, repository_root, str(error), term=term)
+            return _run_operation(
+                operation,
+                repository_root,
+                spec.analyzer,
+                term=query.revision,
+                query_object=query,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -754,37 +791,6 @@ def create_server() -> FastMCP:
                 ),
                 since_unix_time=since_unix_time,
                 limit=limit,
-            )
-        if operation == "git.line_origins":
-            if term is None or path is None or not lines:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "term, path, and at least one line are required for git.line_origins.",
-                    term=term,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, revision: {
-                    "revision": revision,
-                    "path": path,
-                    "origins": [
-                        origin.__dict__
-                        if hasattr(origin, "__dict__")
-                        else {
-                            "path": origin.path,
-                            "line": origin.line,
-                            "text": origin.text,
-                            "origin_commit": origin.origin_commit,
-                            "status": origin.status,
-                        }
-                        for origin in GitCliHistory().line_origins(
-                            repository, path, revision, tuple(lines)
-                        )
-                    ],
-                },
-                term=term,
             )
         if operation == "python.variable_cluster":
             if terms is not None:

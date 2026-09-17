@@ -5,6 +5,8 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedPathQuery,
     BoundedTermOperationSpec,
+    LineOriginsOperationSpec,
+    LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
 )
@@ -43,6 +45,12 @@ def test_bounded_path_query_develops_its_validation_boundary() -> None:
     assert query == BoundedPathQuery("src/a.py", 1, 2)
 
 
+def test_line_origins_query_develops_its_validation_boundary() -> None:
+    query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
+
+    assert query == LineOriginsQuery("HEAD", "src/a.py", (1, 2))
+
+
 def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
@@ -55,4 +63,5 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.cochange"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.file"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.branch_additions"), BoundedPathOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("git.line_origins"), LineOriginsOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.pair"), BoundedPairOperationSpec)

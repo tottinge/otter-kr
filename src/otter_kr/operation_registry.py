@@ -83,6 +83,23 @@ class BoundedPathQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class LineOriginsQuery:
+    revision: str
+    path: str
+    lines: tuple[int, ...]
+
+    @classmethod
+    def create(
+        cls, revision: str | None, path: str | None, lines: list[int] | None
+    ) -> LineOriginsQuery:
+        if revision is None or path is None or not lines:
+            raise InvalidOperationQuery(
+                "term, path, and at least one line are required for git.line_origins."
+            )
+        return cls(revision, path, tuple(lines))
+
+
+@dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
     requires_term: bool = False
@@ -114,12 +131,18 @@ class BoundedPairOperationSpec:
     analyzer: object
 
 
+@dataclass(frozen=True, slots=True)
+class LineOriginsOperationSpec:
+    analyzer: object
+
+
 RegisteredOperation = (
     OperationSpec
     | BoundedTermOperationSpec
     | BoundedOperationSpec
     | BoundedPathOperationSpec
     | BoundedPairOperationSpec
+    | LineOriginsOperationSpec
 )
 
 
