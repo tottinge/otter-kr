@@ -32,6 +32,8 @@ from otter_kr.operation_registry import (
     LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
+    VariableClusterOperationSpec,
+    VariableClusterQuery,
 )
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
@@ -159,6 +161,7 @@ OPERATION_REGISTRY = OperationRegistry(
                 ],
             }
         ),
+        "python.variable_cluster": VariableClusterOperationSpec(find_variable_cluster),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,
@@ -683,6 +686,28 @@ def create_server() -> FastMCP:
                 term=query.revision,
                 query_object=query,
             )
+        if isinstance(spec, VariableClusterOperationSpec) and terms is not None:
+            if term is not None:
+                return _invalid_query(
+                    operation,
+                    repository_root,
+                    "terms must contain 2 to 5 distinct Python identifiers.",
+                    terms=terms,
+                )
+            try:
+                query = VariableClusterQuery.create(terms, since_unix_time, limit)
+            except ValueError as error:
+                return _invalid_query(operation, repository_root, str(error), terms=terms)
+            return _run_operation(
+                operation,
+                repository_root,
+                spec.analyzer,
+                terms=query.terms,
+                query_terms=query.terms,
+                since_unix_time=query.since_unix_time,
+                limit=query.limit,
+                pass_bounds_with_terms=True,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -793,30 +818,6 @@ def create_server() -> FastMCP:
                 limit=limit,
             )
         if operation == "python.variable_cluster":
-            if terms is not None:
-                if (
-                    term is not None
-                    or not isinstance(terms, list | tuple)
-                    or not 2 <= len(terms) <= 5
-                    or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
-                    or len(set(terms)) != len(terms)
-                ):
-                    return _invalid_query(
-                        operation,
-                        repository_root,
-                        "terms must contain 2 to 5 distinct Python identifiers.",
-                        terms=terms,
-                    )
-                return _run_operation(
-                    operation,
-                    repository_root,
-                    find_variable_cluster,
-                    terms=tuple(terms),
-                    query_terms=tuple(terms),
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    pass_bounds_with_terms=True,
-                )
             if term is not None:
                 return _run_operation(
                     operation, repository_root, find_variable_occurrences, term=term

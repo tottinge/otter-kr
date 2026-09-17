@@ -100,6 +100,29 @@ class LineOriginsQuery:
 
 
 @dataclass(frozen=True, slots=True)
+class VariableClusterQuery:
+    terms: tuple[str, ...]
+    since_unix_time: int | None
+    limit: int | None
+
+    @classmethod
+    def create(
+        cls,
+        terms: list[str] | tuple[str, ...] | None,
+        since_unix_time: int | None,
+        limit: int | None,
+    ) -> VariableClusterQuery:
+        if (
+            not isinstance(terms, list | tuple)
+            or not 2 <= len(terms) <= 5
+            or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
+            or len(set(terms)) != len(terms)
+        ):
+            raise InvalidOperationQuery("terms must contain 2 to 5 distinct Python identifiers.")
+        return cls(tuple(terms), since_unix_time, limit)
+
+
+@dataclass(frozen=True, slots=True)
 class OperationSpec:
     analyzer: object
     requires_term: bool = False
@@ -136,6 +159,11 @@ class LineOriginsOperationSpec:
     analyzer: object
 
 
+@dataclass(frozen=True, slots=True)
+class VariableClusterOperationSpec:
+    analyzer: object
+
+
 RegisteredOperation = (
     OperationSpec
     | BoundedTermOperationSpec
@@ -143,6 +171,7 @@ RegisteredOperation = (
     | BoundedPathOperationSpec
     | BoundedPairOperationSpec
     | LineOriginsOperationSpec
+    | VariableClusterOperationSpec
 )
 
 

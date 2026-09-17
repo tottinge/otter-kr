@@ -9,6 +9,8 @@ from otter_kr.operation_registry import (
     LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
+    VariableClusterOperationSpec,
+    VariableClusterQuery,
 )
 from otter_kr.server import OPERATION_REGISTRY
 
@@ -51,6 +53,12 @@ def test_line_origins_query_develops_its_validation_boundary() -> None:
     assert query == LineOriginsQuery("HEAD", "src/a.py", (1, 2))
 
 
+def test_variable_cluster_query_develops_its_validation_boundary() -> None:
+    query = VariableClusterQuery.create(["count", "limit"], 1, 2)
+
+    assert query == VariableClusterQuery(("count", "limit"), 1, 2)
+
+
 def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
@@ -64,4 +72,7 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.file"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.branch_additions"), BoundedPathOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.line_origins"), LineOriginsOperationSpec)
+    assert isinstance(
+        OPERATION_REGISTRY.find("python.variable_cluster"), VariableClusterOperationSpec
+    )
     assert isinstance(OPERATION_REGISTRY.find("git.cochange.pair"), BoundedPairOperationSpec)
