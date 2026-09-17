@@ -26,6 +26,7 @@ from otter_kr.operation_registry import (
     BoundedPairOperationSpec,
     BoundedPairQuery,
     BoundedPathOperationSpec,
+    BoundedPathQuery,
     BoundedTermOperationSpec,
     OperationRegistry,
     OperationSpec,
@@ -121,8 +122,6 @@ OPERATION_REGISTRY = OperationRegistry(
                 limit=limit,
                 changes=GitCliHistory(),
             ),
-            term_message="A focus file term is required for git.cochange.file.",
-            path_message="focus_path must be repository-relative.",
         ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
@@ -583,36 +582,24 @@ def create_server() -> FastMCP:
                 limit=limit,
             )
         if isinstance(spec, BoundedPathOperationSpec):
-            if term is None:
+            try:
+                query = BoundedPathQuery.create(term, since_unix_time, limit)
+            except ValueError as error:
                 return _invalid_query(
                     operation,
                     repository_root,
-                    spec.term_message,
+                    str(error),
                     term=term,
                     since_unix_time=since_unix_time,
                     limit=limit,
                 )
-            if (
-                not term
-                or term.startswith("/")
-                or "\\" in term
-                or any(part == ".." for part in term.split("/"))
-            ):
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    spec.path_message,
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            return _run_bounded(
+            return _run_operation(
                 operation,
                 repository_root,
                 spec.analyzer,
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
+                term=query.path,
+                since_unix_time=query.since_unix_time,
+                limit=query.limit,
                 pass_bounds_with_term=True,
             )
         if isinstance(spec, BoundedPairOperationSpec):

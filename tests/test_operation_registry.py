@@ -3,6 +3,7 @@ from otter_kr.operation_registry import (
     BoundedPairOperationSpec,
     BoundedPairQuery,
     BoundedPathOperationSpec,
+    BoundedPathQuery,
     BoundedTermOperationSpec,
     OperationRegistry,
     OperationSpec,
@@ -27,6 +28,12 @@ def test_bounded_pair_query_develops_its_validation_boundary() -> None:
     query = BoundedPairQuery.create("src/a.py", "src/b.py", 1, 2)
 
     assert query == BoundedPairQuery("src/a.py", "src/b.py", 1, 2)
+
+
+def test_bounded_path_query_develops_its_validation_boundary() -> None:
+    query = BoundedPathQuery.create("src/a.py", 1, 2)
+
+    assert query == BoundedPathQuery("src/a.py", 1, 2)
 
 
 def test_registry_admits_bounded_topic_operations() -> None:
