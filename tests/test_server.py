@@ -314,6 +314,113 @@ def test_git_topic_walk_missing_commit_rejects_without_bounds_in_query() -> None
     }
 
 
+def test_git_topic_family_missing_commit_rejects_without_bounds_in_query() -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic_family",
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic_family",
+        "query": {"repository_root": "/repo"},
+        "error": {
+            "code": "invalid_query",
+            "message": "A commit reference is required for git.topic_family.",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ("bounds", "query", "message"),
+    [
+        (
+            {"limit": 2},
+            {"repository_root": "/repo", "term": "topic", "limit": 2},
+            "A positive since_unix_time is required for git.topic_family.",
+        ),
+        (
+            {"since_unix_time": 1, "limit": 0},
+            {
+                "repository_root": "/repo",
+                "term": "topic",
+                "since_unix_time": 1,
+                "limit": 0,
+            },
+            "A positive limit is required for git.topic_family.",
+        ),
+    ],
+)
+def test_git_topic_family_rejects_missing_or_non_positive_bounds(
+    bounds: dict[str, int], query: dict[str, object], message: str
+) -> None:
+    server = create_server()
+
+    rejection = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": "/repo",
+                "operation": "git.topic_family",
+                "term": "topic",
+                **bounds,
+            },
+        )
+    )
+
+    assert rejection == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "git.topic_family",
+        "query": query,
+        "error": {"code": "invalid_query", "message": message},
+    }
+
+
+def test_git_topic_family_reports_a_bounded_family_in_the_query_envelope(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    first = git_commit(tmp_path, "initial import")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    topic = git_commit(tmp_path, "adjust service", "pkg/service.py")
+    server = create_server()
+
+    report = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic_family",
+                "term": topic,
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="git.topic_family",
+        repository_root=str(tmp_path),
+        term=topic,
+        since_unix_time=1,
+        limit=2,
+    )
+    assert data["topic_sha"] == topic
+    assert data["budget_limit"] == 2
+    assert [commit["sha"] for commit in data["history_commits"]] == [topic, first]
+
+
 @pytest.mark.parametrize(
     ("bounds", "query", "message"),
     [

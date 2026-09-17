@@ -1,4 +1,4 @@
-from otter_kr.operation_registry import OperationRegistry, OperationSpec
+from otter_kr.operation_registry import BoundedTermOperationSpec, OperationRegistry, OperationSpec
 from otter_kr.server import OPERATION_REGISTRY
 
 
@@ -15,8 +15,8 @@ def test_registry_rejects_an_unknown_operation() -> None:
     assert registry.find("python.unknown") is None
 
 
-def test_registry_admits_topic_walk_but_not_topic_family() -> None:
+def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic") is not None
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
-    assert OPERATION_REGISTRY.find("git.topic_walk") is not None
-    assert OPERATION_REGISTRY.find("git.topic_family") is None
+    assert isinstance(OPERATION_REGISTRY.find("git.topic_walk"), BoundedTermOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("git.topic_family"), BoundedTermOperationSpec)

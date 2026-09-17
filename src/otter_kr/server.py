@@ -61,6 +61,10 @@ OPERATION_REGISTRY = OperationRegistry(
             walk_topic_history,
             term_message="A commit reference is required for git.topic_walk.",
         ),
+        "git.topic_family": BoundedTermOperationSpec(
+            collect_topic_family,
+            term_message="A commit reference is required for git.topic_family.",
+        ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
             find_names, requires_term=True, term_message="A term is required for python.names."
@@ -626,28 +630,6 @@ def create_server() -> FastMCP:
                     ],
                 },
                 term=term,
-            )
-        if operation == "git.topic_family":
-            if term is None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "A commit reference is required for git.topic_family.",
-                )
-            rejection = _validate_history_bounds(
-                operation, repository_root, since_unix_time, limit, term=term
-            )
-            if rejection is not None:
-                return rejection
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, commit: collect_topic_family(
-                    repository, commit, since_unix_time=since_unix_time, limit=limit
-                ),
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
             )
         if operation == "git.history":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
