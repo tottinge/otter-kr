@@ -78,6 +78,14 @@ OPERATION_REGISTRY = OperationRegistry(
                 history=GitCliHistory(),
             )
         ),
+        "git.snapshot": BoundedOperationSpec(
+            lambda repository, *, since_unix_time, limit: collect_git_history_snapshot(
+                repository,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                changes=GitCliHistory(),
+            )
+        ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
             find_names, requires_term=True, term_message="A term is required for python.names."
@@ -651,22 +659,6 @@ def create_server() -> FastMCP:
                     ],
                 },
                 term=term,
-            )
-        if operation == "git.snapshot":
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, *, since_unix_time, limit: collect_git_history_snapshot(
-                    repository,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    changes=GitCliHistory(),
-                ),
-                since_unix_time=since_unix_time,
-                limit=limit,
             )
         if operation == "git.branch_additions":
             if term is None:
