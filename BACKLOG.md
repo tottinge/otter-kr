@@ -682,7 +682,7 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
 - **Admits:** planted fixtures for enclosed, early-exit, and rollup contracts, plus a pinned
   dogfood note when useful.
 - **Acceptance:** characterization runs under `full_test`.
-### KR-042 — Report variable-cluster evidence
+### KR-042 — Report variable-cluster evidence *(shipped across `d3a1b2b`–`bbfab2d`)*
 
 - **Admits:** bounded Python variable names and, later, explicitly supplied name clusters.
 - **Default reject:** unsupported languages, empty clusters, untracked files, dynamic or ambiguous
