@@ -21,7 +21,12 @@ from otter_kr.git_pair_cochange import collect_pair_cochange
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.git_topic import describe_topic_commit
 from otter_kr.git_topic_walk import walk_topic_history
-from otter_kr.operation_registry import BoundedTermOperationSpec, OperationRegistry, OperationSpec
+from otter_kr.operation_registry import (
+    BoundedOperationSpec,
+    BoundedTermOperationSpec,
+    OperationRegistry,
+    OperationSpec,
+)
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
@@ -64,6 +69,14 @@ OPERATION_REGISTRY = OperationRegistry(
         "git.topic_family": BoundedTermOperationSpec(
             collect_topic_family,
             term_message="A commit reference is required for git.topic_family.",
+        ),
+        "git.history": BoundedOperationSpec(
+            lambda repository, *, since_unix_time, limit: collect_git_history(
+                repository,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                history=GitCliHistory(),
+            )
         ),
         "python.inventory": OperationSpec(inventory_python),
         "python.names": OperationSpec(
@@ -491,6 +504,14 @@ def create_server() -> FastMCP:
                 limit=limit,
                 pass_bounds_with_term=True,
             )
+        if isinstance(spec, BoundedOperationSpec):
+            return _run_bounded(
+                operation,
+                repository_root,
+                spec.analyzer,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            )
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(
@@ -630,22 +651,6 @@ def create_server() -> FastMCP:
                     ],
                 },
                 term=term,
-            )
-        if operation == "git.history":
-            rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)
-            if rejection is not None:
-                return rejection
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, *, since_unix_time, limit: collect_git_history(
-                    repository,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    history=GitCliHistory(),
-                ),
-                since_unix_time=since_unix_time,
-                limit=limit,
             )
         if operation == "git.snapshot":
             rejection = _validate_history_bounds(operation, repository_root, since_unix_time, limit)

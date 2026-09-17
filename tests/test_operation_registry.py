@@ -1,4 +1,9 @@
-from otter_kr.operation_registry import BoundedTermOperationSpec, OperationRegistry, OperationSpec
+from otter_kr.operation_registry import (
+    BoundedOperationSpec,
+    BoundedTermOperationSpec,
+    OperationRegistry,
+    OperationSpec,
+)
 from otter_kr.server import OPERATION_REGISTRY
 
 
@@ -20,3 +25,4 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert OPERATION_REGISTRY.find("git.topic_hunks") is not None
     assert isinstance(OPERATION_REGISTRY.find("git.topic_walk"), BoundedTermOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.topic_family"), BoundedTermOperationSpec)
+    assert isinstance(OPERATION_REGISTRY.find("git.history"), BoundedOperationSpec)

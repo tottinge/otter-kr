@@ -22,7 +22,12 @@ class BoundedTermOperationSpec:
     term_message: str
 
 
-RegisteredOperation = OperationSpec | BoundedTermOperationSpec
+@dataclass(frozen=True, slots=True)
+class BoundedOperationSpec:
+    analyzer: object
+
+
+RegisteredOperation = OperationSpec | BoundedTermOperationSpec | BoundedOperationSpec
 
 
 class OperationRegistry:
