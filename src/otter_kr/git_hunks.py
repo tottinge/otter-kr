@@ -46,9 +46,16 @@ class TopicHunk:
 class TopicHunkReport:
     commit_sha: str
     hunks: tuple[TopicHunk, ...]
+    status: str = "available"
+    uncertainties: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
-        return {"commit_sha": self.commit_sha, "hunks": [hunk.to_dict() for hunk in self.hunks]}
+        return {
+            "commit_sha": self.commit_sha,
+            "hunks": [hunk.to_dict() for hunk in self.hunks],
+            "status": self.status,
+            "uncertainties": list(self.uncertainties),
+        }
 
 
 def extract_hunks(patch: bytes) -> tuple[TopicHunk, ...]:
@@ -99,8 +106,39 @@ def collect_topic_hunks(
         iter(history.commit_metadata(repository, CommitHistoryQuery(1, 1, tip_sha=commit_sha))),
         None,
     )
-    if commit is None or len(commit.parent_shas) != 1:
-        return TopicHunkReport(commit_sha, ())
+    if commit is None:
+        return TopicHunkReport(commit_sha, (), "unavailable", ("commit_not_found",))
+    if not commit.parent_shas:
+        return TopicHunkReport(commit_sha, (), "initial", ("no_parent",))
+    if len(commit.parent_shas) != 1:
+        return TopicHunkReport(commit_sha, (), "merge", ("multiple_parents",))
     source = patches or GitCliHistory()
     patch = source.commit_patch(repository, CommitPatchRequest(commit.sha, commit.parent_shas[0]))
-    return TopicHunkReport(commit_sha, extract_hunks(patch.patch))
+    try:
+        patch.patch.decode("utf-8")
+        encoding_uncertainty: tuple[str, ...] = ()
+    except UnicodeDecodeError:
+        encoding_uncertainty = ("non_utf8_patch",)
+    hunks = extract_hunks(patch.patch)
+    binary_patch = any(
+        line == b"GIT binary patch" or line.startswith(b"Binary files ")
+        for line in patch.patch.splitlines()
+    )
+    if binary_patch:
+        return TopicHunkReport(commit_sha, hunks, "binary", ("binary_patch",))
+    if not hunks:
+        return TopicHunkReport(
+            commit_sha,
+            (),
+            "encoding" if encoding_uncertainty else "no_hunks",
+            encoding_uncertainty or ("no_unified_hunks",),
+        )
+    fingerprints = [hunk.fingerprint for hunk in hunks]
+    if len(set(fingerprints)) != len(fingerprints):
+        return TopicHunkReport(
+            commit_sha,
+            hunks,
+            "ambiguous",
+            encoding_uncertainty + ("duplicate_fingerprints",),
+        )
+    return TopicHunkReport(commit_sha, hunks, "available", encoding_uncertainty)
