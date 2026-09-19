@@ -335,6 +335,31 @@ def _not_implemented(operation: str, repository_root: str) -> dict:
     }
 
 
+def _not_admitted(operation: str, repository_root: str) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": operation,
+        "query": _query(repository_root),
+        "error": {
+            "code": "not_implemented",
+            "message": "No repository research capabilities have been admitted yet.",
+        },
+    }
+
+
+def dispatch_research(
+    request: ResearchRequest,
+    registry: OperationRegistry,
+    context: OperationContext,
+) -> dict:
+    """Dispatch one normalized request through an injectable registry."""
+    spec = registry.find(request.operation)
+    if spec is None:
+        return _not_admitted(request.operation, request.repository_root)
+    return spec.execute(request, context)
+
+
 def _not_a_repository(
     operation: str,
     repository_root: str,
@@ -658,19 +683,7 @@ def create_server() -> FastMCP:
             reject=_invalid_query,
             unimplemented=_not_implemented,
         )
-        spec = OPERATION_REGISTRY.find(operation)
-        if spec is None:
-            return {
-                "schema_version": "1",
-                "status": "rejected",
-                "operation": operation,
-                "query": _query(repository_root),
-                "error": {
-                    "code": "not_implemented",
-                    "message": "No repository research capabilities have been admitted yet.",
-                },
-            }
-        return spec.execute(request, context)
+        return dispatch_research(request, OPERATION_REGISTRY, context)
 
     return server
 

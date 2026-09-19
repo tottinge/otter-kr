@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 from fastmcp import Client
 
-from otter_kr.server import create_server
+from otter_kr.operation_registry import (
+    OperationContext,
+    OperationRegistry,
+    OperationSpec,
+    ResearchRequest,
+)
+from otter_kr.server import create_server, dispatch_research
 from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
@@ -45,6 +51,27 @@ def assert_ok_report(
         expected_query["right_path"] = right_path
     assert report["query"] == expected_query
     return report["data"]
+
+
+def test_dispatch_research_admits_a_registry_entry_without_dispatcher_changes() -> None:
+    def analyzer(repository: Path) -> dict[str, str]:
+        return {"repository": str(repository)}
+
+    def run(*args: object, **kwargs: object) -> dict[str, bool]:
+        return {"executed": True}
+
+    context = OperationContext(
+        run=run,
+        query_run=run,
+        bounded=run,
+        reject=run,
+        unimplemented=run,
+    )
+    registry = OperationRegistry({"python.example": OperationSpec(analyzer)})
+
+    result = dispatch_research(ResearchRequest.create("/repo", "python.example"), registry, context)
+
+    assert result == {"executed": True}
 
 
 def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path) -> None:
