@@ -411,6 +411,24 @@ class LifecycleOperationSpec:
 class CarrierGuardsOperationSpec:
     analyzer: object
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Admit and run carrier guard evidence with its optional path scope."""
+        try:
+            query = CarrierGuardsQuery.create(request.term, request.path)
+        except ValueError as error:
+            return reject(request.operation, request.repository_root, str(error), term=request.term)
+        return runner(
+            request.operation,
+            request.repository_root,
+            lambda repository, carrier: self.analyzer(repository, carrier, paths=query.paths),
+            term=query.carrier,
+        )
+
 
 RegisteredOperation = (
     OperationSpec

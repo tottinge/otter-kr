@@ -27,7 +27,6 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     CarrierGuardsOperationSpec,
-    CarrierGuardsQuery,
     LifecycleOperationSpec,
     LineOriginsOperationSpec,
     OperationRegistry,
@@ -668,16 +667,7 @@ def create_server() -> FastMCP:
         if isinstance(spec, LifecycleOperationSpec):
             return spec.execute(request, _run_operation, _run_bounded, _invalid_query)
         if isinstance(spec, CarrierGuardsOperationSpec):
-            try:
-                query = CarrierGuardsQuery.create(term, path)
-            except ValueError as error:
-                return _invalid_query(operation, repository_root, str(error), term=term)
-            return _run_operation(
-                operation,
-                repository_root,
-                lambda repository, carrier: spec.analyzer(repository, carrier, paths=query.paths),
-                term=query.carrier,
-            )
+            return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, OperationSpec):
             if spec.echo_unused_query_fields:
                 return run(

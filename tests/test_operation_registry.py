@@ -276,6 +276,37 @@ def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
     )
 
 
+def test_carrier_guards_operation_spec_owns_path_scope() -> None:
+    calls: list[tuple[object, ...]] = []
+
+    def analyzer(repository: object, carrier: str, *, paths: tuple[str, ...] | None) -> str:
+        calls.append((repository, carrier, paths))
+        return "evidence"
+
+    def runner(*args: object, **kwargs: object) -> str:
+        result = args[2]("/repo", kwargs["term"])
+        calls.append((*args[:2], result))
+        return "ran"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    result = CarrierGuardsOperationSpec(analyzer).execute(
+        ResearchRequest.create(
+            "/repo", "python.carrier_guards", term="state", path="src/service.py"
+        ),
+        runner,
+        reject,
+    )
+
+    assert result == "ran"
+    assert calls == [
+        ("/repo", "state", ("src/service.py",)),
+        ("python.carrier_guards", "/repo", "evidence"),
+    ]
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 
