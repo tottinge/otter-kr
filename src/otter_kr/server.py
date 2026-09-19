@@ -660,23 +660,7 @@ def create_server() -> FastMCP:
         if isinstance(spec, CarrierGuardsOperationSpec):
             return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, OperationSpec):
-            if spec.echo_unused_query_fields:
-                return run(
-                    spec.analyzer,
-                    term=term if spec.requires_term else None,
-                    require_term=spec.requires_term,
-                    term_message=spec.term_message,
-                    catches_value_error=spec.catches_value_error,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                spec.analyzer,
-                term=term if spec.requires_term else None,
-                require_term=spec.requires_term,
-                term_message=spec.term_message,
-                catches_value_error=spec.catches_value_error,
-            )
+            return spec.execute(request, _run_operation)
 
         if operation == "python.term_change_evidence":
             return _run_bounded(

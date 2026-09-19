@@ -220,6 +220,24 @@ class OperationSpec:
     catches_value_error: bool = True
     echo_unused_query_fields: bool = True
 
+    def execute(self, request: ResearchRequest, runner: Callable[..., object]) -> object:
+        """Run a simple operation using its term and envelope policy."""
+        arguments = {
+            "term": request.term if self.requires_term else None,
+            "require_term": self.requires_term,
+            "term_message": self.term_message,
+            "catches_value_error": self.catches_value_error,
+        }
+        if self.echo_unused_query_fields:
+            arguments.update(
+                query_term=request.term,
+                query_since_unix_time=request.since_unix_time,
+                query_limit=request.limit,
+                query_left_path=request.left_path,
+                query_right_path=request.right_path,
+            )
+        return runner(request.operation, request.repository_root, self.analyzer, **arguments)
+
 
 @dataclass(frozen=True, slots=True)
 class BoundedTermOperationSpec:

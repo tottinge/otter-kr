@@ -367,6 +367,48 @@ def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
     )
 
 
+def test_operation_spec_owns_term_and_envelope_policy() -> None:
+    analyzer = object()
+    calls: list[tuple[object, ...]] = []
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    result = OperationSpec(analyzer, requires_term=True, term_message="term required").execute(
+        ResearchRequest.create(
+            "/repo",
+            "python.names",
+            term="count",
+            since_unix_time=1,
+            limit=2,
+            left_path="src/a.py",
+            right_path="src/b.py",
+        ),
+        runner,
+    )
+
+    assert result == "ran"
+    assert calls == [
+        (
+            "python.names",
+            "/repo",
+            analyzer,
+            {
+                "term": "count",
+                "require_term": True,
+                "term_message": "term required",
+                "catches_value_error": True,
+                "query_term": "count",
+                "query_since_unix_time": 1,
+                "query_limit": 2,
+                "query_left_path": "src/a.py",
+                "query_right_path": "src/b.py",
+            },
+        )
+    ]
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 
