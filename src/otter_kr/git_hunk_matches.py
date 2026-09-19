@@ -163,9 +163,7 @@ def _shared_context(topic: TopicHunk, prior: TopicHunk) -> set[str]:
     return topic_context & prior_context
 
 
-def _line_overlap(
-    left_start: int, left_count: int, right_start: int, right_count: int
-) -> int:
+def _line_overlap(left_start: int, left_count: int, right_start: int, right_count: int) -> int:
     left_end = left_start + max(left_count, 1)
     right_end = right_start + max(right_count, 1)
     return max(0, min(left_end, right_end) - max(left_start, right_start))

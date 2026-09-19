@@ -26,6 +26,26 @@ class FamilyMember:
 
 
 @dataclass(frozen=True, slots=True)
+class FamilyAncestryEdge:
+    parent_commit_sha: str
+    child_commit_sha: str
+    parent_hunk_id: str
+    child_hunk_id: str
+    depth: int
+    method: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "parent_commit_sha": self.parent_commit_sha,
+            "child_commit_sha": self.child_commit_sha,
+            "parent_hunk_id": self.parent_hunk_id,
+            "child_hunk_id": self.child_hunk_id,
+            "depth": self.depth,
+            "method": self.method,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class PathTransition:
     """Git-reported path identity evidence encountered in family history."""
 
@@ -58,6 +78,7 @@ class FamilyReport:
     budget_limit: int | None = None
     history_commits: tuple[dict[str, object], ...] = ()
     topic_metadata: dict[str, object] | None = None
+    ancestry_edges: tuple[FamilyAncestryEdge, ...] = ()
 
     @classmethod
     def with_history_evidence(
@@ -100,6 +121,7 @@ class FamilyReport:
             "budget_limit": self.budget_limit,
             "history_commits": list(self.history_commits),
             "topic_metadata": self.topic_metadata,
+            "ancestry_edges": [edge.to_dict() for edge in self.ancestry_edges],
         }
 
 
@@ -107,15 +129,26 @@ def expand_family(
     topic: tuple[TopicHunk, ...],
     candidates: tuple[tuple[str, tuple[TopicHunk, ...]], ...],
     limit: int,
+    topic_sha: str = "topic",
 ) -> FamilyReport:
+    active_sources = {_hunk_id(hunk): topic_sha for hunk in topic}
     active = topic
     members: list[FamilyMember] = []
     matches: list[HunkMatch] = []
+    ancestry_edges: list[FamilyAncestryEdge] = []
     seen: set[tuple[str, str]] = set()
     for depth, (commit_sha, hunks) in enumerate(candidates, 1):
         if len(members) >= limit:
-            return FamilyReport(tuple(members), tuple(matches), "limit")
-        found = match_hunks(active, hunks, prior_commit_sha=commit_sha, prior_distance=depth)
+            return FamilyReport(
+                tuple(members), tuple(matches), "limit", ancestry_edges=tuple(ancestry_edges)
+            )
+        found = match_hunks(
+            active,
+            hunks,
+            prior_commit_sha=commit_sha,
+            prior_distance=depth,
+        )
+        next_active: dict[str, TopicHunk] = {}
         for match in found:
             key = (commit_sha, match.prior_fingerprint)
             if key in seen:
@@ -123,8 +156,34 @@ def expand_family(
             seen.add(key)
             members.append(FamilyMember(commit_sha, depth, match.prior_fingerprint))
             matches.append(match)
-            active = tuple(hunk for hunk in hunks if hunk.fingerprint == match.prior_fingerprint)
-    return FamilyReport(tuple(members), tuple(matches), "exhausted")
+            parent_hunk_id = _hunk_id_for_fingerprint(active, match.topic_fingerprint)
+            ancestry_edges.append(
+                FamilyAncestryEdge(
+                    active_sources.get(match.topic_hunk_id, topic_sha),
+                    commit_sha,
+                    parent_hunk_id,
+                    match.prior_hunk_id,
+                    depth,
+                    match.method,
+                )
+            )
+            next_active[match.prior_fingerprint] = next(
+                hunk for hunk in hunks if hunk.fingerprint == match.prior_fingerprint
+            )
+        if next_active:
+            active = tuple(next_active.values())
+            active_sources = {_hunk_id(hunk): commit_sha for hunk in next_active.values()}
+    return FamilyReport(
+        tuple(members), tuple(matches), "exhausted", ancestry_edges=tuple(ancestry_edges)
+    )
+
+
+def _hunk_id(hunk: TopicHunk) -> str:
+    return f"{hunk.path}:{hunk.new_start}:{hunk.fingerprint[:12]}"
+
+
+def _hunk_id_for_fingerprint(hunks: tuple[TopicHunk, ...], fingerprint: str) -> str:
+    return next((_hunk_id(hunk) for hunk in hunks if hunk.fingerprint == fingerprint), fingerprint)
 
 
 def collect_topic_family(
@@ -161,7 +220,7 @@ def collect_topic_family(
         from otter_kr.git_hunks import extract_hunks
 
         candidates.append((commit, extract_hunks(patch.patch)))
-    report = expand_family(topic, tuple(candidates), limit)
+    report = expand_family(topic, tuple(candidates), limit, topic_sha=topic_sha)
     matched_topics = {match.topic_fingerprint for match in report.matches}
     unmatched = tuple(hunk for hunk in topic if hunk.fingerprint not in matched_topics)
     skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
