@@ -19,20 +19,47 @@ def test_reports_shared_file_and_ast_adjacency_as_separate_evidence(tmp_path: Pa
     )
     report = find_structural_neighborhood(tmp_path, "payment", FakeFiles([source]))
 
-    assert report.to_dict()["edges"] == [
-        {
-            "seed": "payment",
-            "neighbor": "amount",
-            "weight": 1,
-            "reason": "shared file",
-        },
-        {
-            "seed": "payment",
-            "neighbor": "total",
-            "weight": 1,
-            "reason": "shared file",
-        },
-    ]
+    assert {
+        "seed": "payment",
+        "neighbor": "amount",
+        "weight": 1,
+        "reason": "shared file",
+    } in report.to_dict()["edges"]
+    assert {
+        "seed": "payment",
+        "neighbor": "total",
+        "weight": 1,
+        "reason": "shared file",
+    } in report.to_dict()["edges"]
+    assert {
+        "seed": "payment",
+        "neighbor": "amount",
+        "weight": 1,
+        "reason": "shared scope",
+    } in report.to_dict()["edges"]
+    assert {
+        "seed": "payment",
+        "neighbor": "total",
+        "weight": 1,
+        "reason": "shared scope",
+    } in report.to_dict()["edges"]
+
+
+def test_reports_non_import_names_repeated_in_one_scope(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text(
+        "def payment(amount):\n    total = amount\n    return total + amount\n",
+        encoding="utf-8",
+    )
+
+    report = find_structural_neighborhood(tmp_path, "amount", FakeFiles([source]))
+
+    assert {
+        "seed": "amount",
+        "neighbor": "total",
+        "weight": 1,
+        "reason": "shared scope",
+    } in report.to_dict()["edges"]
 
 
 def test_reports_direct_from_import_target_for_seed(tmp_path: Path) -> None:

@@ -20,6 +20,18 @@ def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
     report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
 
     assert [edge.to_dict() for edge in report.edges] == [
-        {"seed": "amount", "neighbor": "Currency", "reason": "type/enum comparison", "weight": 1},
-        {"seed": "amount", "neighbor": "validate", "reason": "field access", "weight": 1},
+        {
+            "seed": "amount",
+            "neighbor": "Currency",
+            "reason": "type/enum comparison",
+            "weight": 1,
+            "locations": [{"path": "service.py", "line": 3, "column": 21}],
+        },
+        {
+            "seed": "amount",
+            "neighbor": "validate",
+            "reason": "field access",
+            "weight": 1,
+            "locations": [{"path": "service.py", "line": 2, "column": 4}],
+        },
     ]

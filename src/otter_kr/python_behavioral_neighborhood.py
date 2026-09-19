@@ -16,6 +16,7 @@ class BehavioralEdge:
     neighbor: str
     reason: str
     weight: int
+    locations: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -23,6 +24,7 @@ class BehavioralEdge:
             "neighbor": self.neighbor,
             "reason": self.reason,
             "weight": self.weight,
+            "locations": list(self.locations),
         }
 
 
@@ -53,6 +55,7 @@ def find_behavioral_neighborhood(
         raise ValueError("Seed must be a Python identifier")
     files = (file_source or GitCliFileSource()).python_files(repository)
     evidence: Counter[tuple[str, str]] = Counter()
+    locations: dict[tuple[str, str], list[dict[str, object]]] = {}
     failures: list[dict[str, object]] = []
     for path in files:
         relative = path.relative_to(repository).as_posix()
@@ -69,13 +72,19 @@ def find_behavioral_neighborhood(
             ):
                 for argument in node.args:
                     if isinstance(argument, ast.Name):
-                        evidence[(argument.id, "call argument")] += 1
+                        _record(
+                            evidence,
+                            locations,
+                            (argument.id, "call argument"),
+                            relative,
+                            argument,
+                        )
             if (
                 isinstance(node, ast.Attribute)
                 and isinstance(node.value, ast.Name)
                 and node.value.id == seed
             ):
-                evidence[(node.attr, "field access")] += 1
+                _record(evidence, locations, (node.attr, "field access"), relative, node)
             if (
                 isinstance(node, ast.Compare)
                 and isinstance(node.left, ast.Name)
@@ -83,14 +92,39 @@ def find_behavioral_neighborhood(
             ):
                 for comparator in node.comparators:
                     if isinstance(comparator, ast.Name):
-                        evidence[(comparator.id, "type/enum comparison")] += 1
+                        _record(
+                            evidence,
+                            locations,
+                            (comparator.id, "type/enum comparison"),
+                            relative,
+                            comparator,
+                        )
                     elif isinstance(comparator, ast.Attribute) and isinstance(
                         comparator.value, ast.Name
                     ):
-                        evidence[(comparator.value.id, "type/enum comparison")] += 1
+                        _record(
+                            evidence,
+                            locations,
+                            (comparator.value.id, "type/enum comparison"),
+                            relative,
+                            comparator,
+                        )
     edges = tuple(
-        BehavioralEdge(seed, neighbor, reason, weight)
+        BehavioralEdge(seed, neighbor, reason, weight, tuple(locations[(neighbor, reason)]))
         for (neighbor, reason), weight in sorted(evidence.items())
         if neighbor != seed
     )
     return PythonBehavioralNeighborhoodReport(seed, len(files), edges, tuple(failures))
+
+
+def _record(
+    evidence: Counter[tuple[str, str]],
+    locations: dict[tuple[str, str], list[dict[str, object]]],
+    key: tuple[str, str],
+    path: str,
+    node: ast.AST,
+) -> None:
+    evidence[key] += 1
+    locations.setdefault(key, []).append(
+        {"path": path, "line": node.lineno, "column": node.col_offset}
+    )

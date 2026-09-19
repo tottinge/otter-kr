@@ -204,9 +204,8 @@ OPERATION_REGISTRY = OperationRegistry(
             requires_term=True,
             term_message="A seed is required for python.neighborhood.structural.",
         ),
-        "python.neighborhood.historical": OperationSpec(
+        "python.neighborhood.historical": BoundedTermOperationSpec(
             find_historical_neighborhood,
-            requires_term=True,
             term_message="A seed is required for python.neighborhood.historical.",
         ),
         "python.neighborhood.behavioral": OperationSpec(

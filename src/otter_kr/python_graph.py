@@ -27,7 +27,10 @@ def build_python_import_graph(repository: Path) -> EvidenceGraph:
         )
         for edge in report.edges
     )
-    return build_evidence_graph(edges)
+    return build_evidence_graph(
+        edges,
+        parameters={"tracked_by": "git", "language": "python", "pathspec": "*.py"},
+    )
 
 
 def _tracked_python_files(repository: Path) -> list[Path]:

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from otter_kr.git_cli_history import GitCliHistory
 from otter_kr.git_ports import CommitFileChangeSource
+from otter_kr.git_provenance import BoundedHistoryProvenance, python_history_provenance
 from otter_kr.git_scoped_cochange import collect_scoped_cochange
 from otter_kr.python_names import find_names
 
@@ -31,6 +32,7 @@ class HistoricalEdge:
 class PythonHistoricalNeighborhoodReport:
     seed: str
     seed_paths: tuple[str, ...]
+    provenance: BoundedHistoryProvenance
     edges: tuple[HistoricalEdge, ...]
     parse_failures: tuple[dict[str, object], ...]
 
@@ -39,6 +41,7 @@ class PythonHistoricalNeighborhoodReport:
             "language": "python",
             "seed": self.seed,
             "seed_paths": list(self.seed_paths),
+            **self.provenance.to_dict(),
             "edges": [edge.to_dict() for edge in self.edges],
             "parse_failures": list(self.parse_failures),
         }
@@ -55,6 +58,7 @@ def find_historical_neighborhood(
     names = find_names(repository, seed)
     seed_paths = tuple(sorted({occurrence.path for occurrence in names.occurrences}))
     edges: list[HistoricalEdge] = []
+    provenance: BoundedHistoryProvenance | None = None
     source = changes or GitCliHistory()
     for seed_path in seed_paths:
         report = collect_scoped_cochange(
@@ -64,12 +68,21 @@ def find_historical_neighborhood(
             limit=limit,
             changes=source,
         )
+        provenance = report.provenance
         for pair in report.pairs:
             neighbor = pair.right_path if pair.left_path == seed_path else pair.left_path
-            edges.append(HistoricalEdge(seed_path, neighbor, pair.weight, pair.commit_count))
+            edges.append(HistoricalEdge(seed_path, neighbor, pair.score, pair.commit_count))
     return PythonHistoricalNeighborhoodReport(
         seed,
         seed_paths,
+        provenance
+        or python_history_provenance(
+            str(repository.resolve()),
+            since_unix_time=since_unix_time,
+            limit=limit,
+            commit_count=0,
+            truncated=False,
+        ),
         tuple(sorted(edges, key=lambda edge: (edge.seed_path, edge.neighbor_path))),
         tuple(
             {"path": failure.path, "message": failure.message} for failure in names.parse_failures

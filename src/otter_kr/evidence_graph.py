@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 import networkx as nx
 
@@ -19,6 +20,7 @@ class EvidenceEdge:
 class EvidenceGraph:
     nodes: tuple[str, ...]
     edges: tuple[EvidenceEdge, ...]
+    parameters: tuple[tuple[str, object], ...] = field(default_factory=tuple)
 
     def topology(self) -> dict[str, object]:
         graph = nx.Graph()
@@ -26,16 +28,15 @@ class EvidenceGraph:
         for edge in self.edges:
             graph.add_edge(edge.source, edge.target, weight=edge.weight)
         degrees = dict(graph.degree())
+        components = tuple(
+            sorted(
+                (tuple(sorted(component)) for component in nx.connected_components(graph)),
+                key=lambda component: component[0],
+            )
+        )
         communities = tuple(
             sorted(
-                (node, index)
-                for index, component in enumerate(
-                    sorted(
-                        (sorted(component) for component in nx.connected_components(graph)),
-                        key=lambda component: component[0],
-                    )
-                )
-                for node in component
+                (node, index) for index, component in enumerate(components) for node in component
             )
         )
         community_by_node = dict(communities)
@@ -67,6 +68,14 @@ class EvidenceGraph:
             "average_edge_weight": round(total_weight / edge_count, 2) if edge_count else 0.0,
             "community_ids": dict(sorted(communities)),
             "cross_community_edge_count": cross,
+            "component_count": len(components),
+            "component_sizes": [len(component) for component in components],
+            "total_edge_weight": total_weight,
+            "formulas": {
+                "average_degree": "sum(degrees) / node_count",
+                "average_edge_weight": "sum(edge_weights) / edge_count",
+                "bridge_score": "sum(edge_betweenness) / node_degree",
+            },
             "bridge_scores": bridge_scores,
         }
 
@@ -82,14 +91,18 @@ class EvidenceGraph:
                 }
                 for edge in self.edges
             ],
+            "parameters": dict(self.parameters),
             "topology": self.topology(),
         }
 
 
-def build_evidence_graph(edges: tuple[EvidenceEdge, ...]) -> EvidenceGraph:
+def build_evidence_graph(
+    edges: tuple[EvidenceEdge, ...], parameters: Mapping[str, object] | None = None
+) -> EvidenceGraph:
     """Build a canonical graph from declared evidence edges."""
     nodes = {node for edge in edges for node in (edge.source, edge.target)}
     return EvidenceGraph(
         nodes=tuple(sorted(nodes)),
         edges=tuple(sorted(edges, key=lambda edge: (edge.source, edge.target, edge.provenance))),
+        parameters=tuple(sorted((parameters or {}).items())),
     )

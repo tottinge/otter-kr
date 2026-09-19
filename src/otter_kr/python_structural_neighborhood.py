@@ -100,6 +100,15 @@ def find_structural_neighborhood(
                 for name in child_names:
                     if name != seed:
                         evidence[(name, "AST adjacency")] += 1
+        for scope in ast.walk(tree):
+            if not isinstance(
+                scope, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda
+            ):
+                continue
+            scope_names = {name for node in ast.walk(scope) if (name := node_name(node))}
+            if seed in scope_names:
+                for name in scope_names - {seed}:
+                    evidence[(name, "shared scope")] += 1
     names = sorted(name for name, _ in evidence)
     edges = tuple(
         StructuralEdge(seed, name, weight, reason)
