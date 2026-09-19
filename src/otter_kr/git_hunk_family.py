@@ -79,6 +79,7 @@ class FamilyReport:
     history_commits: tuple[dict[str, object], ...] = ()
     topic_metadata: dict[str, object] | None = None
     ancestry_edges: tuple[FamilyAncestryEdge, ...] = ()
+    report_version: str = "1"
 
     @classmethod
     def with_history_evidence(
@@ -110,6 +111,7 @@ class FamilyReport:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "report_version": self.report_version,
             "members": [m.to_dict() for m in self.members],
             "matches": [m.to_dict() for m in self.matches],
             "termination": self.termination,
@@ -122,6 +124,14 @@ class FamilyReport:
             "history_commits": list(self.history_commits),
             "topic_metadata": self.topic_metadata,
             "ancestry_edges": [edge.to_dict() for edge in self.ancestry_edges],
+            "counts": {
+                "members": len(self.members),
+                "matches": len(self.matches),
+                "unmatched_hunks": len(self.unmatched_hunks),
+                "skipped_commits": len(self.skipped_commits),
+                "path_transitions": len(self.path_transitions),
+                "ancestry_edges": len(self.ancestry_edges),
+            },
         }
 
 

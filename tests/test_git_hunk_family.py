@@ -15,6 +15,9 @@ def test_expands_matching_prior_hunks_and_honors_limit() -> None:
     assert len(report.members) == 1
     assert report.members[0].commit_sha == "p1"
     assert report.termination == "limit"
+    assert report.to_dict()["report_version"] == "1"
+    assert report.to_dict()["counts"]["members"] == 1
+    assert report.to_dict()["counts"]["ancestry_edges"] == 1
     assert report.ancestry_edges[0].parent_commit_sha == "topic"
     assert report.ancestry_edges[0].child_commit_sha == "p1"
     assert report.ancestry_edges[0].method == "exact_normalized_body"
