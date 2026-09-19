@@ -1809,6 +1809,8 @@ def test_review_packet_file_scopes_history_and_python_context(tmp_path: Path) ->
     assert report["data"]["scope"]["path"] == "service.py"
     assert report["data"]["inventory"]["status"] == "unavailable_at_file_scope"
     assert report["data"]["dependencies"]["edges"] == []
+    assert report["data"]["dependencies"]["edge_count"] == 0
+    assert report["data"]["dependencies"]["edges_truncated"] is False
     assert [item["path"] for item in report["data"]["history"]["files"]] == ["service.py"]
     assert [item["name"] for item in report["data"]["names"]] == ["collect"]
 

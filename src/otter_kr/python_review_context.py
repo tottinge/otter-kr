@@ -61,4 +61,8 @@ def collect_python_review_context(
         dependencies["warnings"] = [
             warning for warning in dependencies["warnings"] if warning["path"] == path
         ]
+    edges = dependencies["edges"]
+    dependencies["edge_count"] = len(edges)
+    dependencies["edges"] = edges[:limit]
+    dependencies["edges_truncated"] = len(edges) > limit
     return PythonReviewContext(selected, dependencies, tests)
