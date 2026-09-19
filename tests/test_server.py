@@ -1773,6 +1773,8 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
         "duplicates",
         "repeated_groups",
         "distributions",
+        "branch_growth",
+        "ownership",
     }
 
 

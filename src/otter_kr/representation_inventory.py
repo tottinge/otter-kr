@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.evidence_context import EvidenceContext
+from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_distributions import collect_git_distributions
+from otter_kr.git_files import GitCliFileSource
 from otter_kr.git_hotspots import collect_git_hotspots
+from otter_kr.git_ownership import collect_git_ownership
 from otter_kr.python_duplicates import find_duplicate_helpers
 from otter_kr.python_groups import find_repeated_groups
 
@@ -16,6 +19,8 @@ class RepresentationInventory:
     duplicates: dict[str, object]
     repeated_groups: dict[str, object]
     distributions: dict[str, object]
+    branch_growth: dict[str, object]
+    ownership: dict[str, object]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -23,6 +28,8 @@ class RepresentationInventory:
             "duplicates": self.duplicates,
             "repeated_groups": self.repeated_groups,
             "distributions": self.distributions,
+            "branch_growth": self.branch_growth,
+            "ownership": self.ownership,
         }
 
 
@@ -30,6 +37,18 @@ def collect_representation_inventory(
     repository: Path, *, since_unix_time: int, limit: int
 ) -> RepresentationInventory:
     context = EvidenceContext.from_git()
+    python_files = GitCliFileSource().python_files(repository.resolve())
+    branch_reports = tuple(
+        collect_branch_additions(
+            repository,
+            path.relative_to(repository.resolve()).as_posix(),
+            since_unix_time=since_unix_time,
+            limit=limit,
+            history=context.metadata,
+            patches=context.history,
+        )
+        for path in python_files
+    )
     return RepresentationInventory(
         hotspots=collect_git_hotspots(
             repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
@@ -37,6 +56,14 @@ def collect_representation_inventory(
         duplicates=find_duplicate_helpers(repository).to_dict(),
         repeated_groups=find_repeated_groups(repository).to_dict(),
         distributions=collect_git_distributions(
+            repository, since_unix_time=since_unix_time, limit=limit, history=context.metadata
+        ).to_dict(),
+        branch_growth={
+            "file_count": len(branch_reports),
+            "branch_addition_count": sum(len(report.events) for report in branch_reports),
+            "files": [report.to_dict() for report in branch_reports],
+        },
+        ownership=collect_git_ownership(
             repository, since_unix_time=since_unix_time, limit=limit, history=context.metadata
         ).to_dict(),
     )
