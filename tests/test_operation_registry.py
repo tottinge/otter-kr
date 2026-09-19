@@ -11,6 +11,7 @@ from otter_kr.operation_registry import (
     LifecycleQuery,
     LineOriginsOperationSpec,
     LineOriginsQuery,
+    OperationContext,
     OperationRegistry,
     OperationSpec,
     ResearchRequest,
@@ -19,6 +20,22 @@ from otter_kr.operation_registry import (
     VariableOccurrenceQuery,
 )
 from otter_kr.server import OPERATION_REGISTRY
+
+
+def execution_context(
+    runner,
+    *,
+    bounded=None,
+    reject=None,
+    unimplemented=None,
+) -> OperationContext:
+    return OperationContext(
+        run=runner,
+        query_run=runner,
+        bounded=bounded or runner,
+        reject=reject or runner,
+        unimplemented=unimplemented or runner,
+    )
 
 
 def test_registry_finds_an_admitted_operation() -> None:
@@ -90,7 +107,7 @@ def test_bounded_operation_spec_owns_its_execution_shape() -> None:
         return "ran"
 
     request = ResearchRequest.create("/repo", "git.history", since_unix_time=1, limit=2)
-    result = BoundedOperationSpec(analyzer).execute(request, runner)
+    result = BoundedOperationSpec(analyzer).execute(request, execution_context(runner))
 
     assert result == "ran"
     assert calls == [("git.history", "/repo", analyzer, {"since_unix_time": 1, "limit": 2})]
@@ -109,7 +126,8 @@ def test_bounded_term_operation_spec_owns_term_admission() -> None:
         return "rejected"
 
     request = ResearchRequest.create("/repo", "git.topic_walk", term="HEAD", limit=2)
-    result = BoundedTermOperationSpec(analyzer, "commit required").execute(request, runner, reject)
+    context = execution_context(runner, reject=reject)
+    result = BoundedTermOperationSpec(analyzer, "commit required").execute(request, context)
 
     assert result == "ran"
     assert calls == [
@@ -122,7 +140,7 @@ def test_bounded_term_operation_spec_owns_term_admission() -> None:
     ]
 
     rejected = BoundedTermOperationSpec(analyzer, "commit required").execute(
-        ResearchRequest.create("/repo", "git.topic_walk"), runner, reject
+        ResearchRequest.create("/repo", "git.topic_walk"), context
     )
 
     assert rejected == "rejected"
@@ -145,7 +163,7 @@ def test_bounded_path_operation_spec_owns_path_admission() -> None:
         "/repo", "git.cochange.file", term="src/a.py", since_unix_time=1, limit=2
     )
     result = BoundedPathOperationSpec(analyzer, "path required", "path invalid").execute(
-        request, runner, reject
+        request, execution_context(runner, reject=reject)
     )
 
     assert result == "ran"
@@ -184,7 +202,9 @@ def test_bounded_pair_operation_spec_owns_pair_admission() -> None:
         since_unix_time=1,
         limit=2,
     )
-    result = BoundedPairOperationSpec(analyzer).execute(request, runner, reject)
+    result = BoundedPairOperationSpec(analyzer).execute(
+        request, execution_context(runner, reject=reject)
+    )
 
     assert result == "ran"
     assert calls == [
@@ -218,7 +238,9 @@ def test_line_origins_operation_spec_owns_query_admission() -> None:
     request = ResearchRequest.create(
         "/repo", "git.line_origins", term="HEAD", path="src/a.py", lines=[3, 5]
     )
-    result = LineOriginsOperationSpec(analyzer).execute(request, runner, reject)
+    result = LineOriginsOperationSpec(analyzer).execute(
+        request, execution_context(runner, reject=reject)
+    )
 
     assert result == "ran"
     assert calls[0][0:3] == ("git.line_origins", "/repo", analyzer)
@@ -244,9 +266,7 @@ def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
 
     result = LifecycleOperationSpec(analyzer).execute(
         ResearchRequest.create("/repo", "python.object_lifecycle", term="state"),
-        runner,
-        bounded_runner,
-        reject,
+        execution_context(runner, bounded=bounded_runner, reject=reject),
     )
 
     assert result == "ran"
@@ -256,9 +276,7 @@ def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
         ResearchRequest.create(
             "/repo", "python.object_lifecycle", term="state", since_unix_time=1, limit=2
         ),
-        runner,
-        bounded_runner,
-        reject,
+        execution_context(runner, bounded=bounded_runner, reject=reject),
     )
 
     assert bounded == "bounded"
@@ -296,8 +314,7 @@ def test_carrier_guards_operation_spec_owns_path_scope() -> None:
         ResearchRequest.create(
             "/repo", "python.carrier_guards", term="state", path="src/service.py"
         ),
-        runner,
-        reject,
+        execution_context(runner, reject=reject),
     )
 
     assert result == "ran"
@@ -329,9 +346,7 @@ def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
         ResearchRequest.create(
             "/repo", "python.variable_cluster", terms=["count", "limit"], limit=2
         ),
-        runner,
-        reject,
-        unimplemented,
+        execution_context(runner, reject=reject, unimplemented=unimplemented),
     )
     assert cluster == "ran"
     assert calls[-1] == (
@@ -349,9 +364,7 @@ def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
 
     occurrence = spec.execute(
         ResearchRequest.create("/repo", "python.variable_cluster", term="count"),
-        runner,
-        reject,
-        unimplemented,
+        execution_context(runner, reject=reject, unimplemented=unimplemented),
     )
     assert occurrence == "ran"
     assert calls[-1] == ("python.variable_cluster", "/repo", occurrence_analyzer, {"term": "count"})
@@ -359,9 +372,7 @@ def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
     assert (
         spec.execute(
             ResearchRequest.create("/repo", "python.variable_cluster"),
-            runner,
-            reject,
-            unimplemented,
+            execution_context(runner, reject=reject, unimplemented=unimplemented),
         )
         == "unimplemented"
     )
@@ -385,25 +396,18 @@ def test_operation_spec_owns_term_and_envelope_policy() -> None:
             left_path="src/a.py",
             right_path="src/b.py",
         ),
-        runner,
+        execution_context(runner),
     )
 
     assert result == "ran"
     assert calls == [
         (
-            "python.names",
-            "/repo",
             analyzer,
             {
                 "term": "count",
                 "require_term": True,
                 "term_message": "term required",
                 "catches_value_error": True,
-                "query_term": "count",
-                "query_since_unix_time": 1,
-                "query_limit": 2,
-                "query_left_path": "src/a.py",
-                "query_right_path": "src/b.py",
             },
         )
     ]

@@ -58,6 +58,17 @@ class ResearchRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class OperationContext:
+    """Shared execution services supplied to every admitted operation."""
+
+    run: Callable[..., object]
+    query_run: Callable[..., object]
+    bounded: Callable[..., object]
+    reject: Callable[..., object]
+    unimplemented: Callable[..., object]
+
+
+@dataclass(frozen=True, slots=True)
 class BoundedPairQuery:
     left_path: str
     right_path: str
@@ -220,7 +231,7 @@ class OperationSpec:
     catches_value_error: bool = True
     echo_unused_query_fields: bool = True
 
-    def execute(self, request: ResearchRequest, runner: Callable[..., object]) -> object:
+    def execute(self, request: ResearchRequest, context: OperationContext) -> object:
         """Run a simple operation using its term and envelope policy."""
         arguments = {
             "term": request.term if self.requires_term else None,
@@ -229,14 +240,8 @@ class OperationSpec:
             "catches_value_error": self.catches_value_error,
         }
         if self.echo_unused_query_fields:
-            arguments.update(
-                query_term=request.term,
-                query_since_unix_time=request.since_unix_time,
-                query_limit=request.limit,
-                query_left_path=request.left_path,
-                query_right_path=request.right_path,
-            )
-        return runner(request.operation, request.repository_root, self.analyzer, **arguments)
+            return context.query_run(self.analyzer, **arguments)
+        return context.run(request.operation, request.repository_root, self.analyzer, **arguments)
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,13 +252,12 @@ class BoundedTermOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Run this bounded term operation through shared query handling."""
         if request.term is None:
-            return reject(request.operation, request.repository_root, self.term_message)
-        return runner(
+            return context.reject(request.operation, request.repository_root, self.term_message)
+        return context.bounded(
             request.operation,
             request.repository_root,
             self.analyzer,
@@ -268,9 +272,9 @@ class BoundedTermOperationSpec:
 class BoundedOperationSpec:
     analyzer: object
 
-    def execute(self, request: ResearchRequest, runner: Callable[..., object]) -> object:
+    def execute(self, request: ResearchRequest, context: OperationContext) -> object:
         """Run this bounded operation through the shared envelope boundary."""
-        return runner(
+        return context.bounded(
             request.operation,
             request.repository_root,
             self.analyzer,
@@ -288,8 +292,7 @@ class BoundedPathOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit and run a bounded repository-relative path query."""
         try:
@@ -302,7 +305,7 @@ class BoundedPathOperationSpec:
                 path_message=self.path_message,
             )
         except ValueError as error:
-            return reject(
+            return context.reject(
                 request.operation,
                 request.repository_root,
                 str(error),
@@ -310,7 +313,7 @@ class BoundedPathOperationSpec:
                 since_unix_time=request.since_unix_time,
                 limit=request.limit,
             )
-        return runner(
+        return context.run(
             request.operation,
             request.repository_root,
             self.analyzer,
@@ -328,8 +331,7 @@ class BoundedPairOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit and run a bounded pair-of-paths query."""
         try:
@@ -340,7 +342,7 @@ class BoundedPairOperationSpec:
                 request.limit,
             )
         except ValueError as error:
-            return reject(
+            return context.reject(
                 request.operation,
                 request.repository_root,
                 str(error),
@@ -349,7 +351,7 @@ class BoundedPairOperationSpec:
                 left_path=request.left_path,
                 right_path=request.right_path,
             )
-        return runner(
+        return context.run(
             request.operation,
             request.repository_root,
             self.analyzer,
@@ -368,15 +370,16 @@ class LineOriginsOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit and run a line-origins query object."""
         try:
             query = LineOriginsQuery.create(request.term, request.path, list(request.lines or ()))
         except ValueError as error:
-            return reject(request.operation, request.repository_root, str(error), term=request.term)
-        return runner(
+            return context.reject(
+                request.operation, request.repository_root, str(error), term=request.term
+            )
+        return context.run(
             request.operation,
             request.repository_root,
             self.analyzer,
@@ -393,14 +396,15 @@ class VariableClusterOperationSpec:
     def _execute_occurrence(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         try:
             query = VariableOccurrenceQuery.create(request.term)
         except ValueError as error:
-            return reject(request.operation, request.repository_root, str(error), term=request.term)
-        return runner(
+            return context.reject(
+                request.operation, request.repository_root, str(error), term=request.term
+            )
+        return context.run(
             request.operation,
             request.repository_root,
             self.occurrence_analyzer,
@@ -410,8 +414,7 @@ class VariableClusterOperationSpec:
     def _execute_cluster(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         try:
             query = VariableClusterQuery.create(
@@ -420,10 +423,10 @@ class VariableClusterOperationSpec:
                 request.limit,
             )
         except ValueError as error:
-            return reject(
+            return context.reject(
                 request.operation, request.repository_root, str(error), terms=request.terms
             )
-        return runner(
+        return context.run(
             request.operation,
             request.repository_root,
             self.cluster_analyzer,
@@ -437,23 +440,21 @@ class VariableClusterOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
-        unimplemented: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit either a multi-term cluster or a single occurrence query."""
         if request.terms is not None and request.term is not None:
-            return reject(
+            return context.reject(
                 request.operation,
                 request.repository_root,
                 "terms must contain 2 to 8 distinct Python identifiers.",
                 terms=request.terms,
             )
         if request.terms is None and request.term is None:
-            return unimplemented(request.operation, request.repository_root)
+            return context.unimplemented(request.operation, request.repository_root)
         if request.term is not None:
-            return self._execute_occurrence(request, runner, reject)
-        return self._execute_cluster(request, runner, reject)
+            return self._execute_occurrence(request, context)
+        return self._execute_cluster(request, context)
 
 
 @dataclass(frozen=True, slots=True)
@@ -463,9 +464,7 @@ class LifecycleOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        bounded_runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit and run bounded or unbounded lifecycle evidence."""
         try:
@@ -475,9 +474,11 @@ class LifecycleOperationSpec:
                 request.limit,
             )
         except ValueError as error:
-            return reject(request.operation, request.repository_root, str(error), term=request.term)
+            return context.reject(
+                request.operation, request.repository_root, str(error), term=request.term
+            )
         if query.since_unix_time is not None or query.limit is not None:
-            return bounded_runner(
+            return context.bounded(
                 request.operation,
                 request.repository_root,
                 self.analyzer,
@@ -487,7 +488,9 @@ class LifecycleOperationSpec:
                 term_required=True,
                 pass_bounds_with_term=True,
             )
-        return runner(request.operation, request.repository_root, self.analyzer, term=query.carrier)
+        return context.run(
+            request.operation, request.repository_root, self.analyzer, term=query.carrier
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -497,15 +500,16 @@ class CarrierGuardsOperationSpec:
     def execute(
         self,
         request: ResearchRequest,
-        runner: Callable[..., object],
-        reject: Callable[..., object],
+        context: OperationContext,
     ) -> object:
         """Admit and run carrier guard evidence with its optional path scope."""
         try:
             query = CarrierGuardsQuery.create(request.term, request.path)
         except ValueError as error:
-            return reject(request.operation, request.repository_root, str(error), term=request.term)
-        return runner(
+            return context.reject(
+                request.operation, request.repository_root, str(error), term=request.term
+            )
+        return context.run(
             request.operation,
             request.repository_root,
             lambda repository, carrier: self.analyzer(repository, carrier, paths=query.paths),

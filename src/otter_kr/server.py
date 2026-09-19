@@ -29,6 +29,7 @@ from otter_kr.operation_registry import (
     CarrierGuardsOperationSpec,
     LifecycleOperationSpec,
     LineOriginsOperationSpec,
+    OperationContext,
     OperationRegistry,
     OperationSpec,
     ResearchRequest,
@@ -650,36 +651,26 @@ def create_server() -> FastMCP:
                 **kwargs,
             )
 
+        context = OperationContext(
+            run=_run_operation,
+            query_run=run,
+            bounded=_run_bounded,
+            reject=_invalid_query,
+            unimplemented=_not_implemented,
+        )
         spec = OPERATION_REGISTRY.find(operation)
-        if isinstance(spec, BoundedTermOperationSpec):
-            return spec.execute(request, _run_bounded, _invalid_query)
-        if isinstance(spec, BoundedOperationSpec):
-            return spec.execute(request, _run_bounded)
-        if isinstance(spec, BoundedPathOperationSpec):
-            return spec.execute(request, _run_operation, _invalid_query)
-        if isinstance(spec, BoundedPairOperationSpec):
-            return spec.execute(request, _run_operation, _invalid_query)
-        if isinstance(spec, LineOriginsOperationSpec):
-            return spec.execute(request, _run_operation, _invalid_query)
-        if isinstance(spec, VariableClusterOperationSpec):
-            return spec.execute(request, _run_operation, _invalid_query, _not_implemented)
-        if isinstance(spec, LifecycleOperationSpec):
-            return spec.execute(request, _run_operation, _run_bounded, _invalid_query)
-        if isinstance(spec, CarrierGuardsOperationSpec):
-            return spec.execute(request, _run_operation, _invalid_query)
-        if isinstance(spec, OperationSpec):
-            return spec.execute(request, _run_operation)
-
-        return {
-            "schema_version": "1",
-            "status": "rejected",
-            "operation": operation,
-            "query": _query(repository_root),
-            "error": {
-                "code": "not_implemented",
-                "message": "No repository research capabilities have been admitted yet.",
-            },
-        }
+        if spec is None:
+            return {
+                "schema_version": "1",
+                "status": "rejected",
+                "operation": operation,
+                "query": _query(repository_root),
+                "error": {
+                    "code": "not_implemented",
+                    "message": "No repository research capabilities have been admitted yet.",
+                },
+            }
+        return spec.execute(request, context)
 
     return server
 
