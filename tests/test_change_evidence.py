@@ -13,10 +13,20 @@ def test_term_change_evidence_keeps_current_and_history_distinct() -> None:
         "carrier_guards": {"carrier": "Widget", "occurrences": []},
         "object_lifecycle": None,
         "dimensions": {
-            "ownership": {"source": "carrier_guards", "available": True},
-            "multiplicity": {"source": "current.nodes", "node_count": 0},
+            "ownership": {
+                "source": "carrier_guards",
+                "available": True,
+                "occurrence_count": 0,
+                "group_count": 0,
+            },
+            "multiplicity": {"source": "current.nodes", "node_count": 0, "locations": []},
             "coupling": {"source": "current.edges", "edge_count": 0},
-            "history": {"source": "history", "file_count": 0},
-            "representations": {"source": "object_lifecycle", "available": False},
+            "history": {"source": "history.files", "file_count": 0, "paths": []},
+            "representations": {
+                "source": "object_lifecycle",
+                "available": False,
+                "construction_count": 0,
+                "operation_count": 0,
+            },
         },
     }

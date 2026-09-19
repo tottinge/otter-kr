@@ -20,28 +20,9 @@ class TermChangeEvidence:
     dimensions: dict[str, dict[str, object]] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        dimensions = self.dimensions or {
-            "ownership": {
-                "source": "carrier_guards",
-                "available": self.carrier_guards is not None,
-            },
-            "multiplicity": {
-                "source": "current.nodes",
-                "node_count": len(self.current.get("nodes", [])),
-            },
-            "coupling": {
-                "source": "current.edges",
-                "edge_count": len(self.current.get("edges", [])),
-            },
-            "history": {
-                "source": "history",
-                "file_count": len(self.history.get("files", [])),
-            },
-            "representations": {
-                "source": "object_lifecycle",
-                "available": self.object_lifecycle is not None,
-            },
-        }
+        dimensions = self.dimensions or _dimension_index(
+            self.current, self.history, self.carrier_guards, self.object_lifecycle
+        )
         return {
             "term": self.term,
             "current": self.current,
@@ -50,6 +31,49 @@ class TermChangeEvidence:
             "object_lifecycle": self.object_lifecycle,
             "dimensions": dimensions,
         }
+
+
+def _dimension_index(
+    current: dict[str, object],
+    history: dict[str, object],
+    carrier_guards: dict[str, object] | None,
+    object_lifecycle: dict[str, object] | None,
+) -> dict[str, dict[str, object]]:
+    nodes = current.get("nodes", [])
+    edges = current.get("edges", [])
+    files = history.get("files", [])
+    return {
+        "ownership": {
+            "source": "carrier_guards",
+            "available": carrier_guards is not None,
+            "occurrence_count": len(carrier_guards.get("occurrences", [])) if carrier_guards else 0,
+            "group_count": len(carrier_guards.get("groups", [])) if carrier_guards else 0,
+        },
+        "multiplicity": {
+            "source": "current.nodes",
+            "node_count": len(nodes),
+            "locations": [location for node in nodes for location in node.get("locations", [])],
+        },
+        "coupling": {
+            "source": "current.edges",
+            "edge_count": len(edges),
+        },
+        "history": {
+            "source": "history.files",
+            "file_count": len(files),
+            "paths": [item["path"] for item in files],
+        },
+        "representations": {
+            "source": "object_lifecycle",
+            "available": object_lifecycle is not None,
+            "construction_count": len(object_lifecycle.get("constructions", []))
+            if object_lifecycle
+            else 0,
+            "operation_count": len(object_lifecycle.get("operations", []))
+            if object_lifecycle
+            else 0,
+        },
+    }
 
 
 def collect_term_change_evidence(
