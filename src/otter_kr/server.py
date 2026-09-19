@@ -81,6 +81,9 @@ OPERATION_REGISTRY = OperationRegistry(
             collect_term_change_evidence,
             term_message="A term is required.",
         ),
+        "python.representation_inventory": BoundedOperationSpec(
+            collect_representation_inventory,
+        ),
         "git.history": BoundedOperationSpec(
             lambda repository, *, since_unix_time, limit: collect_git_history(
                 repository,
@@ -666,16 +669,6 @@ def create_server() -> FastMCP:
         if isinstance(spec, OperationSpec):
             return spec.execute(request, _run_operation)
 
-        if operation == "python.representation_inventory":
-            return _run_bounded(
-                operation,
-                repository_root,
-                lambda repository, *, since_unix_time, limit: collect_representation_inventory(
-                    repository, since_unix_time=since_unix_time, limit=limit
-                ),
-                since_unix_time=since_unix_time,
-                limit=limit,
-            )
         if operation == "git.review_packet":
             return _run_bounded(
                 operation,

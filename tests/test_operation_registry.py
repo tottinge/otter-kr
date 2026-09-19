@@ -447,6 +447,9 @@ def test_registry_admits_bounded_topic_operations() -> None:
     assert isinstance(
         OPERATION_REGISTRY.find("python.term_change_evidence"), BoundedTermOperationSpec
     )
+    assert isinstance(
+        OPERATION_REGISTRY.find("python.representation_inventory"), BoundedOperationSpec
+    )
     assert isinstance(OPERATION_REGISTRY.find("git.history"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.snapshot"), BoundedOperationSpec)
     assert isinstance(OPERATION_REGISTRY.find("git.distributions"), BoundedOperationSpec)
