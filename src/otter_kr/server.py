@@ -77,6 +77,10 @@ OPERATION_REGISTRY = OperationRegistry(
             collect_topic_family,
             term_message="A commit reference is required for git.topic_family.",
         ),
+        "python.term_change_evidence": BoundedTermOperationSpec(
+            collect_term_change_evidence,
+            term_message="A term is required.",
+        ),
         "git.history": BoundedOperationSpec(
             lambda repository, *, since_unix_time, limit: collect_git_history(
                 repository,
@@ -662,23 +666,6 @@ def create_server() -> FastMCP:
         if isinstance(spec, OperationSpec):
             return spec.execute(request, _run_operation)
 
-        if operation == "python.term_change_evidence":
-            return _run_bounded(
-                operation,
-                repository_root,
-                lambda repository, value, **_: collect_term_change_evidence(
-                    repository,
-                    value,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                ),
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
-                term_required=True,
-                term_message="A term is required.",
-                pass_bounds_with_term=True,
-            )
         if operation == "python.representation_inventory":
             return _run_bounded(
                 operation,
