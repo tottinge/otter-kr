@@ -56,4 +56,9 @@ def collect_python_review_context(
     selected = tuple(names[:limit])
     tests = tuple(find_tests_for_symbol(resolved, str(item["name"])).to_dict() for item in selected)
     dependencies = import_python(resolved).to_dict()
+    if path is not None:
+        dependencies["edges"] = [edge for edge in dependencies["edges"] if edge["path"] == path]
+        dependencies["warnings"] = [
+            warning for warning in dependencies["warnings"] if warning["path"] == path
+        ]
     return PythonReviewContext(selected, dependencies, tests)

@@ -68,6 +68,15 @@ def collect_review_packet(
         if tip_sha is not None
         else None
     )
+    file_scope_inventory = (
+        {
+            "status": "unavailable_at_file_scope",
+            "path": path,
+            "message": "Repository-wide inventory is omitted for a single-file packet.",
+        }
+        if path is not None and tip_sha is None
+        else None
+    )
     packet = compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
@@ -79,8 +88,8 @@ def collect_review_packet(
         },
         history=snapshot.to_dict(),
         inventory=(
-            revision_source
-            if revision_source is not None
+            revision_source or file_scope_inventory
+            if revision_source is not None or file_scope_inventory is not None
             else collect_representation_inventory(
                 repository, since_unix_time=since_unix_time, limit=limit
             ).to_dict()
