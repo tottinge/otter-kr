@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
-from otter_kr.python_imports import _module_name, _resolve_relative_target
-from otter_kr.python_neighborhood import _identifier_words, _node_name
+from otter_kr.python_identity import identifier_words, module_name
+from otter_kr.python_imports import resolve_relative_target
+from otter_kr.python_neighborhood import node_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +54,7 @@ def find_structural_neighborhood(
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
-    if not _identifier_words(seed):
+    if not identifier_words(seed):
         raise ValueError("Seed must contain at least one letter or number")
     files = (file_source or GitCliFileSource()).python_files(repository)
     counts: Counter[str] = Counter()
@@ -67,12 +68,12 @@ def find_structural_neighborhood(
         except (SyntaxError, UnicodeError) as error:
             failures.append({"path": relative, "message": str(error)})
             continue
-        names = [name for node in ast.walk(tree) if (name := _node_name(node))]
+        names = [name for node in ast.walk(tree) if (name := node_name(node))]
         counts.update(names)
-        source_module = _module_name(relative_path)
+        source_module = module_name(relative_path)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and any(alias.name == seed for alias in node.names):
-                target_module, unresolved = _resolve_relative_target(
+                target_module, unresolved = resolve_relative_target(
                     source_module,
                     node.level,
                     node.module,
@@ -93,7 +94,7 @@ def find_structural_neighborhood(
                 evidence[(name, "shared file")] += 1
         for parent in ast.walk(tree):
             child_names = [
-                name for node in ast.iter_child_nodes(parent) if (name := _node_name(node))
+                name for node in ast.iter_child_nodes(parent) if (name := node_name(node))
             ]
             if seed in child_names:
                 for name in child_names:

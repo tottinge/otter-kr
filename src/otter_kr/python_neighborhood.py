@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import ast
-import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
-
-_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
-_SEPARATORS = re.compile(r"[^A-Za-z0-9]+")
+from otter_kr.python_identity import identifier_words
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +63,7 @@ def find_python_neighborhood(
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
-    seed_words = _identifier_words(seed)
+    seed_words = identifier_words(seed)
     if not seed_words:
         raise ValueError("Seed must contain at least one letter or number")
 
@@ -81,7 +78,7 @@ def find_python_neighborhood(
             failures.append({"path": relative, "message": str(error)})
             continue
         for node in ast.walk(tree):
-            name = _node_name(node)
+            name = node_name(node)
             if name is not None:
                 counts[name] += 1
 
@@ -89,7 +86,7 @@ def find_python_neighborhood(
     lexical = sorted(
         name
         for name in counts
-        if name != seed and _shares_words(seed_words, _identifier_words(name))
+        if name != seed and _shares_words(seed_words, identifier_words(name))
     )
     names = exact + lexical
     nodes = tuple(NeighborhoodNode(name, counts[name]) for name in names)
@@ -106,7 +103,7 @@ def find_python_neighborhood(
     return PythonNeighborhoodReport(seed, len(files), nodes, edges, tuple(failures))
 
 
-def _node_name(node: ast.AST) -> str | None:
+def node_name(node: ast.AST) -> str | None:
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
         return node.name
     if isinstance(node, ast.arg):
@@ -114,11 +111,6 @@ def _node_name(node: ast.AST) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
     return None
-
-
-def _identifier_words(identifier: str) -> tuple[str, ...]:
-    separated = _CAMEL_BOUNDARY.sub("_", identifier)
-    return tuple(word.casefold() for word in _SEPARATORS.split(separated) if word)
 
 
 def _shares_words(seed_words: tuple[str, ...], candidate_words: tuple[str, ...]) -> bool:

@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.python_identity import module_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +49,6 @@ def _module_kind(relative_path: Path) -> str:
     return "module"
 
 
-def _module_name(relative_path: Path) -> str:
-    parts = list(relative_path.with_suffix("").parts)
-    if parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts)
-
-
 def _line_count(content: bytes) -> int:
     if not content:
         return 0
@@ -71,7 +65,7 @@ def _file_evidence(
 ) -> PythonFileEvidence:
     return PythonFileEvidence(
         path=relative.as_posix(),
-        module=_module_name(relative),
+        module=module_name(relative),
         module_kind=_module_kind(relative),
         bytes=len(content) if readable else 0,
         lines=_line_count(content) if readable else 0,

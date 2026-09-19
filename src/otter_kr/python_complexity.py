@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.python_identity import module_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,13 +39,6 @@ class ComplexityReport:
             "functions": [function.to_dict() for function in self.functions],
             "warnings": list(self.warnings),
         }
-
-
-def _module_name(relative_path: Path) -> str:
-    parts = list(relative_path.with_suffix("").parts)
-    if parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts)
 
 
 def _function_metrics(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[int, int, int]:
@@ -159,7 +153,7 @@ def analyze_python_complexity(
                 }
             )
             continue
-        collector = _FunctionCollector(relative_path, _module_name(relative))
+        collector = _FunctionCollector(relative_path, module_name(relative))
         collector.visit(tree)
         functions.extend(collector.functions)
 

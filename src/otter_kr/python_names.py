@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import ast
-import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
-
-_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
-_SEPARATORS = re.compile(r"[^A-Za-z0-9]+")
+from otter_kr.python_identity import identifier_words
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,15 +44,10 @@ class NameReport:
         }
 
 
-def _identifier_words(identifier: str) -> tuple[str, ...]:
-    separated = _CAMEL_BOUNDARY.sub("_", identifier)
-    return tuple(word.casefold() for word in _SEPARATORS.split(separated) if word)
-
-
 def _matches(identifier: str, query: str) -> bool:
-    query_words = _identifier_words(query)
-    identifier_words = _identifier_words(identifier)
-    return bool(query_words) and all(word in identifier_words for word in query_words)
+    query_words = identifier_words(query)
+    name_words = identifier_words(identifier)
+    return bool(query_words) and all(word in name_words for word in query_words)
 
 
 class _NameCollector(ast.NodeVisitor):
@@ -104,7 +96,7 @@ def find_names(
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
-    if not _identifier_words(query):
+    if not identifier_words(query):
         raise ValueError("Query must contain at least one letter or number")
 
     occurrences: list[NameOccurrence] = []

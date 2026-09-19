@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.python_identity import module_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,14 +39,7 @@ class PythonImportReport:
         }
 
 
-def _module_name(relative_path: Path) -> str:
-    parts = list(relative_path.with_suffix("").parts)
-    if parts[-1] == "__init__":
-        parts.pop()
-    return ".".join(parts)
-
-
-def _resolve_relative_target(
+def resolve_relative_target(
     source_module: str, level: int, module: str | None, *, source_is_package: bool = False
 ) -> tuple[str, bool]:
     if level == 0:
@@ -87,7 +81,7 @@ def import_python(
                 }
             )
             continue
-        source_module = _module_name(relative)
+        source_module = module_name(relative)
         try:
             tree = ast.parse(text, filename=relative_path)
         except SyntaxError as error:
@@ -116,7 +110,7 @@ def import_python(
                         )
                     )
             elif isinstance(node, ast.ImportFrom):
-                target_module, unresolved = _resolve_relative_target(
+                target_module, unresolved = resolve_relative_target(
                     source_module,
                     node.level,
                     node.module,
