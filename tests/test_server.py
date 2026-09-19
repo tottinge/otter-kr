@@ -218,7 +218,15 @@ def test_git_topic_reports_one_commit_without_irrelevant_bounds_in_query(tmp_pat
     assert data["commit_sha"] == commit_sha
     assert data["subject"] == "initial import"
     assert data["status"] == "initial"
-    assert data["changes"] == [{"status": "A", "path": "pkg/service.py", "previous_path": None}]
+    assert data["changes"] == [
+        {
+            "status": "A",
+            "path": "pkg/service.py",
+            "previous_path": None,
+            "hunk_status": "initial",
+            "hunks": [],
+        }
+    ]
 
 
 def test_git_topic_invalid_commit_retains_invalid_query_envelope(tmp_path: Path) -> None:
