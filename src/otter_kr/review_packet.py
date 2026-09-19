@@ -55,6 +55,7 @@ def collect_review_packet(
     since_unix_time: int,
     limit: int,
     path: str | None = None,
+    paths: tuple[str, ...] | None = None,
     tip_sha: str | None = None,
 ) -> ReviewEvidencePacket:
     context = EvidenceContext.from_git()
@@ -74,13 +75,14 @@ def collect_review_packet(
         if tip_sha is not None
         else None
     )
+    selected_paths = paths or ((path,) if path is not None else None)
     file_scope_inventory = (
         {
             "status": "unavailable_at_file_scope",
-            "path": path,
-            "message": "Repository-wide inventory is omitted for a single-file packet.",
+            "paths": list(selected_paths or ()),
+            "message": "Repository-wide inventory is omitted for a partial file-scope packet.",
         }
-        if path is not None and tip_sha is None
+        if selected_paths is not None and tip_sha is None
         else None
     )
     packet = compose_review_packet(
@@ -89,6 +91,7 @@ def collect_review_packet(
             "since_unix_time": since_unix_time,
             "limit": limit,
             **({"path": path} if path is not None else {}),
+            **({"paths": list(paths)} if paths is not None else {}),
             **({"tip_sha": tip_sha} if tip_sha is not None else {}),
             **({"source_evidence": "unavailable_at_revision"} if tip_sha is not None else {}),
         },
@@ -103,11 +106,11 @@ def collect_review_packet(
         python=(
             PythonReviewContext((), revision_source or {}, ())
             if revision_source is not None
-            else collect_python_review_context(repository, limit=limit, path=path)
+            else collect_python_review_context(repository, limit=limit, path=path, paths=paths)
         ),
     )
-    if path is None:
+    if selected_paths is None:
         return packet
     history = dict(packet.history)
-    history["files"] = [item for item in history["files"] if item["path"] == path]
+    history["files"] = [item for item in history["files"] if item["path"] in selected_paths]
     return ReviewEvidencePacket(packet.scope, history, packet.inventory, packet.python)

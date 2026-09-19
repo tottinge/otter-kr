@@ -1844,6 +1844,33 @@ def test_review_packet_revision_walks_from_explicit_tip(tmp_path: Path) -> None:
     assert report["data"]["history"]["files"][0]["recent_commits"] == [first]
 
 
+def test_review_packet_files_scopes_to_multiple_paths(tmp_path: Path) -> None:
+    write_python(tmp_path, "service.py", "def collect():\n    return 1\n")
+    write_python(tmp_path, "other.py", "def ignore():\n    return 2\n")
+    git_repository(tmp_path, "service.py", "other.py")
+    git_commit(tmp_path, "initial", "service.py", "other.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.review_packet.files",
+                "paths": ["service.py", "other.py"],
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    assert report["status"] == "ok"
+    assert report["data"]["scope"]["paths"] == ["service.py", "other.py"]
+    assert [item["path"] for item in report["data"]["names"]] == [
+        "other.py",
+        "service.py",
+    ]
+
+
 def test_variable_cluster_rejects_without_an_exact_name() -> None:
     report = asyncio.run(
         call_research(

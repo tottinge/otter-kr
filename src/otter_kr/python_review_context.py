@@ -26,13 +26,20 @@ class PythonReviewContext:
 
 
 def collect_python_review_context(
-    repository: Path, *, limit: int, path: str | None = None
+    repository: Path,
+    *,
+    limit: int,
+    path: str | None = None,
+    paths: tuple[str, ...] | None = None,
 ) -> PythonReviewContext:
     resolved = repository.resolve()
     files = GitCliFileSource().python_files(resolved)
-    if path is not None:
+    selected_paths = paths or ((path,) if path is not None else None)
+    if selected_paths is not None:
         files = [
-            candidate for candidate in files if candidate.relative_to(resolved).as_posix() == path
+            candidate
+            for candidate in files
+            if candidate.relative_to(resolved).as_posix() in selected_paths
         ]
     names: list[dict[str, object]] = []
     for path in files:
@@ -56,10 +63,12 @@ def collect_python_review_context(
     selected = tuple(names[:limit])
     tests = tuple(find_tests_for_symbol(resolved, str(item["name"])).to_dict() for item in selected)
     dependencies = import_python(resolved).to_dict()
-    if path is not None:
-        dependencies["edges"] = [edge for edge in dependencies["edges"] if edge["path"] == path]
+    if selected_paths is not None:
+        dependencies["edges"] = [
+            edge for edge in dependencies["edges"] if edge["path"] in selected_paths
+        ]
         dependencies["warnings"] = [
-            warning for warning in dependencies["warnings"] if warning["path"] == path
+            warning for warning in dependencies["warnings"] if warning["path"] in selected_paths
         ]
     edges = dependencies["edges"]
     dependencies["edge_count"] = len(edges)

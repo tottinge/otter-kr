@@ -26,6 +26,7 @@ class ResearchRequest:
     right_path: str | None = None
     path: str | None = None
     lines: tuple[int, ...] | None = None
+    paths: tuple[str, ...] | None = None
 
     @classmethod
     def create(
@@ -41,6 +42,7 @@ class ResearchRequest:
         right_path: str | None = None,
         path: str | None = None,
         lines: list[int] | tuple[int, ...] | None = None,
+        paths: list[str] | tuple[str, ...] | None = None,
     ) -> ResearchRequest:
         """Normalize MCP tool arguments before operation-specific admission."""
         return cls(
@@ -54,6 +56,7 @@ class ResearchRequest:
             right_path=right_path,
             path=path,
             lines=tuple(lines) if lines is not None else None,
+            paths=tuple(paths) if paths is not None else None,
         )
 
 
@@ -278,6 +281,42 @@ class BoundedOperationSpec:
             request.operation,
             request.repository_root,
             self.analyzer,
+            since_unix_time=request.since_unix_time,
+            limit=request.limit,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewPacketFilesOperationSpec:
+    analyzer: object
+    max_paths: int = 8
+
+    def execute(self, request: ResearchRequest, context: OperationContext) -> object:
+        paths = request.paths
+        if not paths or len(paths) > self.max_paths:
+            return context.reject(
+                request.operation,
+                request.repository_root,
+                f"paths must contain 1 to {self.max_paths} repository-relative files.",
+            )
+        if any(
+            not path
+            or path.startswith("/")
+            or "\\" in path
+            or any(part == ".." for part in path.split("/"))
+            for path in paths
+        ):
+            return context.reject(
+                request.operation,
+                request.repository_root,
+                "paths must be repository-relative without '..'.",
+            )
+        return context.run(
+            request.operation,
+            request.repository_root,
+            lambda repository, *, since_unix_time, limit: self.analyzer(
+                repository, paths=paths, since_unix_time=since_unix_time, limit=limit
+            ),
             since_unix_time=request.since_unix_time,
             limit=request.limit,
         )

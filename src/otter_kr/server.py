@@ -33,6 +33,7 @@ from otter_kr.operation_registry import (
     OperationRegistry,
     OperationSpec,
     ResearchRequest,
+    ReviewPacketFilesOperationSpec,
     VariableClusterOperationSpec,
 )
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
@@ -93,6 +94,7 @@ OPERATION_REGISTRY = OperationRegistry(
             term_message="A Python file path is required for git.review_packet.file.",
             path_message="path must be a repository-relative path without '..'.",
         ),
+        "git.review_packet.files": ReviewPacketFilesOperationSpec(collect_review_packet),
         "git.review_packet.revision": BoundedTermOperationSpec(
             lambda repository, tip_sha, *, since_unix_time, limit: collect_review_packet(
                 repository,
@@ -655,6 +657,7 @@ def create_server() -> FastMCP:
         right_path: str | None = None,
         path: str | None = None,
         lines: list[int] | None = None,
+        paths: list[str] | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
 
@@ -669,6 +672,7 @@ def create_server() -> FastMCP:
             right_path=right_path,
             path=path,
             lines=lines,
+            paths=paths,
         )
         repository_root = request.repository_root
         operation = request.operation
