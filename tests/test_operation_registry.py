@@ -226,6 +226,56 @@ def test_line_origins_operation_spec_owns_query_admission() -> None:
     assert calls[0][3]["query_object"] == LineOriginsQuery("HEAD", "src/a.py", (3, 5))
 
 
+def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
+    calls: list[tuple[object, ...]] = []
+    analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    def bounded_runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "bounded"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    result = LifecycleOperationSpec(analyzer).execute(
+        ResearchRequest.create("/repo", "python.object_lifecycle", term="state"),
+        runner,
+        bounded_runner,
+        reject,
+    )
+
+    assert result == "ran"
+    assert calls == [("python.object_lifecycle", "/repo", analyzer, {"term": "state"})]
+
+    bounded = LifecycleOperationSpec(analyzer).execute(
+        ResearchRequest.create(
+            "/repo", "python.object_lifecycle", term="state", since_unix_time=1, limit=2
+        ),
+        runner,
+        bounded_runner,
+        reject,
+    )
+
+    assert bounded == "bounded"
+    assert calls[-1] == (
+        "python.object_lifecycle",
+        "/repo",
+        analyzer,
+        {
+            "term": "state",
+            "since_unix_time": 1,
+            "limit": 2,
+            "term_required": True,
+            "pass_bounds_with_term": True,
+        },
+    )
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 

@@ -377,6 +377,35 @@ class VariableClusterOperationSpec:
 class LifecycleOperationSpec:
     analyzer: object
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        bounded_runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Admit and run bounded or unbounded lifecycle evidence."""
+        try:
+            query = LifecycleQuery.create(
+                request.term,
+                request.since_unix_time,
+                request.limit,
+            )
+        except ValueError as error:
+            return reject(request.operation, request.repository_root, str(error), term=request.term)
+        if query.since_unix_time is not None or query.limit is not None:
+            return bounded_runner(
+                request.operation,
+                request.repository_root,
+                self.analyzer,
+                term=query.carrier,
+                since_unix_time=query.since_unix_time,
+                limit=query.limit,
+                term_required=True,
+                pass_bounds_with_term=True,
+            )
+        return runner(request.operation, request.repository_root, self.analyzer, term=query.carrier)
+
 
 @dataclass(frozen=True, slots=True)
 class CarrierGuardsOperationSpec:

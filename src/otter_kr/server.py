@@ -29,7 +29,6 @@ from otter_kr.operation_registry import (
     CarrierGuardsOperationSpec,
     CarrierGuardsQuery,
     LifecycleOperationSpec,
-    LifecycleQuery,
     LineOriginsOperationSpec,
     OperationRegistry,
     OperationSpec,
@@ -667,22 +666,7 @@ def create_server() -> FastMCP:
                 pass_bounds_with_terms=True,
             )
         if isinstance(spec, LifecycleOperationSpec):
-            try:
-                query = LifecycleQuery.create(term, since_unix_time, limit)
-            except ValueError as error:
-                return _invalid_query(operation, repository_root, str(error), term=term)
-            if query.since_unix_time is not None or query.limit is not None:
-                return _run_bounded(
-                    operation,
-                    repository_root,
-                    spec.analyzer,
-                    term=query.carrier,
-                    since_unix_time=query.since_unix_time,
-                    limit=query.limit,
-                    term_required=True,
-                    pass_bounds_with_term=True,
-                )
-            return _run_operation(operation, repository_root, spec.analyzer, term=query.carrier)
+            return spec.execute(request, _run_operation, _run_bounded, _invalid_query)
         if isinstance(spec, CarrierGuardsOperationSpec):
             try:
                 query = CarrierGuardsQuery.create(term, path)
