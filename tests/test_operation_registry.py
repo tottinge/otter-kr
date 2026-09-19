@@ -129,6 +129,41 @@ def test_bounded_term_operation_spec_owns_term_admission() -> None:
     assert calls[-1] == ("git.topic_walk", "/repo", "commit required", {})
 
 
+def test_bounded_path_operation_spec_owns_path_admission() -> None:
+    calls: list[tuple[object, ...]] = []
+    analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    request = ResearchRequest.create(
+        "/repo", "git.cochange.file", term="src/a.py", since_unix_time=1, limit=2
+    )
+    result = BoundedPathOperationSpec(analyzer, "path required", "path invalid").execute(
+        request, runner, reject
+    )
+
+    assert result == "ran"
+    assert calls == [
+        (
+            "git.cochange.file",
+            "/repo",
+            analyzer,
+            {
+                "term": "src/a.py",
+                "since_unix_time": 1,
+                "limit": 2,
+                "pass_bounds_with_term": True,
+            },
+        )
+    ]
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 

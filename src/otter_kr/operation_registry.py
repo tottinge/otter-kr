@@ -267,6 +267,41 @@ class BoundedPathOperationSpec:
     term_message: str
     path_message: str
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Admit and run a bounded repository-relative path query."""
+        try:
+            query = BoundedPathQuery.create(
+                request.term,
+                request.since_unix_time,
+                request.limit,
+                operation=request.operation,
+                term_message=self.term_message,
+                path_message=self.path_message,
+            )
+        except ValueError as error:
+            return reject(
+                request.operation,
+                request.repository_root,
+                str(error),
+                term=request.term,
+                since_unix_time=request.since_unix_time,
+                limit=request.limit,
+            )
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            term=query.path,
+            since_unix_time=query.since_unix_time,
+            limit=query.limit,
+            pass_bounds_with_term=True,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class BoundedPairOperationSpec:

@@ -26,7 +26,6 @@ from otter_kr.operation_registry import (
     BoundedPairOperationSpec,
     BoundedPairQuery,
     BoundedPathOperationSpec,
-    BoundedPathQuery,
     BoundedTermOperationSpec,
     CarrierGuardsOperationSpec,
     CarrierGuardsQuery,
@@ -642,33 +641,7 @@ def create_server() -> FastMCP:
         if isinstance(spec, BoundedOperationSpec):
             return spec.execute(request, _run_bounded)
         if isinstance(spec, BoundedPathOperationSpec):
-            try:
-                query = BoundedPathQuery.create(
-                    term,
-                    since_unix_time,
-                    limit,
-                    operation=operation,
-                    term_message=spec.term_message,
-                    path_message=spec.path_message,
-                )
-            except ValueError as error:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    str(error),
-                    term=term,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                spec.analyzer,
-                term=query.path,
-                since_unix_time=query.since_unix_time,
-                limit=query.limit,
-                pass_bounds_with_term=True,
-            )
+            return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, BoundedPairOperationSpec):
             try:
                 query = BoundedPairQuery.create(left_path, right_path, since_unix_time, limit)
