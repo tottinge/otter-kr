@@ -13,6 +13,7 @@ from otter_kr.operation_registry import (
     LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
+    ResearchRequest,
     VariableClusterOperationSpec,
     VariableClusterQuery,
     VariableOccurrenceQuery,
@@ -31,6 +32,34 @@ def test_registry_rejects_an_unknown_operation() -> None:
     registry = OperationRegistry({})
 
     assert registry.find("python.unknown") is None
+
+
+def test_research_request_develops_the_transport_argument_boundary() -> None:
+    request = ResearchRequest.create(
+        "/repo",
+        "python.variable_cluster",
+        term="count",
+        terms=["count", "limit"],
+        since_unix_time=1,
+        limit=2,
+        left_path="src/a.py",
+        right_path="src/b.py",
+        path="src/a.py",
+        lines=[3, 5],
+    )
+
+    assert request == ResearchRequest(
+        "/repo",
+        "python.variable_cluster",
+        "count",
+        ("count", "limit"),
+        1,
+        2,
+        "src/a.py",
+        "src/b.py",
+        "src/a.py",
+        (3, 5),
+    )
 
 
 def test_bounded_pair_query_develops_its_validation_boundary() -> None:

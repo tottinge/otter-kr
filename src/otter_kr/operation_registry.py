@@ -13,6 +13,51 @@ class InvalidOperationQuery(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class ResearchRequest:
+    """The complete, transport-independent input to one research operation."""
+
+    repository_root: str
+    operation: str
+    term: str | None = None
+    terms: tuple[str, ...] | None = None
+    since_unix_time: int | None = None
+    limit: int | None = None
+    left_path: str | None = None
+    right_path: str | None = None
+    path: str | None = None
+    lines: tuple[int, ...] | None = None
+
+    @classmethod
+    def create(
+        cls,
+        repository_root: str,
+        operation: str,
+        *,
+        term: str | None = None,
+        terms: list[str] | tuple[str, ...] | None = None,
+        since_unix_time: int | None = None,
+        limit: int | None = None,
+        left_path: str | None = None,
+        right_path: str | None = None,
+        path: str | None = None,
+        lines: list[int] | tuple[int, ...] | None = None,
+    ) -> ResearchRequest:
+        """Normalize MCP tool arguments before operation-specific admission."""
+        return cls(
+            repository_root=repository_root,
+            operation=operation,
+            term=term,
+            terms=tuple(terms) if terms is not None else None,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            left_path=left_path,
+            right_path=right_path,
+            path=path,
+            lines=tuple(lines) if lines is not None else None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class BoundedPairQuery:
     left_path: str
     right_path: str

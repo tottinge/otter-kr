@@ -36,6 +36,7 @@ from otter_kr.operation_registry import (
     LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
+    ResearchRequest,
     VariableClusterOperationSpec,
     VariableClusterQuery,
     VariableOccurrenceQuery,
@@ -598,6 +599,29 @@ def create_server() -> FastMCP:
         lines: list[int] | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
+
+        request = ResearchRequest.create(
+            repository_root,
+            operation,
+            term=term,
+            terms=terms,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            left_path=left_path,
+            right_path=right_path,
+            path=path,
+            lines=lines,
+        )
+        repository_root = request.repository_root
+        operation = request.operation
+        term = request.term
+        terms = request.terms
+        since_unix_time = request.since_unix_time
+        limit = request.limit
+        left_path = request.left_path
+        right_path = request.right_path
+        path = request.path
+        lines = request.lines
 
         def run(analyzer, **kwargs):
             return _run_operation(
