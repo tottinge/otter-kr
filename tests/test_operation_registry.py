@@ -164,6 +164,45 @@ def test_bounded_path_operation_spec_owns_path_admission() -> None:
     ]
 
 
+def test_bounded_pair_operation_spec_owns_pair_admission() -> None:
+    calls: list[tuple[object, ...]] = []
+    analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    request = ResearchRequest.create(
+        "/repo",
+        "git.cochange.pair",
+        left_path="src/a.py",
+        right_path="src/b.py",
+        since_unix_time=1,
+        limit=2,
+    )
+    result = BoundedPairOperationSpec(analyzer).execute(request, runner, reject)
+
+    assert result == "ran"
+    assert calls == [
+        (
+            "git.cochange.pair",
+            "/repo",
+            analyzer,
+            {
+                "since_unix_time": 1,
+                "limit": 2,
+                "left_path": "src/a.py",
+                "right_path": "src/b.py",
+                "pass_pair_paths": True,
+            },
+        )
+    ]
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 

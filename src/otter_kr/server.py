@@ -24,7 +24,6 @@ from otter_kr.git_topic_walk import walk_topic_history
 from otter_kr.operation_registry import (
     BoundedOperationSpec,
     BoundedPairOperationSpec,
-    BoundedPairQuery,
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     CarrierGuardsOperationSpec,
@@ -643,28 +642,7 @@ def create_server() -> FastMCP:
         if isinstance(spec, BoundedPathOperationSpec):
             return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, BoundedPairOperationSpec):
-            try:
-                query = BoundedPairQuery.create(left_path, right_path, since_unix_time, limit)
-            except ValueError as error:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    str(error),
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                    left_path=left_path,
-                    right_path=right_path,
-                )
-            return _run_operation(
-                operation,
-                repository_root,
-                spec.analyzer,
-                since_unix_time=query.since_unix_time,
-                limit=query.limit,
-                left_path=query.left_path,
-                right_path=query.right_path,
-                pass_pair_paths=True,
-            )
+            return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, LineOriginsOperationSpec):
             try:
                 query = LineOriginsQuery.create(term, path, lines)

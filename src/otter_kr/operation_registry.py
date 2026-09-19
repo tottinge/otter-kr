@@ -307,6 +307,41 @@ class BoundedPathOperationSpec:
 class BoundedPairOperationSpec:
     analyzer: object
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Admit and run a bounded pair-of-paths query."""
+        try:
+            query = BoundedPairQuery.create(
+                request.left_path,
+                request.right_path,
+                request.since_unix_time,
+                request.limit,
+            )
+        except ValueError as error:
+            return reject(
+                request.operation,
+                request.repository_root,
+                str(error),
+                since_unix_time=request.since_unix_time,
+                limit=request.limit,
+                left_path=request.left_path,
+                right_path=request.right_path,
+            )
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            since_unix_time=query.since_unix_time,
+            limit=query.limit,
+            left_path=query.left_path,
+            right_path=query.right_path,
+            pass_pair_paths=True,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class LineOriginsOperationSpec:
