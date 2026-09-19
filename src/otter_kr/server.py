@@ -93,6 +93,15 @@ OPERATION_REGISTRY = OperationRegistry(
             term_message="A Python file path is required for git.review_packet.file.",
             path_message="path must be a repository-relative path without '..'.",
         ),
+        "git.review_packet.revision": BoundedTermOperationSpec(
+            lambda repository, tip_sha, *, since_unix_time, limit: collect_review_packet(
+                repository,
+                tip_sha=tip_sha,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            ),
+            term_message="A commit reference is required for git.review_packet.revision.",
+        ),
         "git.history": BoundedOperationSpec(
             lambda repository, *, since_unix_time, limit: collect_git_history(
                 repository,

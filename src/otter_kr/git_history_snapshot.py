@@ -35,6 +35,7 @@ def collect_git_history_snapshot(
     since_unix_time: int,
     limit: int,
     changes: CommitFileChangeSource,
+    tip_sha: str | None = None,
 ) -> GitHistorySnapshotReport:
     """Project one bounded Git window into compact per-file evidence."""
     hotspots = collect_git_hotspots(
@@ -42,6 +43,7 @@ def collect_git_history_snapshot(
         since_unix_time=since_unix_time,
         limit=limit,
         changes=changes,
+        tip_sha=tip_sha,
     )
     return GitHistorySnapshotReport(
         provenance=hotspots.provenance,

@@ -28,6 +28,7 @@ def collect_bounded_file_changes(
     since_unix_time: int,
     limit: int,
     changes: CommitFileChangeSource,
+    tip_sha: str | None = None,
 ) -> BoundedFileChangeWindow:
     resolved_repository = repository.resolve()
     if not resolved_repository.is_dir():
@@ -43,6 +44,7 @@ def collect_bounded_file_changes(
                 CommitHistoryQuery(
                     limit=limit,
                     since_unix_time=since_unix_time,
+                    tip_sha=tip_sha,
                     paths=("*.py",),
                 ),
             )

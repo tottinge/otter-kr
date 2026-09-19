@@ -40,10 +40,15 @@ def collect_git_hotspots(
     since_unix_time: int,
     limit: int,
     changes: CommitFileChangeSource,
+    tip_sha: str | None = None,
 ) -> GitHotspotReport:
     """Aggregate bounded Git numstat evidence by tracked Python file."""
     window = collect_bounded_file_changes(
-        repository, since_unix_time=since_unix_time, limit=limit, changes=changes
+        repository,
+        since_unix_time=since_unix_time,
+        limit=limit,
+        changes=changes,
+        tip_sha=tip_sha,
     )
     files = _aggregate(window.visible_records)
     return GitHotspotReport(
