@@ -546,14 +546,20 @@ def test_git_topic_walk_reports_bounded_first_parent_history(tmp_path: Path) -> 
         since_unix_time=1,
         limit=2,
     )
-    assert data == {
-        "topic_sha": second,
-        "commits": [
-            {"sha": second, "parent_shas": [first], "skipped": None},
-            {"sha": first, "parent_shas": [], "skipped": None},
-        ],
-        "termination": "root",
-    }
+    assert data["topic_sha"] == second
+    assert data["termination"] == "root"
+    assert data["commits"][0]["parent_shas"] == [first]
+    assert data["commits"][1]["parent_shas"] == []
+    assert data["commits"][0]["changes"] == [
+        {"status": "M", "path": "pkg/service.py", "previous_path": None}
+    ]
+    assert data["commits"][0]["hunk_status"] == "available"
+    assert data["commits"][0]["hunks"]
+    assert data["commits"][1]["changes"] == [
+        {"status": "A", "path": "pkg/service.py", "previous_path": None}
+    ]
+    assert data["commits"][1]["hunk_status"] == "initial"
+    assert data["commits"][1]["hunks"] == []
 
 
 def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> None:
