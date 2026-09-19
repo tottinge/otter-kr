@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -230,6 +230,16 @@ class BoundedTermOperationSpec:
 @dataclass(frozen=True, slots=True)
 class BoundedOperationSpec:
     analyzer: object
+
+    def execute(self, request: ResearchRequest, runner: Callable[..., object]) -> object:
+        """Run this bounded operation through the shared envelope boundary."""
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            since_unix_time=request.since_unix_time,
+            limit=request.limit,
+        )
 
 
 @dataclass(frozen=True, slots=True)

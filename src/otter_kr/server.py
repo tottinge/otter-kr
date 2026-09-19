@@ -650,13 +650,7 @@ def create_server() -> FastMCP:
                 pass_bounds_with_term=True,
             )
         if isinstance(spec, BoundedOperationSpec):
-            return _run_bounded(
-                operation,
-                repository_root,
-                spec.analyzer,
-                since_unix_time=since_unix_time,
-                limit=limit,
-            )
+            return spec.execute(request, _run_bounded)
         if isinstance(spec, BoundedPathOperationSpec):
             try:
                 query = BoundedPathQuery.create(

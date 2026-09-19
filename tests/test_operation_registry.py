@@ -81,6 +81,21 @@ def test_bounded_path_query_develops_its_validation_boundary() -> None:
     assert query == BoundedPathQuery("src/a.py", 1, 2)
 
 
+def test_bounded_operation_spec_owns_its_execution_shape() -> None:
+    calls: list[tuple[object, ...]] = []
+    analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    request = ResearchRequest.create("/repo", "git.history", since_unix_time=1, limit=2)
+    result = BoundedOperationSpec(analyzer).execute(request, runner)
+
+    assert result == "ran"
+    assert calls == [("git.history", "/repo", analyzer, {"since_unix_time": 1, "limit": 2})]
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 
