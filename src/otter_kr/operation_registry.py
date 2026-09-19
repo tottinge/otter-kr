@@ -226,6 +226,25 @@ class BoundedTermOperationSpec:
     analyzer: object
     term_message: str
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Run this bounded term operation through shared query handling."""
+        if request.term is None:
+            return reject(request.operation, request.repository_root, self.term_message)
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            term=request.term,
+            since_unix_time=request.since_unix_time,
+            limit=request.limit,
+            pass_bounds_with_term=True,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class BoundedOperationSpec:

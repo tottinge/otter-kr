@@ -638,17 +638,7 @@ def create_server() -> FastMCP:
 
         spec = OPERATION_REGISTRY.find(operation)
         if isinstance(spec, BoundedTermOperationSpec):
-            if term is None:
-                return _invalid_query(operation, repository_root, spec.term_message)
-            return _run_bounded(
-                operation,
-                repository_root,
-                spec.analyzer,
-                term=term,
-                since_unix_time=since_unix_time,
-                limit=limit,
-                pass_bounds_with_term=True,
-            )
+            return spec.execute(request, _run_bounded, _invalid_query)
         if isinstance(spec, BoundedOperationSpec):
             return spec.execute(request, _run_bounded)
         if isinstance(spec, BoundedPathOperationSpec):
