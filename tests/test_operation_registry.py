@@ -203,6 +203,29 @@ def test_bounded_pair_operation_spec_owns_pair_admission() -> None:
     ]
 
 
+def test_line_origins_operation_spec_owns_query_admission() -> None:
+    calls: list[tuple[object, ...]] = []
+    analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    request = ResearchRequest.create(
+        "/repo", "git.line_origins", term="HEAD", path="src/a.py", lines=[3, 5]
+    )
+    result = LineOriginsOperationSpec(analyzer).execute(request, runner, reject)
+
+    assert result == "ran"
+    assert calls[0][0:3] == ("git.line_origins", "/repo", analyzer)
+    assert calls[0][3]["term"] == "HEAD"
+    assert calls[0][3]["query_object"] == LineOriginsQuery("HEAD", "src/a.py", (3, 5))
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 

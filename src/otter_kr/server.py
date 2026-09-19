@@ -31,7 +31,6 @@ from otter_kr.operation_registry import (
     LifecycleOperationSpec,
     LifecycleQuery,
     LineOriginsOperationSpec,
-    LineOriginsQuery,
     OperationRegistry,
     OperationSpec,
     ResearchRequest,
@@ -644,17 +643,7 @@ def create_server() -> FastMCP:
         if isinstance(spec, BoundedPairOperationSpec):
             return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, LineOriginsOperationSpec):
-            try:
-                query = LineOriginsQuery.create(term, path, lines)
-            except ValueError as error:
-                return _invalid_query(operation, repository_root, str(error), term=term)
-            return _run_operation(
-                operation,
-                repository_root,
-                spec.analyzer,
-                term=query.revision,
-                query_object=query,
-            )
+            return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, VariableClusterOperationSpec) and terms is not None:
             if term is not None:
                 return _invalid_query(

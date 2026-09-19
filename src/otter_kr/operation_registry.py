@@ -347,6 +347,25 @@ class BoundedPairOperationSpec:
 class LineOriginsOperationSpec:
     analyzer: object
 
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        """Admit and run a line-origins query object."""
+        try:
+            query = LineOriginsQuery.create(request.term, request.path, list(request.lines or ()))
+        except ValueError as error:
+            return reject(request.operation, request.repository_root, str(error), term=request.term)
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            term=query.revision,
+            query_object=query,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class VariableClusterOperationSpec:
