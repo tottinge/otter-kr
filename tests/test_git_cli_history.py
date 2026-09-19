@@ -370,3 +370,37 @@ def test_reads_real_parent_based_patch(tmp_path: Path) -> None:
     assert b"diff --git a/pkg/service.py b/pkg/service.py" in patch.patch
     assert b"-value = 1" in patch.patch
     assert b"+value = 2" in patch.patch
+
+
+def test_line_origins_preserve_source_revision_and_range() -> None:
+    from otter_kr.git_cli_history import GitCliHistory
+
+    origin = "a" * 40
+    output = (
+        f"{origin} 10 20 2\n"
+        "author Test User\n"
+        "author-mail <test@example.com>\n"
+        "summary: move value\n"
+        "filename service.py\n"
+        "\tvalue = 2\n"
+    ).encode()
+    result = GitCliHistory(runner=lambda command: (0, output, b"")).line_origins(
+        Path("/repo"), "service.py", "b" * 40, (20,)
+    )
+
+    assert result[0].revision == "b" * 40
+    assert result[0].source_line == 10
+    assert result[0].source_span == 2
+    assert result[0].status == "resolved"
+
+
+def test_line_origins_preserve_revision_when_history_is_unavailable() -> None:
+    from otter_kr.git_cli_history import GitCliHistory
+
+    result = GitCliHistory(runner=lambda command: (128, b"", b"missing")).line_origins(
+        Path("/repo"), "service.py", "b" * 40, (20,)
+    )
+
+    assert result[0].revision == "b" * 40
+    assert result[0].source_line is None
+    assert result[0].status == "unavailable"

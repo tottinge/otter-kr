@@ -162,6 +162,9 @@ OPERATION_REGISTRY = OperationRegistry(
                         "text": origin.text,
                         "origin_commit": origin.origin_commit,
                         "status": origin.status,
+                        "revision": origin.revision,
+                        "source_line": origin.source_line,
+                        "source_span": origin.source_span,
                     }
                     for origin in GitCliHistory().line_origins(
                         repository, query.path, query.revision, query.lines

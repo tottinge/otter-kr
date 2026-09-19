@@ -147,6 +147,8 @@ class GitCliHistory(
                 output = self._run(command).decode("utf-8", errors="replace").splitlines()
                 header = output[0].split() if output else []
                 text = output[-1][1:] if output and output[-1].startswith("\t") else ""
+                source_line = int(header[1]) if len(header) > 1 and header[1].isdigit() else None
+                source_span = int(header[3]) if len(header) > 3 and header[3].isdigit() else None
                 origins.append(
                     LineOrigin(
                         path,
@@ -154,10 +156,13 @@ class GitCliHistory(
                         text,
                         header[0] if header else None,
                         "resolved" if header else "unavailable",
+                        revision,
+                        source_line,
+                        source_span,
                     )
                 )
             except GitHistoryError:
-                origins.append(LineOrigin(path, line, "", None, "unavailable"))
+                origins.append(LineOrigin(path, line, "", None, "unavailable", revision))
         return origins
 
     def commit_file_changes(

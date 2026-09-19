@@ -86,6 +86,9 @@ class LineOrigin:
     text: str
     origin_commit: str | None
     status: str
+    revision: str | None = None
+    source_line: int | None = None
+    source_span: int | None = None
 
 
 class LineOriginSource(Protocol):
