@@ -1,9 +1,13 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from otter_kr.git_cli_history import GitCliHistory
+from otter_kr.git_cochange import collect_global_cochange
 from otter_kr.git_hunks import extract_hunks
 from otter_kr.git_ports import CommitHistoryQuery, CommitPatchRequest
+from otter_kr.git_topic import describe_topic_commit
 
 
 def _commit(repository: Path, message: str) -> str:
@@ -91,6 +95,63 @@ def test_planted_binary_change_is_explicitly_unavailable_in_numstat(tmp_path: Pa
     )
 
     assert all(item.path != "image.bin" for item in changes)
+
+
+def test_empty_repository_produces_empty_global_cochange_evidence(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+
+    report = collect_global_cochange(
+        repository,
+        since_unix_time=1,
+        limit=5,
+        changes=GitCliHistory(),
+    )
+
+    assert report.commit_count == 0
+    assert report.truncated is False
+    assert report.excluded_single_file_commits == 0
+    assert report.eligible_commit_count == 0
+    assert report.pairs == ()
+
+
+def test_broad_commit_exposes_executable_normalized_affinity_value(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    for name in ("a.py", "b.py", "c.py", "d.py"):
+        (repository / name).write_text(f"value = {name[0]!r}\n", encoding="utf-8")
+    _commit(repository, "broad change")
+
+    report = collect_global_cochange(
+        repository,
+        since_unix_time=1,
+        limit=5,
+        changes=GitCliHistory(),
+    )
+
+    assert report.eligible_commit_count == 1
+    assert len(report.pairs) == 6
+    assert all(pair.score == pytest.approx(1 / 6) for pair in report.pairs)
+    assert sum(pair.score for pair in report.pairs) == pytest.approx(1.0)
+
+
+def test_planted_binary_topic_carries_explicit_binary_evidence(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    (repository / "image.bin").write_bytes(b"\x00\x01")
+    _commit(repository, "binary initial")
+    (repository / "image.bin").write_bytes(b"\x00\x02")
+    changed = _commit(repository, "binary change")
+
+    report = describe_topic_commit(repository, changed)
+
+    assert report.status == "normal"
+    assert report.to_dict()["changes"] == [
+        {
+            "status": "M",
+            "path": "image.bin",
+            "previous_path": None,
+            "hunk_status": "binary",
+            "hunks": [],
+        }
+    ]
 
 
 def test_planted_fix_and_preimage_hunks_have_known_path_and_distinct_bodies(tmp_path: Path) -> None:

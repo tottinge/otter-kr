@@ -84,7 +84,12 @@ class GitCliHistory(
             tip,
             *(_with_path_separator(path_args)),
         )
-        stdout = self._run(command)
+        try:
+            stdout = self._run(command)
+        except GitHistoryError as error:
+            if tip == "HEAD" and error.stderr == "fatal: bad revision 'HEAD'":
+                return []
+            raise
         return _parse_commit_metadata(stdout)
 
     def commit_patch(self, repository: Path, request: CommitPatchRequest) -> RawCommitPatch:
@@ -187,7 +192,13 @@ class GitCliHistory(
             tip,
             *(_with_path_separator(path_args)),
         )
-        return _parse_file_changes(self._run(command))
+        try:
+            stdout = self._run(command)
+        except GitHistoryError as error:
+            if tip == "HEAD" and error.stderr == "fatal: bad revision 'HEAD'":
+                return []
+            raise
+        return _parse_file_changes(stdout)
 
     def _run(self, command: tuple[str, ...]) -> bytes:
         try:
