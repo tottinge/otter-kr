@@ -36,3 +36,18 @@ def test_term_change_evidence_keeps_current_and_history_distinct() -> None:
             },
         },
     }
+
+
+def test_term_change_evidence_bounds_dimensional_locations() -> None:
+    locations = [{"path": "service.py", "line": line, "column": 0} for line in range(40)]
+    report = TermChangeEvidence(
+        "Widget",
+        {"nodes": [{"name": "Widget", "locations": locations}], "edges": []},
+        {"files": []},
+        None,
+    ).to_dict()
+
+    multiplicity = report["dimensions"]["multiplicity"]
+    assert multiplicity["location_count"] == 40
+    assert len(multiplicity["locations"]) == 32
+    assert multiplicity["locations_truncated"] is True
