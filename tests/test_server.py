@@ -1777,9 +1777,13 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
         "ownership",
     }
     assert {"names", "dependencies", "tests"} <= set(report["data"])
-    assert report["data"]["names"][0]["name"] == "collect"
-    assert report["data"]["dependencies"]["edges"] == []
-    assert report["data"]["tests"][0]["symbol"] == "collect"
+    data = report["data"]
+    names = data["names"]
+    dependencies = data["dependencies"]
+    tests = data["tests"]
+    assert [name["name"] for name in names] == ["collect"]
+    assert dependencies["edges"] == []
+    assert [mapping["symbol"] for mapping in tests] == ["collect"]
 
 
 def test_variable_cluster_rejects_without_an_exact_name() -> None:
