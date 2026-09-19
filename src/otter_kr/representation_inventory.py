@@ -34,10 +34,21 @@ class RepresentationInventory:
 
 
 def collect_representation_inventory(
-    repository: Path, *, since_unix_time: int, limit: int
+    repository: Path,
+    *,
+    since_unix_time: int,
+    limit: int,
+    paths: tuple[str, ...] | None = None,
 ) -> RepresentationInventory:
     context = EvidenceContext.from_git()
     python_files = GitCliFileSource().python_files(repository.resolve())
+    selected_paths = set(paths) if paths is not None else None
+    if selected_paths is not None:
+        python_files = [
+            path
+            for path in python_files
+            if path.relative_to(repository.resolve()).as_posix() in selected_paths
+        ]
     branch_reports = tuple(
         collect_branch_additions(
             repository,
@@ -49,12 +60,32 @@ def collect_representation_inventory(
         )
         for path in python_files
     )
+    hotspots = collect_git_hotspots(
+        repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
+    ).to_dict()
+    duplicates = find_duplicate_helpers(repository).to_dict()
+    repeated_groups = find_repeated_groups(repository).to_dict()
+    if selected_paths is not None:
+        hotspots["files"] = [item for item in hotspots["files"] if item["path"] in selected_paths]
+        duplicates["groups"] = [
+            group
+            for group in duplicates["groups"]
+            if any(item["path"] in selected_paths for item in group["occurrences"])
+        ]
+        duplicates["pairs"] = [
+            pair
+            for pair in duplicates["pairs"]
+            if pair["left"]["path"] in selected_paths or pair["right"]["path"] in selected_paths
+        ]
+        repeated_groups["groups"] = [
+            group
+            for group in repeated_groups["groups"]
+            if any(item["path"] in selected_paths for item in group["occurrences"])
+        ]
     return RepresentationInventory(
-        hotspots=collect_git_hotspots(
-            repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
-        ).to_dict(),
-        duplicates=find_duplicate_helpers(repository).to_dict(),
-        repeated_groups=find_repeated_groups(repository).to_dict(),
+        hotspots=hotspots,
+        duplicates=duplicates,
+        repeated_groups=repeated_groups,
         distributions=collect_git_distributions(
             repository, since_unix_time=since_unix_time, limit=limit, history=context.metadata
         ).to_dict(),

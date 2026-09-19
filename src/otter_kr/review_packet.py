@@ -76,15 +76,7 @@ def collect_review_packet(
         else None
     )
     selected_paths = paths or ((path,) if path is not None else None)
-    file_scope_inventory = (
-        {
-            "status": "unavailable_at_file_scope",
-            "paths": list(selected_paths or ()),
-            "message": "Repository-wide inventory is omitted for a partial file-scope packet.",
-        }
-        if selected_paths is not None and tip_sha is None
-        else None
-    )
+    file_scope_inventory = None
     packet = compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
@@ -100,7 +92,10 @@ def collect_review_packet(
             revision_source or file_scope_inventory
             if revision_source is not None or file_scope_inventory is not None
             else collect_representation_inventory(
-                repository, since_unix_time=since_unix_time, limit=limit
+                repository,
+                since_unix_time=since_unix_time,
+                limit=limit,
+                paths=selected_paths,
             ).to_dict()
         ),
         python=(
