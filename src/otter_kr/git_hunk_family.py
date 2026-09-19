@@ -115,7 +115,7 @@ def expand_family(
     for depth, (commit_sha, hunks) in enumerate(candidates, 1):
         if len(members) >= limit:
             return FamilyReport(tuple(members), tuple(matches), "limit")
-        found = match_hunks(active, hunks)
+        found = match_hunks(active, hunks, prior_commit_sha=commit_sha, prior_distance=depth)
         for match in found:
             key = (commit_sha, match.prior_fingerprint)
             if key in seen:
