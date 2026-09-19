@@ -1833,6 +1833,10 @@ def test_review_packet_revision_walks_from_explicit_tip(tmp_path: Path) -> None:
 
     assert report["status"] == "ok"
     assert report["data"]["scope"]["tip_sha"] == first
+    assert report["data"]["scope"]["source_evidence"] == "unavailable_at_revision"
+    assert report["data"]["names"] == []
+    assert report["data"]["tests"] == []
+    assert report["data"]["inventory"]["status"] == "unavailable_at_revision"
     assert report["data"]["history"]["files"][0]["recent_commits"] == [first]
 
 

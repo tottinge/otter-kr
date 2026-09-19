@@ -59,6 +59,15 @@ def collect_review_packet(
         changes=context.changes,
         tip_sha=tip_sha,
     )
+    revision_source = (
+        {
+            "status": "unavailable_at_revision",
+            "tip_sha": tip_sha,
+            "message": "Current-tree Python evidence is omitted for an explicit Git revision.",
+        }
+        if tip_sha is not None
+        else None
+    )
     packet = compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
@@ -66,12 +75,21 @@ def collect_review_packet(
             "limit": limit,
             **({"path": path} if path is not None else {}),
             **({"tip_sha": tip_sha} if tip_sha is not None else {}),
+            **({"source_evidence": "unavailable_at_revision"} if tip_sha is not None else {}),
         },
         history=snapshot.to_dict(),
-        inventory=collect_representation_inventory(
-            repository, since_unix_time=since_unix_time, limit=limit
-        ).to_dict(),
-        **collect_python_review_context(repository, limit=limit, path=path).to_dict(),
+        inventory=(
+            revision_source
+            if revision_source is not None
+            else collect_representation_inventory(
+                repository, since_unix_time=since_unix_time, limit=limit
+            ).to_dict()
+        ),
+        **(
+            {"names": [], "dependencies": revision_source, "tests": []}
+            if revision_source is not None
+            else collect_python_review_context(repository, limit=limit, path=path).to_dict()
+        ),
     )
     if path is None:
         return packet
