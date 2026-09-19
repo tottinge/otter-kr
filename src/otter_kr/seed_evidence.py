@@ -53,12 +53,15 @@ def project_python_neighborhood(
     )
     nodes = tuple(node.to_dict() for node in evidence.nodes)
     edges = tuple(edge.to_dict() for edge in evidence.edges)
+    locations = tuple(
+        {"name": node.name, **location} for node in evidence.nodes for location in node.locations
+    )
     return SeedEvidenceReport(
         seed=seed,
         source="python.neighborhood",
         nodes=nodes,
         edges=edges,
-        locations=(),
+        locations=locations,
         counts={"files_scanned": evidence.files_scanned, "nodes": len(nodes), "edges": len(edges)},
         provenance={
             "operation": "python.neighborhood",

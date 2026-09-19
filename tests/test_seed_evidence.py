@@ -11,7 +11,7 @@ def test_seed_projection_preserves_neighborhood_evidence_and_provenance() -> Non
     neighborhood = PythonNeighborhoodReport(
         "Widget",
         2,
-        (NeighborhoodNode("Widget", 3),),
+        (NeighborhoodNode("Widget", 3, ({"path": "pkg/widget.py", "line": 4, "column": 6},)),),
         (NeighborhoodEdge("Widget", "Widget", 3, "exact", "exact identifier match"),),
         ({"path": "bad.py", "message": "syntax"},),
     )
@@ -21,7 +21,13 @@ def test_seed_projection_preserves_neighborhood_evidence_and_provenance() -> Non
     assert report.to_dict() == {
         "seed": "Widget",
         "source": "python.neighborhood",
-        "nodes": [{"name": "Widget", "occurrence_count": 3}],
+        "nodes": [
+            {
+                "name": "Widget",
+                "occurrence_count": 3,
+                "locations": [{"path": "pkg/widget.py", "line": 4, "column": 6}],
+            }
+        ],
         "edges": [
             {
                 "seed": "Widget",
@@ -31,7 +37,7 @@ def test_seed_projection_preserves_neighborhood_evidence_and_provenance() -> Non
                 "reason": "exact identifier match",
             }
         ],
-        "locations": [],
+        "locations": [{"name": "Widget", "path": "pkg/widget.py", "line": 4, "column": 6}],
         "counts": {"files_scanned": 2, "nodes": 1, "edges": 1},
         "provenance": {
             "operation": "python.neighborhood",

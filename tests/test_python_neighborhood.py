@@ -20,8 +20,19 @@ def test_reports_exact_and_lexical_neighbors_without_structural_edges(tmp_path: 
     report = find_python_neighborhood(tmp_path, "payment", FakeFiles([service]))
 
     assert report.to_dict()["nodes"] == [
-        {"name": "collect_payment", "occurrence_count": 1},
-        {"name": "payment_total", "occurrence_count": 2},
+        {
+            "name": "collect_payment",
+            "occurrence_count": 1,
+            "locations": [{"path": "service.py", "line": 1, "column": 0}],
+        },
+        {
+            "name": "payment_total",
+            "occurrence_count": 2,
+            "locations": [
+                {"path": "service.py", "line": 2, "column": 4},
+                {"path": "service.py", "line": 3, "column": 11},
+            ],
+        },
     ]
     assert report.to_dict()["edges"] == [
         {

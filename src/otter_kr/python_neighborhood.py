@@ -15,9 +15,13 @@ from otter_kr.python_identity import identifier_words
 class NeighborhoodNode:
     name: str
     occurrence_count: int
+    locations: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
-        return {"name": self.name, "occurrence_count": self.occurrence_count}
+        result = {"name": self.name, "occurrence_count": self.occurrence_count}
+        if self.locations:
+            result["locations"] = list(self.locations)
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +73,7 @@ def find_python_neighborhood(
 
     files = (file_source or GitCliFileSource()).python_files(repository)
     counts: Counter[str] = Counter()
+    locations: dict[str, list[dict[str, object]]] = {}
     failures: list[dict[str, object]] = []
     for path in files:
         relative = path.relative_to(repository).as_posix()
@@ -81,6 +86,9 @@ def find_python_neighborhood(
             name = node_name(node)
             if name is not None:
                 counts[name] += 1
+                locations.setdefault(name, []).append(
+                    {"path": relative, "line": node.lineno, "column": node.col_offset}
+                )
 
     exact = sorted(name for name in counts if name == seed)
     lexical = sorted(
@@ -89,7 +97,9 @@ def find_python_neighborhood(
         if name != seed and _shares_words(seed_words, identifier_words(name))
     )
     names = exact + lexical
-    nodes = tuple(NeighborhoodNode(name, counts[name]) for name in names)
+    nodes = tuple(
+        NeighborhoodNode(name, counts[name], tuple(locations.get(name, ()))) for name in names
+    )
     edges = tuple(
         NeighborhoodEdge(
             seed=seed,
