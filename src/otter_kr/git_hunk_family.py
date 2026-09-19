@@ -221,6 +221,8 @@ def collect_topic_family(
 
         candidates.append((commit, extract_hunks(patch.patch)))
     report = expand_family(topic, tuple(candidates), limit, topic_sha=topic_sha)
+    member_commits = {member.commit_sha for member in report.members}
+    path_transitions = _family_path_transitions(path_transitions, member_commits)
     matched_topics = {match.topic_fingerprint for match in report.matches}
     unmatched = tuple(hunk for hunk in topic if hunk.fingerprint not in matched_topics)
     skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
@@ -241,6 +243,12 @@ def _path_status(status: str, previous_path: str | None) -> str:
     if previous_path is not None:
         return {"R": "rename", "C": "copy"}.get(status, "path_transition")
     return {"A": "added", "D": "deleted", "M": "modified"}.get(status, "discontinuity")
+
+
+def _family_path_transitions(
+    transitions: list[PathTransition], member_commits: set[str]
+) -> list[PathTransition]:
+    return [transition for transition in transitions if transition.commit_sha in member_commits]
 
 
 def _metadata_dict(metadata) -> dict[str, object]:

@@ -1,4 +1,9 @@
-from otter_kr.git_hunk_family import FamilyReport, PathTransition, expand_family
+from otter_kr.git_hunk_family import (
+    FamilyReport,
+    PathTransition,
+    _family_path_transitions,
+    expand_family,
+)
 from otter_kr.git_hunks import extract_hunks
 
 
@@ -64,3 +69,12 @@ def test_family_report_history_factory_names_evidence_fields() -> None:
 
     assert report.topic_sha == "topic"
     assert report.budget_limit == 3
+
+
+def test_family_path_transitions_exclude_unmatched_walk_commits() -> None:
+    transitions = [
+        PathTransition("matched", 1, "rename", "new.py", "old.py"),
+        PathTransition("unmatched", 2, "modified", "other.py"),
+    ]
+
+    assert _family_path_transitions(transitions, {"matched"}) == [transitions[0]]
