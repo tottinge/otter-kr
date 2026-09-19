@@ -8,4 +8,7 @@ def test_review_packet_keeps_sources_separate() -> None:
         "scope": {"repository_root": "/repo"},
         "history": {"files": []},
         "inventory": {"hotspots": {}},
+        "names": [],
+        "dependencies": {},
+        "tests": [],
     }

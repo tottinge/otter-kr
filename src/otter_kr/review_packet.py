@@ -5,6 +5,7 @@ from pathlib import Path
 
 from otter_kr.evidence_context import EvidenceContext
 from otter_kr.git_history_snapshot import collect_git_history_snapshot
+from otter_kr.python_review_context import collect_python_review_context
 from otter_kr.representation_inventory import collect_representation_inventory
 
 
@@ -13,16 +14,33 @@ class ReviewEvidencePacket:
     scope: dict[str, object]
     history: dict[str, object]
     inventory: dict[str, object]
+    names: list[dict[str, object]]
+    dependencies: dict[str, object]
+    tests: list[dict[str, object]]
 
     def to_dict(self) -> dict[str, object]:
-        return {"scope": self.scope, "history": self.history, "inventory": self.inventory}
+        return {
+            "scope": self.scope,
+            "history": self.history,
+            "inventory": self.inventory,
+            "names": self.names,
+            "dependencies": self.dependencies,
+            "tests": self.tests,
+        }
 
 
 def compose_review_packet(
-    scope: dict[str, object], history: dict[str, object], inventory: dict[str, object]
+    scope: dict[str, object],
+    history: dict[str, object],
+    inventory: dict[str, object],
+    names: list[dict[str, object]] | None = None,
+    dependencies: dict[str, object] | None = None,
+    tests: list[dict[str, object]] | None = None,
 ) -> ReviewEvidencePacket:
     """Compose already-collected evidence without performing repository I/O."""
-    return ReviewEvidencePacket(scope, history, inventory)
+    return ReviewEvidencePacket(
+        scope, history, inventory, names or [], dependencies or {}, tests or []
+    )
 
 
 def collect_review_packet(
@@ -42,4 +60,5 @@ def collect_review_packet(
         inventory=collect_representation_inventory(
             repository, since_unix_time=since_unix_time, limit=limit
         ).to_dict(),
+        **collect_python_review_context(repository, limit=limit).to_dict(),
     )

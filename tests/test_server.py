@@ -1776,6 +1776,10 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
         "branch_growth",
         "ownership",
     }
+    assert {"names", "dependencies", "tests"} <= set(report["data"])
+    assert report["data"]["names"][0]["name"] == "collect"
+    assert report["data"]["dependencies"]["edges"] == []
+    assert report["data"]["tests"][0]["symbol"] == "collect"
 
 
 def test_variable_cluster_rejects_without_an_exact_name() -> None:
