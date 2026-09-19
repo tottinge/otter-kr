@@ -307,6 +307,66 @@ def test_carrier_guards_operation_spec_owns_path_scope() -> None:
     ]
 
 
+def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
+    calls: list[tuple[object, ...]] = []
+    cluster_analyzer = object()
+    occurrence_analyzer = object()
+
+    def runner(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "ran"
+
+    def reject(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "rejected"
+
+    def unimplemented(*args: object, **kwargs: object) -> str:
+        calls.append((*args, kwargs))
+        return "unimplemented"
+
+    spec = VariableClusterOperationSpec(cluster_analyzer, occurrence_analyzer)
+    cluster = spec.execute(
+        ResearchRequest.create(
+            "/repo", "python.variable_cluster", terms=["count", "limit"], limit=2
+        ),
+        runner,
+        reject,
+        unimplemented,
+    )
+    assert cluster == "ran"
+    assert calls[-1] == (
+        "python.variable_cluster",
+        "/repo",
+        cluster_analyzer,
+        {
+            "terms": ("count", "limit"),
+            "query_terms": ("count", "limit"),
+            "since_unix_time": None,
+            "limit": 2,
+            "pass_bounds_with_terms": True,
+        },
+    )
+
+    occurrence = spec.execute(
+        ResearchRequest.create("/repo", "python.variable_cluster", term="count"),
+        runner,
+        reject,
+        unimplemented,
+    )
+    assert occurrence == "ran"
+    assert calls[-1] == ("python.variable_cluster", "/repo", occurrence_analyzer, {"term": "count"})
+
+    assert (
+        spec.execute(
+            ResearchRequest.create("/repo", "python.variable_cluster"),
+            runner,
+            reject,
+            unimplemented,
+        )
+        == "unimplemented"
+    )
+
+
 def test_line_origins_query_develops_its_validation_boundary() -> None:
     query = LineOriginsQuery.create("HEAD", "src/a.py", [1, 2])
 

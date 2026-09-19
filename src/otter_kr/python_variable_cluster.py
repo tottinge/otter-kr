@@ -431,5 +431,5 @@ def find_variable_cluster(
     since_unix_time: int | None = None,
     limit: int | None = None,
 ) -> VariableClusterReport:
-    _validate_names(names, minimum=2, maximum=5)
+    _validate_names(names, minimum=2, maximum=8)
     return _find_variable_cluster(repository, names, since_unix_time=since_unix_time, limit=limit)

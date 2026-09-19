@@ -33,8 +33,6 @@ from otter_kr.operation_registry import (
     OperationSpec,
     ResearchRequest,
     VariableClusterOperationSpec,
-    VariableClusterQuery,
-    VariableOccurrenceQuery,
 )
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
@@ -311,6 +309,19 @@ def _invalid_query(
         "error": {
             "code": "invalid_query",
             "message": message,
+        },
+    }
+
+
+def _not_implemented(operation: str, repository_root: str) -> dict:
+    return {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": operation,
+        "query": _query(repository_root),
+        "error": {
+            "code": "not_implemented",
+            "message": "Variable-cluster evidence has not been admitted yet.",
         },
     }
 
@@ -642,28 +653,8 @@ def create_server() -> FastMCP:
             return spec.execute(request, _run_operation, _invalid_query)
         if isinstance(spec, LineOriginsOperationSpec):
             return spec.execute(request, _run_operation, _invalid_query)
-        if isinstance(spec, VariableClusterOperationSpec) and terms is not None:
-            if term is not None:
-                return _invalid_query(
-                    operation,
-                    repository_root,
-                    "terms must contain 2 to 5 distinct Python identifiers.",
-                    terms=terms,
-                )
-            try:
-                query = VariableClusterQuery.create(terms, since_unix_time, limit)
-            except ValueError as error:
-                return _invalid_query(operation, repository_root, str(error), terms=terms)
-            return _run_operation(
-                operation,
-                repository_root,
-                spec.cluster_analyzer,
-                terms=query.terms,
-                query_terms=query.terms,
-                since_unix_time=query.since_unix_time,
-                limit=query.limit,
-                pass_bounds_with_terms=True,
-            )
+        if isinstance(spec, VariableClusterOperationSpec):
+            return spec.execute(request, _run_operation, _invalid_query, _not_implemented)
         if isinstance(spec, LifecycleOperationSpec):
             return spec.execute(request, _run_operation, _run_bounded, _invalid_query)
         if isinstance(spec, CarrierGuardsOperationSpec):
@@ -724,25 +715,6 @@ def create_server() -> FastMCP:
                 since_unix_time=since_unix_time,
                 limit=limit,
             )
-        if operation == "python.variable_cluster":
-            if term is not None:
-                try:
-                    query = VariableOccurrenceQuery.create(term)
-                except ValueError as error:
-                    return _invalid_query(operation, repository_root, str(error), term=term)
-                return _run_operation(
-                    operation, repository_root, spec.occurrence_analyzer, term=query.term
-                )
-            return {
-                "schema_version": "1",
-                "status": "rejected",
-                "operation": operation,
-                "query": _query(repository_root, term, since_unix_time, limit),
-                "error": {
-                    "code": "not_implemented",
-                    "message": "Variable-cluster evidence has not been admitted yet.",
-                },
-            }
         return {
             "schema_version": "1",
             "status": "rejected",

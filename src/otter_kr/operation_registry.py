@@ -164,7 +164,7 @@ class VariableClusterQuery:
             or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
             or len(set(terms)) != len(terms)
         ):
-            raise InvalidOperationQuery("terms must contain 2 to 5 distinct Python identifiers.")
+            raise InvalidOperationQuery("terms must contain 2 to 8 distinct Python identifiers.")
         return cls(tuple(terms), since_unix_time, limit)
 
 
@@ -371,6 +371,71 @@ class LineOriginsOperationSpec:
 class VariableClusterOperationSpec:
     cluster_analyzer: object
     occurrence_analyzer: object
+
+    def _execute_occurrence(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        try:
+            query = VariableOccurrenceQuery.create(request.term)
+        except ValueError as error:
+            return reject(request.operation, request.repository_root, str(error), term=request.term)
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.occurrence_analyzer,
+            term=query.term,
+        )
+
+    def _execute_cluster(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+    ) -> object:
+        try:
+            query = VariableClusterQuery.create(
+                request.terms,
+                request.since_unix_time,
+                request.limit,
+            )
+        except ValueError as error:
+            return reject(
+                request.operation, request.repository_root, str(error), terms=request.terms
+            )
+        return runner(
+            request.operation,
+            request.repository_root,
+            self.cluster_analyzer,
+            terms=query.terms,
+            query_terms=query.terms,
+            since_unix_time=query.since_unix_time,
+            limit=query.limit,
+            pass_bounds_with_terms=True,
+        )
+
+    def execute(
+        self,
+        request: ResearchRequest,
+        runner: Callable[..., object],
+        reject: Callable[..., object],
+        unimplemented: Callable[..., object],
+    ) -> object:
+        """Admit either a multi-term cluster or a single occurrence query."""
+        if request.terms is not None and request.term is not None:
+            return reject(
+                request.operation,
+                request.repository_root,
+                "terms must contain 2 to 8 distinct Python identifiers.",
+                terms=request.terms,
+            )
+        if request.terms is None and request.term is None:
+            return unimplemented(request.operation, request.repository_root)
+        if request.term is not None:
+            return self._execute_occurrence(request, runner, reject)
+        return self._execute_cluster(request, runner, reject)
 
 
 @dataclass(frozen=True, slots=True)
