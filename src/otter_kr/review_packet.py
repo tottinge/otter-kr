@@ -44,21 +44,29 @@ def compose_review_packet(
 
 
 def collect_review_packet(
-    repository: Path, *, since_unix_time: int, limit: int
+    repository: Path, *, since_unix_time: int, limit: int, path: str | None = None
 ) -> ReviewEvidencePacket:
     context = EvidenceContext.from_git()
     snapshot = collect_git_history_snapshot(
         repository, since_unix_time=since_unix_time, limit=limit, changes=context.changes
     )
-    return compose_review_packet(
+    packet = compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
             "since_unix_time": since_unix_time,
             "limit": limit,
+            **({"path": path} if path is not None else {}),
         },
         history=snapshot.to_dict(),
         inventory=collect_representation_inventory(
             repository, since_unix_time=since_unix_time, limit=limit
         ).to_dict(),
-        **collect_python_review_context(repository, limit=limit).to_dict(),
+        **collect_python_review_context(repository, limit=limit, path=path).to_dict(),
+    )
+    if path is None:
+        return packet
+    history = dict(packet.history)
+    history["files"] = [item for item in history["files"] if item["path"] == path]
+    return ReviewEvidencePacket(
+        packet.scope, history, packet.inventory, packet.names, packet.dependencies, packet.tests
     )

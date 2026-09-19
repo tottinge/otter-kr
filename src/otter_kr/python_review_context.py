@@ -25,9 +25,15 @@ class PythonReviewContext:
         }
 
 
-def collect_python_review_context(repository: Path, *, limit: int) -> PythonReviewContext:
+def collect_python_review_context(
+    repository: Path, *, limit: int, path: str | None = None
+) -> PythonReviewContext:
     resolved = repository.resolve()
     files = GitCliFileSource().python_files(resolved)
+    if path is not None:
+        files = [
+            candidate for candidate in files if candidate.relative_to(resolved).as_posix() == path
+        ]
     names: list[dict[str, object]] = []
     for path in files:
         relative = path.relative_to(resolved).as_posix()

@@ -1786,6 +1786,31 @@ def test_review_packet_characterizes_composite_sources(tmp_path: Path) -> None:
     assert [mapping["symbol"] for mapping in tests] == ["collect"]
 
 
+def test_review_packet_file_scopes_history_and_python_context(tmp_path: Path) -> None:
+    write_python(tmp_path, "service.py", "def collect():\n    return 1\n")
+    write_python(tmp_path, "other.py", "def ignore():\n    return 2\n")
+    git_repository(tmp_path, "service.py", "other.py")
+    git_commit(tmp_path, "initial", "service.py", "other.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.review_packet.file",
+                "term": "service.py",
+                "since_unix_time": 1,
+                "limit": 1,
+            },
+        )
+    )
+
+    assert report["status"] == "ok"
+    assert report["data"]["scope"]["path"] == "service.py"
+    assert [item["path"] for item in report["data"]["history"]["files"]] == ["service.py"]
+    assert [item["name"] for item in report["data"]["names"]] == ["collect"]
+
+
 def test_variable_cluster_rejects_without_an_exact_name() -> None:
     report = asyncio.run(
         call_research(
