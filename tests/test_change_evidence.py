@@ -19,7 +19,13 @@ def test_term_change_evidence_keeps_current_and_history_distinct() -> None:
                 "occurrence_count": 0,
                 "group_count": 0,
             },
-            "multiplicity": {"source": "current.nodes", "node_count": 0, "locations": []},
+            "multiplicity": {
+                "source": "current.nodes",
+                "node_count": 0,
+                "location_count": 0,
+                "locations": [],
+                "locations_truncated": False,
+            },
             "coupling": {"source": "current.edges", "edge_count": 0},
             "history": {"source": "history.files", "file_count": 0, "paths": []},
             "representations": {

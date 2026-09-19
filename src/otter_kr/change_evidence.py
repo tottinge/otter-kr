@@ -9,6 +9,8 @@ from otter_kr.python_carrier_guards import find_carrier_guards_for_seed
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_object_lifecycle import find_object_lifecycle
 
+_MAX_DIMENSION_LOCATIONS = 32
+
 
 @dataclass(frozen=True, slots=True)
 class TermChangeEvidence:
@@ -42,6 +44,7 @@ def _dimension_index(
     nodes = current.get("nodes", [])
     edges = current.get("edges", [])
     files = history.get("files", [])
+    locations = [location for node in nodes for location in node.get("locations", [])]
     return {
         "ownership": {
             "source": "carrier_guards",
@@ -52,7 +55,9 @@ def _dimension_index(
         "multiplicity": {
             "source": "current.nodes",
             "node_count": len(nodes),
-            "locations": [location for node in nodes for location in node.get("locations", [])],
+            "location_count": len(locations),
+            "locations": locations[:_MAX_DIMENSION_LOCATIONS],
+            "locations_truncated": len(locations) > _MAX_DIMENSION_LOCATIONS,
         },
         "coupling": {
             "source": "current.edges",
