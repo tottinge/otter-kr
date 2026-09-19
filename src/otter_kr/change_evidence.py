@@ -17,14 +17,38 @@ class TermChangeEvidence:
     history: dict[str, object]
     carrier_guards: dict[str, object] | None
     object_lifecycle: dict[str, object] | None = None
+    dimensions: dict[str, dict[str, object]] | None = None
 
     def to_dict(self) -> dict[str, object]:
+        dimensions = self.dimensions or {
+            "ownership": {
+                "source": "carrier_guards",
+                "available": self.carrier_guards is not None,
+            },
+            "multiplicity": {
+                "source": "current.nodes",
+                "node_count": len(self.current.get("nodes", [])),
+            },
+            "coupling": {
+                "source": "current.edges",
+                "edge_count": len(self.current.get("edges", [])),
+            },
+            "history": {
+                "source": "history",
+                "file_count": len(self.history.get("files", [])),
+            },
+            "representations": {
+                "source": "object_lifecycle",
+                "available": self.object_lifecycle is not None,
+            },
+        }
         return {
             "term": self.term,
             "current": self.current,
             "history": self.history,
             "carrier_guards": self.carrier_guards,
             "object_lifecycle": self.object_lifecycle,
+            "dimensions": dimensions,
         }
 
 
