@@ -46,3 +46,13 @@ def test_match_candidates_preserves_an_explicit_no_match() -> None:
     assert candidate.status == "unmatched"
     assert candidate.method == "no_match"
     assert candidate.prior_fingerprint == ""
+
+
+def test_preserves_range_overlap_as_a_distinct_match_method() -> None:
+    topic = extract_hunks(b"+++ b/a.py\n@@ -10,3 +10,3 @@\n-a\n+b\n context\n")
+    prior = extract_hunks(b"+++ b/a.py\n@@ -11,3 +11,3 @@\n-x\n+y\n context\n")
+
+    match = match_hunks(topic, prior)[0]
+
+    assert match.method == "range_overlap"
+    assert match.overlap_count == 2

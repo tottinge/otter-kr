@@ -62,6 +62,17 @@ def match_hunks(
                 shared_context: tuple[str, ...] = ()
                 method = "exact_normalized_body"
                 overlap = 0
+            elif topic_hunk.path == prior_hunk.path and (
+                range_overlap := _line_overlap(
+                    topic_hunk.new_start,
+                    topic_hunk.new_count,
+                    prior_hunk.new_start,
+                    prior_hunk.new_count,
+                )
+            ):
+                shared_context = ()
+                method = "range_overlap"
+                overlap = range_overlap
             else:
                 shared_context = tuple(sorted(_shared_context(topic_hunk, prior_hunk)))
                 overlap = len(shared_context)
@@ -150,3 +161,11 @@ def _shared_context(topic: TopicHunk, prior: TopicHunk) -> set[str]:
     topic_context = {line[1:].strip() for line in topic.lines if line.startswith(" ")}
     prior_context = {line[1:].strip() for line in prior.lines if line.startswith(" ")}
     return topic_context & prior_context
+
+
+def _line_overlap(
+    left_start: int, left_count: int, right_start: int, right_count: int
+) -> int:
+    left_end = left_start + max(left_count, 1)
+    right_end = right_start + max(right_count, 1)
+    return max(0, min(left_end, right_end) - max(left_start, right_start))
