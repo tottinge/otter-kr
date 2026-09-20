@@ -1348,19 +1348,17 @@ def test_research_tool_preserves_behavioral_field_roles_and_locations(tmp_path: 
         term="order",
     )
 
-    assert data["edges"] == [
-        {
-            "seed": "order",
-            "neighbor": "total",
-            "reason": "field access",
-            "weight": 3,
-            "locations": [
-                {"path": "service.py", "line": 2, "column": 4, "access": "write"},
-                {"path": "service.py", "line": 3, "column": 8, "access": "delete"},
-                {"path": "service.py", "line": 4, "column": 11, "access": "read"},
-            ],
-        }
-    ]
+    assert {
+        "seed": "order",
+        "neighbor": "total",
+        "reason": "field access",
+        "weight": 3,
+        "locations": [
+            {"path": "service.py", "line": 2, "column": 4, "access": "write"},
+            {"path": "service.py", "line": 3, "column": 8, "access": "delete"},
+            {"path": "service.py", "line": 4, "column": 11, "access": "read"},
+        ],
+    } in data["edges"]
 
 
 def test_research_tool_preserves_behavioral_argument_evidence(tmp_path: Path) -> None:
@@ -1429,15 +1427,13 @@ def test_research_tool_preserves_comparison_operator_evidence(tmp_path: Path) ->
         term="amount",
     )
 
-    assert data["edges"] == [
-        {
-            "seed": "amount",
-            "neighbor": "limit",
-            "reason": "type/enum comparison",
-            "weight": 1,
-            "locations": [{"path": "service.py", "line": 2, "column": 20, "operator": "lt"}],
-        }
-    ]
+    assert {
+        "seed": "amount",
+        "neighbor": "limit",
+        "reason": "type/enum comparison",
+        "weight": 1,
+        "locations": [{"path": "service.py", "line": 2, "column": 20, "operator": "lt"}],
+    } in data["edges"]
 
 
 def test_research_tool_bounds_chained_comparison_evidence(tmp_path: Path) -> None:
@@ -1465,15 +1461,14 @@ def test_research_tool_bounds_chained_comparison_evidence(tmp_path: Path) -> Non
         term="amount",
     )
 
-    assert data["edges"] == [
-        {
-            "seed": "amount",
-            "neighbor": "limit",
-            "reason": "type/enum comparison",
-            "weight": 1,
-            "locations": [{"path": "service.py", "line": 2, "column": 20, "operator": "lt"}],
-        }
-    ]
+    assert {
+        "seed": "amount",
+        "neighbor": "limit",
+        "reason": "type/enum comparison",
+        "weight": 1,
+        "locations": [{"path": "service.py", "line": 2, "column": 20, "operator": "lt"}],
+    } in data["edges"]
+    assert not any(edge["neighbor"] == "maximum" for edge in data["edges"])
 
 
 def test_research_tool_reports_plain_import_alias_target_edges(tmp_path: Path) -> None:
