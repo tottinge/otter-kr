@@ -168,6 +168,38 @@ def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) ->
     assert data["topology"]["component_sizes"] == [1, 2]
 
 
+def test_graph_topology_preserves_parameters_and_formula_evidence(tmp_path: Path) -> None:
+    write_python(tmp_path, "a.py", "value = 1\n")
+    write_python(tmp_path, "b.py", "import a\n")
+    git_repository(tmp_path, "a.py", "b.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {"repository_root": str(tmp_path), "operation": "python.graph_topology"},
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.graph_topology",
+        repository_root=str(tmp_path),
+    )
+
+    topology = data["topology"]
+    assert topology["parameters"] == {
+        "language": "python",
+        "pathspec": "*.py",
+        "tracked_by": "git",
+    }
+    assert topology["formulas"] == {
+        "average_degree": "sum(degrees) / node_count",
+        "average_edge_weight": "sum(edge_weights) / edge_count",
+        "bridge_score": "sum(edge_betweenness) / node_degree",
+        "bridge_edge_ratio": "bridge_edge_count / edge_count",
+        "cross_community_edge_ratio": "cross_community_edge_count / edge_count",
+    }
+
+
 def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> None:
     server = create_server()
 
