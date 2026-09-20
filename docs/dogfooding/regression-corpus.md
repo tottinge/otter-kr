@@ -25,6 +25,8 @@ oracles; human interpretations never replace them.
 | behavioral comparison envelope | `tests/test_server.py` | MCP comparison evidence retains operator and location |
 | behavioral chained-comparison boundary | `tests/test_server.py` | MCP reports only the comparator directly tied to the seed |
 | behavioral parse-failure envelope | `tests/test_server.py` | invalid tracked files are reported without hiding valid evidence |
+| historical neighborhood envelope | `tests/test_server.py` | bounded Git co-change evidence retains paths and provenance |
+| seed evidence envelope | `tests/test_server.py` | composite evidence retains counts, provenance, guards, and lifecycle sections |
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites retain positional indexes or keyword names when receiving the seed |

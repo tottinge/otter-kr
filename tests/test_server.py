@@ -1922,6 +1922,79 @@ def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_pa
         assert source_line[item["column"] :].startswith(item["imported_name"])
 
 
+def test_research_tool_reports_bounded_historical_neighborhood(tmp_path: Path) -> None:
+    write_python(tmp_path, "a.py", "def payment():\n    return 1\n")
+    write_python(tmp_path, "b.py", "def helper():\n    return 1\n")
+    git_repository(tmp_path, "a.py", "b.py")
+    git_commit(tmp_path, "initial", "a.py", "b.py")
+    write_python(tmp_path, "a.py", "def payment():\n    return 2\n")
+    write_python(tmp_path, "b.py", "def helper():\n    return 2\n")
+    git_commit(tmp_path, "co-change", "a.py", "b.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.historical",
+                "term": "payment",
+                "since_unix_time": 1,
+                "limit": 5,
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.historical",
+        repository_root=str(tmp_path),
+        term="payment",
+        since_unix_time=1,
+        limit=5,
+    )
+
+    assert data["seed_paths"] == ["a.py"]
+    assert any(
+        edge["seed_path"] == "a.py" and edge["neighbor_path"] == "b.py" for edge in data["edges"]
+    )
+    assert data["source_file_filter"]["tracked_by"] == "git"
+    assert data["since_unix_time"] == 1
+    assert data["limit"] == 5
+
+
+def test_research_tool_preserves_seed_evidence_sections(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "service.py",
+        "def advance(order):\n    if order.status == 'open':\n        order.close()\n",
+    )
+    git_repository(tmp_path, "service.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.seed_evidence",
+                "term": "order",
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.seed_evidence",
+        repository_root=str(tmp_path),
+        term="order",
+    )
+
+    assert data["seed"] == "order"
+    assert data["source"] == "python.neighborhood"
+    assert data["counts"]["files_scanned"] == 1
+    assert data["provenance"]["operation"] == "python.neighborhood"
+    assert data["provenance"]["parse_failures"] == []
+    assert data["carrier_guards"]["carrier"] == "order"
+    assert data["object_lifecycle"] is not None
+
+
 def test_research_tool_reports_python_carrier_guards(tmp_path: Path) -> None:
     write_python(
         tmp_path,
