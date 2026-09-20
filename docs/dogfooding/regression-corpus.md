@@ -16,6 +16,7 @@ oracles; human interpretations never replace them.
 | current Python inventory | `tests/test_python_characterization.py` | tracked files and parse warnings agree with independent AST facts |
 | carrier-guard polarity and rollup | `tests/test_python_carrier_guard_characterization.py` | enclosed and early-exit forms retain their locations while sharing one normalized group |
 | mature-history triangulation | `docs/dogfooding/kr038-history-triangulation.md` | revisions and query bounds are pinned |
+| mature-reference replay | `docs/dogfooding/kr051-reference-replay.md` | pinned revisions have independently checked Python-history counts |
 | blind discovery protocol | `docs/dogfooding/kr039-blind-discovery.md` | analyst claims remain separate from MCP evidence |
 | repeatability measure | `docs/dogfooding/kr040-operational-viability.md` | unchanged requests serialize byte-stably |
 
