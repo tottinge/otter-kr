@@ -201,10 +201,13 @@ def collect_topic_family(
     repository, topic_sha: str, *, since_unix_time: int, limit: int
 ) -> FamilyReport:
     source = GitCliHistory()
-    topic = collect_topic_hunks(repository, topic_sha).hunks
-    walk = walk_topic_history(repository, topic_sha, since_unix_time=since_unix_time, limit=limit)
     topic_metadata = source.commit_metadata(
         repository, CommitHistoryQuery(1, since_unix_time, tip_sha=topic_sha)
+    )
+    canonical_topic_sha = topic_metadata[0].sha if topic_metadata else topic_sha
+    topic = collect_topic_hunks(repository, canonical_topic_sha).hunks
+    walk = walk_topic_history(
+        repository, canonical_topic_sha, since_unix_time=since_unix_time, limit=limit
     )
     candidates = []
     path_transitions: list[PathTransition] = []
@@ -231,7 +234,7 @@ def collect_topic_family(
         from otter_kr.git_hunks import extract_hunks
 
         candidates.append((commit, extract_hunks(patch.patch)))
-    report = expand_family(topic, tuple(candidates), limit, topic_sha=topic_sha)
+    report = expand_family(topic, tuple(candidates), limit, topic_sha=canonical_topic_sha)
     member_commits = {member.commit_sha for member in report.members}
     path_transitions = _family_path_transitions(path_transitions, member_commits)
     matched_topics = {match.topic_fingerprint for match in report.matches}
@@ -239,7 +242,7 @@ def collect_topic_family(
     skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
     return FamilyReport.with_history_evidence(
         report,
-        topic_sha=topic_sha,
+        topic_sha=canonical_topic_sha,
         topic_hunks=topic,
         unmatched_hunks=unmatched,
         skipped_commits=skipped,

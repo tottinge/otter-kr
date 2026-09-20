@@ -457,6 +457,39 @@ def test_git_topic_family_reports_a_bounded_family_in_the_query_envelope(tmp_pat
     assert [commit["sha"] for commit in data["history_commits"]] == [topic, first]
 
 
+def test_git_topic_family_normalizes_a_short_topic_reference(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/service.py", "value = 1\n")
+    git_repository(tmp_path, "pkg")
+    first = git_commit(tmp_path, "initial import")
+    write_python(tmp_path, "pkg/service.py", "value = 2\n")
+    topic = git_commit(tmp_path, "adjust service", "pkg/service.py")
+    short_topic = topic[:7]
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic_family",
+                "term": short_topic,
+                "since_unix_time": 1,
+                "limit": 2,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="git.topic_family",
+        repository_root=str(tmp_path),
+        term=short_topic,
+        since_unix_time=1,
+        limit=2,
+    )
+    assert data["topic_sha"] == topic
+    assert [commit["sha"] for commit in data["history_commits"]] == [topic, first]
+
+
 @pytest.mark.parametrize(
     ("bounds", "query", "message"),
     [
