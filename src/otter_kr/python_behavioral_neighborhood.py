@@ -105,6 +105,19 @@ def find_behavioral_neighborhood(
                             {"argument": keyword.arg},
                         )
             if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == seed
+            ):
+                _record(
+                    evidence,
+                    locations,
+                    (node.func.attr, "method call"),
+                    relative,
+                    node.func,
+                )
+            if (
                 isinstance(node, ast.Attribute)
                 and isinstance(node.value, ast.Name)
                 and node.value.id == seed

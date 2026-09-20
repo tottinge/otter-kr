@@ -34,6 +34,13 @@ def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
             "weight": 1,
             "locations": [{"path": "service.py", "line": 2, "column": 4, "access": "read"}],
         },
+        {
+            "seed": "amount",
+            "neighbor": "validate",
+            "reason": "method call",
+            "weight": 1,
+            "locations": [{"path": "service.py", "line": 2, "column": 4}],
+        },
     ]
 
 
