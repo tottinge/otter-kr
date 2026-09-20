@@ -84,7 +84,21 @@ def find_behavioral_neighborhood(
                 and isinstance(node.value, ast.Name)
                 and node.value.id == seed
             ):
-                _record(evidence, locations, (node.attr, "field access"), relative, node)
+                access = (
+                    "write"
+                    if isinstance(node.ctx, ast.Store)
+                    else "delete"
+                    if isinstance(node.ctx, ast.Del)
+                    else "read"
+                )
+                _record(
+                    evidence,
+                    locations,
+                    (node.attr, "field access"),
+                    relative,
+                    node,
+                    {"access": access},
+                )
             if (
                 isinstance(node, ast.Compare)
                 and isinstance(node.left, ast.Name)
@@ -123,8 +137,9 @@ def _record(
     key: tuple[str, str],
     path: str,
     node: ast.AST,
+    details: dict[str, object] | None = None,
 ) -> None:
     evidence[key] += 1
     locations.setdefault(key, []).append(
-        {"path": path, "line": node.lineno, "column": node.col_offset}
+        {"path": path, "line": node.lineno, "column": node.col_offset, **(details or {})}
     )

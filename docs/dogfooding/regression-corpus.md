@@ -15,6 +15,7 @@ oracles; human interpretations never replace them.
 | topology community ratio | `tests/test_evidence_graph.py` | cross-community counts have an explicit edge-ratio formula |
 | topology community policy | `tests/test_evidence_graph.py` | derived community measures identify the connected-component policy |
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
+| behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | topic metadata identity | `tests/test_server.py` | family reports retain metadata for the requested topic commit |
 | canonical topic references | `tests/test_server.py` | short Git references expand against the canonical topic SHA |
