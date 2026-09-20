@@ -80,3 +80,21 @@ def test_chained_comparison_reports_only_seed_direct_comparator(tmp_path: Path) 
     assert [(edge.neighbor, edge.reason) for edge in report.edges] == [
         ("limit", "type/enum comparison")
     ]
+
+
+def test_reports_seed_passed_to_named_keyword_argument(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text(
+        "def payment(amount):\n    validate(value=amount)\n",
+        encoding="utf-8",
+    )
+
+    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+
+    assert {
+        "seed": "amount",
+        "neighbor": "validate",
+        "reason": "passed as argument",
+        "weight": 1,
+        "locations": [{"path": "service.py", "line": 2, "column": 4, "argument": "value"}],
+    } in report.to_dict()["edges"]

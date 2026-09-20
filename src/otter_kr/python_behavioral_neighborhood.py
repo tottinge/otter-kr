@@ -93,6 +93,16 @@ def find_behavioral_neighborhood(
                             relative,
                             node.func,
                         )
+                for keyword in node.keywords:
+                    if isinstance(keyword.value, ast.Name) and keyword.value.id == seed:
+                        _record(
+                            evidence,
+                            locations,
+                            (node.func.id, "passed as argument"),
+                            relative,
+                            node.func,
+                            {"argument": keyword.arg},
+                        )
             if (
                 isinstance(node, ast.Attribute)
                 and isinstance(node.value, ast.Name)
