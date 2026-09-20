@@ -1440,6 +1440,42 @@ def test_research_tool_preserves_comparison_operator_evidence(tmp_path: Path) ->
     ]
 
 
+def test_research_tool_bounds_chained_comparison_evidence(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "service.py",
+        "def compare(amount, limit, maximum):\n    return amount < limit < maximum\n",
+    )
+    git_repository(tmp_path, "service.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.behavioral",
+                "term": "amount",
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.behavioral",
+        repository_root=str(tmp_path),
+        term="amount",
+    )
+
+    assert data["edges"] == [
+        {
+            "seed": "amount",
+            "neighbor": "limit",
+            "reason": "type/enum comparison",
+            "weight": 1,
+            "locations": [{"path": "service.py", "line": 2, "column": 20, "operator": "lt"}],
+        }
+    ]
+
+
 def test_research_tool_reports_plain_import_alias_target_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "service.py", "import app.models as Payment\nPayment.quote()\n")
     git_repository(tmp_path, "service.py")
