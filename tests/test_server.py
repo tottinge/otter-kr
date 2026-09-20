@@ -200,6 +200,30 @@ def test_graph_topology_preserves_parameters_and_formula_evidence(tmp_path: Path
     }
 
 
+def test_graph_topology_reports_zero_ratios_for_isolated_nodes(tmp_path: Path) -> None:
+    write_python(tmp_path, "standalone.py", "value = 1\n")
+    git_repository(tmp_path, "standalone.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {"repository_root": str(tmp_path), "operation": "python.graph_topology"},
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.graph_topology",
+        repository_root=str(tmp_path),
+    )
+
+    topology = data["topology"]
+    assert topology["node_count"] == 1
+    assert topology["edge_count"] == 0
+    assert topology["component_sizes"] == [1]
+    assert topology["bridge_edge_ratio"] == 0.0
+    assert topology["cross_community_edge_ratio"] == 0.0
+
+
 def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> None:
     server = create_server()
 

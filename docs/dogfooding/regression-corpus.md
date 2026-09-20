@@ -18,6 +18,7 @@ oracles; human interpretations never replace them.
 | topology isolated nodes | `tests/test_evidence_graph.py` | declared tracked nodes remain visible without incident edges |
 | topology module identity | `tests/test_server.py` | import edges and tracked nodes use the same module identity |
 | topology formula envelope | `tests/test_server.py` | MCP topology retains parameters and formula evidence |
+| topology isolated-ratio envelope | `tests/test_server.py` | MCP reports explicit zero ratios for edge-free tracked nodes |
 | structural provenance envelope | `tests/test_server.py` | MCP structural edges retain distinct reasons and weights |
 | behavioral field-role envelope | `tests/test_server.py` | MCP field evidence retains read/write/delete roles and locations |
 | behavioral argument envelope | `tests/test_server.py` | MCP call evidence retains positional indexes and keyword names |
