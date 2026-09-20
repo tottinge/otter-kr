@@ -452,6 +452,7 @@ def test_git_topic_family_reports_a_bounded_family_in_the_query_envelope(tmp_pat
         limit=2,
     )
     assert data["topic_sha"] == topic
+    assert data["topic_metadata"]["sha"] == topic
     assert data["budget_limit"] == 2
     assert [commit["sha"] for commit in data["history_commits"]] == [topic, first]
 

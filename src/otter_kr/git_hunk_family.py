@@ -203,7 +203,7 @@ def collect_topic_family(
     source = GitCliHistory()
     topic = collect_topic_hunks(repository, topic_sha).hunks
     walk = walk_topic_history(repository, topic_sha, since_unix_time=since_unix_time, limit=limit)
-    metadata = source.commit_metadata(
+    topic_metadata = source.commit_metadata(
         repository, CommitHistoryQuery(1, since_unix_time, tip_sha=topic_sha)
     )
     candidates = []
@@ -220,13 +220,13 @@ def collect_topic_family(
                     change.previous_path,
                 )
             )
-        metadata = source.commit_metadata(
+        candidate_metadata = source.commit_metadata(
             repository, CommitHistoryQuery(1, since_unix_time, tip_sha=commit)
         )
-        if not metadata or len(metadata[0].parent_shas) != 1:
+        if not candidate_metadata or len(candidate_metadata[0].parent_shas) != 1:
             continue
         patch = source.commit_patch(
-            repository, CommitPatchRequest(commit, metadata[0].parent_shas[0])
+            repository, CommitPatchRequest(commit, candidate_metadata[0].parent_shas[0])
         )
         from otter_kr.git_hunks import extract_hunks
 
@@ -245,7 +245,7 @@ def collect_topic_family(
         skipped_commits=skipped,
         budget_limit=limit,
         history_commits=walk.commits,
-        topic_metadata=_metadata_dict(metadata[0]) if metadata else None,
+        topic_metadata=_metadata_dict(topic_metadata[0]) if topic_metadata else None,
         path_transitions=tuple(path_transitions),
     )
 
