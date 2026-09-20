@@ -18,6 +18,7 @@ oracles; human interpretations never replace them.
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites receiving the seed are separately citeable |
 | behavioral comparison operators | `tests/test_python_behavioral_neighborhood.py` | type/enum comparison locations retain their syntactic operator |
+| behavioral chained comparisons | `tests/test_python_behavioral_neighborhood.py` | comparison evidence names only the comparator directly related to the seed |
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | topic metadata identity | `tests/test_server.py` | family reports retain metadata for the requested topic commit |
 | canonical topic references | `tests/test_server.py` | short Git references expand against the canonical topic SHA |

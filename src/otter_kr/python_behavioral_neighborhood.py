@@ -118,7 +118,7 @@ def find_behavioral_neighborhood(
                 and isinstance(node.left, ast.Name)
                 and node.left.id == seed
             ):
-                for operator, comparator in zip(node.ops, node.comparators, strict=True):
+                for operator, comparator in zip(node.ops[:1], node.comparators[:1], strict=True):
                     details = {"operator": _comparison_operator(operator)}
                     if isinstance(comparator, ast.Name):
                         _record(
