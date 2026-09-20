@@ -108,12 +108,15 @@ class EvidenceGraph:
 
 
 def build_evidence_graph(
-    edges: tuple[EvidenceEdge, ...], parameters: Mapping[str, object] | None = None
+    edges: tuple[EvidenceEdge, ...],
+    parameters: Mapping[str, object] | None = None,
+    nodes: tuple[str, ...] = (),
 ) -> EvidenceGraph:
-    """Build a canonical graph from declared evidence edges."""
-    nodes = {node for edge in edges for node in (edge.source, edge.target)}
+    """Build a canonical graph from declared evidence edges and optional isolated nodes."""
+    all_nodes = set(nodes)
+    all_nodes.update(node for edge in edges for node in (edge.source, edge.target))
     return EvidenceGraph(
-        nodes=tuple(sorted(nodes)),
+        nodes=tuple(sorted(all_nodes)),
         edges=tuple(sorted(edges, key=lambda edge: (edge.source, edge.target, edge.provenance))),
         parameters=tuple(sorted((parameters or {}).items())),
     )

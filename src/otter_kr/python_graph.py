@@ -30,6 +30,7 @@ def build_python_import_graph(repository: Path) -> EvidenceGraph:
     return build_evidence_graph(
         edges,
         parameters={"tracked_by": "git", "language": "python", "pathspec": "*.py"},
+        nodes=tuple(sorted(tracked)),
     )
 
 

@@ -45,6 +45,13 @@ def test_builder_canonicalizes_nodes_and_edges() -> None:
     assert graph.edges[0].source == "a"
 
 
+def test_builder_preserves_declared_isolated_nodes() -> None:
+    graph = build_evidence_graph((), nodes=("orphan.py",))
+
+    assert graph.nodes == ("orphan.py",)
+    assert graph.topology()["component_sizes"] == [1]
+
+
 def test_empty_graph_reports_zero_edge_ratios() -> None:
     topology = EvidenceGraph(nodes=(), edges=()).topology()
 
