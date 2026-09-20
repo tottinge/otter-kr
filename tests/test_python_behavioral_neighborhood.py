@@ -25,7 +25,7 @@ def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
             "neighbor": "Currency",
             "reason": "type/enum comparison",
             "weight": 1,
-            "locations": [{"path": "service.py", "line": 3, "column": 21}],
+            "locations": [{"path": "service.py", "line": 3, "column": 21, "operator": "eq"}],
         },
         {
             "seed": "amount",

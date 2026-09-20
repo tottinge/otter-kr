@@ -118,7 +118,8 @@ def find_behavioral_neighborhood(
                 and isinstance(node.left, ast.Name)
                 and node.left.id == seed
             ):
-                for comparator in node.comparators:
+                for operator, comparator in zip(node.ops, node.comparators, strict=True):
+                    details = {"operator": _comparison_operator(operator)}
                     if isinstance(comparator, ast.Name):
                         _record(
                             evidence,
@@ -126,6 +127,7 @@ def find_behavioral_neighborhood(
                             (comparator.id, "type/enum comparison"),
                             relative,
                             comparator,
+                            details,
                         )
                     elif isinstance(comparator, ast.Attribute) and isinstance(
                         comparator.value, ast.Name
@@ -136,6 +138,7 @@ def find_behavioral_neighborhood(
                             (comparator.value.id, "type/enum comparison"),
                             relative,
                             comparator,
+                            details,
                         )
     edges = tuple(
         BehavioralEdge(seed, neighbor, reason, weight, tuple(locations[(neighbor, reason)]))
@@ -157,3 +160,19 @@ def _record(
     locations.setdefault(key, []).append(
         {"path": path, "line": node.lineno, "column": node.col_offset, **(details or {})}
     )
+
+
+def _comparison_operator(operator: ast.cmpop) -> str:
+    names = {
+        ast.Eq: "eq",
+        ast.NotEq: "not_eq",
+        ast.Lt: "lt",
+        ast.LtE: "lt_eq",
+        ast.Gt: "gt",
+        ast.GtE: "gt_eq",
+        ast.In: "in",
+        ast.NotIn: "not_in",
+        ast.Is: "is",
+        ast.IsNot: "is_not",
+    }
+    return names.get(type(operator), type(operator).__name__)

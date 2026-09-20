@@ -17,6 +17,7 @@ oracles; human interpretations never replace them.
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites receiving the seed are separately citeable |
+| behavioral comparison operators | `tests/test_python_behavioral_neighborhood.py` | type/enum comparison locations retain their syntactic operator |
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | topic metadata identity | `tests/test_server.py` | family reports retain metadata for the requested topic commit |
 | canonical topic references | `tests/test_server.py` | short Git references expand against the canonical topic SHA |
