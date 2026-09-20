@@ -18,6 +18,7 @@ oracles; human interpretations never replace them.
 | topology isolated nodes | `tests/test_evidence_graph.py` | declared tracked nodes remain visible without incident edges |
 | topology module identity | `tests/test_server.py` | import edges and tracked nodes use the same module identity |
 | structural provenance envelope | `tests/test_server.py` | MCP structural edges retain distinct reasons and weights |
+| behavioral field-role envelope | `tests/test_server.py` | MCP field evidence retains read/write/delete roles and locations |
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites retain positional indexes or keyword names when receiving the seed |

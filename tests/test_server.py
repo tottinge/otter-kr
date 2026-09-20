@@ -1323,6 +1323,46 @@ def test_research_tool_preserves_structural_edge_provenance(tmp_path: Path) -> N
     } in data["edges"]
 
 
+def test_research_tool_preserves_behavioral_field_roles_and_locations(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "service.py",
+        "def update(order):\n    order.total = 1\n    del order.total\n    return order.total\n",
+    )
+    git_repository(tmp_path, "service.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.behavioral",
+                "term": "order",
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.behavioral",
+        repository_root=str(tmp_path),
+        term="order",
+    )
+
+    assert data["edges"] == [
+        {
+            "seed": "order",
+            "neighbor": "total",
+            "reason": "field access",
+            "weight": 3,
+            "locations": [
+                {"path": "service.py", "line": 2, "column": 4, "access": "write"},
+                {"path": "service.py", "line": 3, "column": 8, "access": "delete"},
+                {"path": "service.py", "line": 4, "column": 11, "access": "read"},
+            ],
+        }
+    ]
+
+
 def test_research_tool_reports_plain_import_alias_target_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "service.py", "import app.models as Payment\nPayment.quote()\n")
     git_repository(tmp_path, "service.py")
