@@ -69,6 +69,7 @@ def find_structural_neighborhood(
             failures.append({"path": relative, "message": str(error)})
             continue
         names = [name for node in ast.walk(tree) if (name := node_name(node))]
+        name_counts = Counter(names)
         counts.update(names)
         source_module = module_name(relative_path)
         for node in ast.walk(tree):
@@ -92,6 +93,10 @@ def find_structural_neighborhood(
         for name in set(names):
             if name != seed:
                 evidence[(name, "shared file")] += 1
+                if name_counts[seed] > 1 and name_counts[name] > 1:
+                    evidence[(name, "repeated co-occurrence")] += min(
+                        name_counts[seed], name_counts[name]
+                    )
         for parent in ast.walk(tree):
             child_names = [
                 name for node in ast.iter_child_nodes(parent) if (name := node_name(node))

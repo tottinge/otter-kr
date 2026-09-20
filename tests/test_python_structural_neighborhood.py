@@ -62,6 +62,23 @@ def test_reports_non_import_names_repeated_in_one_scope(tmp_path: Path) -> None:
     } in report.to_dict()["edges"]
 
 
+def test_reports_repeated_non_import_cooccurrence_as_distinct_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text(
+        "def payment(amount, total):\n    amount = total\n    return amount + total\n",
+        encoding="utf-8",
+    )
+
+    report = find_structural_neighborhood(tmp_path, "amount", FakeFiles([source]))
+
+    assert {
+        "seed": "amount",
+        "neighbor": "total",
+        "weight": 3,
+        "reason": "repeated co-occurrence",
+    } in report.to_dict()["edges"]
+
+
 def test_reports_direct_from_import_target_for_seed(tmp_path: Path) -> None:
     source = tmp_path / "service.py"
     source.write_text(
