@@ -21,8 +21,11 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
     assert topology["component_sizes"] == [3]
     assert topology["total_edge_weight"] == 3.0
     assert topology["parameters"] == {"edge_filter": "weight >= 1", "seed": "Payment"}
+    assert topology["bridge_edge_count"] == 2
+    assert topology["bridge_edge_ratio"] == 1.0
     assert topology["formulas"]["average_degree"] == "sum(degrees) / node_count"
     assert topology["formulas"]["bridge_score"] == "sum(edge_betweenness) / node_degree"
+    assert topology["formulas"]["bridge_edge_ratio"] == "bridge_edge_count / edge_count"
 
 
 def test_builder_canonicalizes_nodes_and_edges() -> None:

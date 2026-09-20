@@ -11,6 +11,7 @@ oracles; human interpretations never replace them.
 | empty repository | `tests/test_git_characterization.py` | empty history produces an empty bounded report |
 | broad commit affinity | `tests/test_git_characterization.py` | executable `1/C(N,2)` values sum to one pair-affinity mass |
 | topology parameter provenance | `tests/test_evidence_graph.py` | declared graph parameters accompany derived topology measures |
+| topology bridge ratio | `tests/test_evidence_graph.py` | bridge-edge counts and ratios are explicit and formula-backed |
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | topic metadata identity | `tests/test_server.py` | family reports retain metadata for the requested topic commit |
 | canonical topic references | `tests/test_server.py` | short Git references expand against the canonical topic SHA |

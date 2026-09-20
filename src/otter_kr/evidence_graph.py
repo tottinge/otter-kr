@@ -45,6 +45,7 @@ class EvidenceGraph:
         )
         edge_count = graph.number_of_edges()
         node_count = graph.number_of_nodes()
+        bridge_edge_count = sum(1 for _ in nx.bridges(graph))
         total_weight = sum(edge.weight for edge in self.edges)
         edge_betweenness = nx.edge_betweenness_centrality(graph, normalized=True)
         bridge_scores = {
@@ -72,10 +73,13 @@ class EvidenceGraph:
             "component_count": len(components),
             "component_sizes": [len(component) for component in components],
             "total_edge_weight": total_weight,
+            "bridge_edge_count": bridge_edge_count,
+            "bridge_edge_ratio": round(bridge_edge_count / edge_count, 2) if edge_count else 0.0,
             "formulas": {
                 "average_degree": "sum(degrees) / node_count",
                 "average_edge_weight": "sum(edge_weights) / edge_count",
                 "bridge_score": "sum(edge_betweenness) / node_degree",
+                "bridge_edge_ratio": "bridge_edge_count / edge_count",
             },
             "bridge_scores": bridge_scores,
         }
