@@ -70,6 +70,7 @@ class EvidenceGraph:
             "average_edge_weight": round(total_weight / edge_count, 2) if edge_count else 0.0,
             "community_ids": dict(sorted(communities)),
             "cross_community_edge_count": cross,
+            "cross_community_edge_ratio": round(cross / edge_count, 2) if edge_count else 0.0,
             "component_count": len(components),
             "component_sizes": [len(component) for component in components],
             "total_edge_weight": total_weight,
@@ -80,6 +81,7 @@ class EvidenceGraph:
                 "average_edge_weight": "sum(edge_weights) / edge_count",
                 "bridge_score": "sum(edge_betweenness) / node_degree",
                 "bridge_edge_ratio": "bridge_edge_count / edge_count",
+                "cross_community_edge_ratio": "cross_community_edge_count / edge_count",
             },
             "bridge_scores": bridge_scores,
         }

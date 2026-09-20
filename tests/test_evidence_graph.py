@@ -19,6 +19,7 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
     assert topology["cross_community_edge_count"] == 0
     assert topology["component_count"] == 1
     assert topology["component_sizes"] == [3]
+    assert topology["cross_community_edge_ratio"] == 0.0
     assert topology["total_edge_weight"] == 3.0
     assert topology["parameters"] == {"edge_filter": "weight >= 1", "seed": "Payment"}
     assert topology["bridge_edge_count"] == 2
@@ -26,6 +27,10 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
     assert topology["formulas"]["average_degree"] == "sum(degrees) / node_count"
     assert topology["formulas"]["bridge_score"] == "sum(edge_betweenness) / node_degree"
     assert topology["formulas"]["bridge_edge_ratio"] == "bridge_edge_count / edge_count"
+    assert (
+        topology["formulas"]["cross_community_edge_ratio"]
+        == "cross_community_edge_count / edge_count"
+    )
 
 
 def test_builder_canonicalizes_nodes_and_edges() -> None:
