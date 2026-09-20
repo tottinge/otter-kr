@@ -11,6 +11,7 @@ oracles; human interpretations never replace them.
 | empty repository | `tests/test_git_characterization.py` | empty history produces an empty bounded report |
 | broad commit affinity | `tests/test_git_characterization.py` | executable `1/C(N,2)` values sum to one pair-affinity mass |
 | topology parameter provenance | `tests/test_evidence_graph.py` | declared graph parameters accompany derived topology measures |
+| topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | repeated edits and deletion | `tests/test_git_characterization.py` | bounded history is deterministic; deleted paths remain explicit |
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |
 | merge commit | `tests/test_git_characterization.py` | multiple parents are preserved |

@@ -107,6 +107,7 @@ class FamilyReport:
             budget_limit,
             history_commits,
             topic_metadata,
+            report.ancestry_edges,
         )
 
     def to_dict(self) -> dict[str, object]:

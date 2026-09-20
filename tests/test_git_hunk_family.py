@@ -1,4 +1,5 @@
 from otter_kr.git_hunk_family import (
+    FamilyAncestryEdge,
     FamilyReport,
     PathTransition,
     _family_path_transitions,
@@ -72,6 +73,26 @@ def test_family_report_history_factory_names_evidence_fields() -> None:
 
     assert report.topic_sha == "topic"
     assert report.budget_limit == 3
+
+
+def test_family_report_history_factory_preserves_ancestry_edges() -> None:
+    topic = extract_hunks(b"+++ b/a.py\n@@ -1 +1 @@\n-old\n+new\n")
+    edge = FamilyAncestryEdge("topic", "prior", "topic-hunk", "prior-hunk", 1, "exact")
+    base = FamilyReport((), (), "exhausted", ancestry_edges=(edge,))
+
+    report = FamilyReport.with_history_evidence(
+        base,
+        topic_sha="topic",
+        topic_hunks=topic,
+        unmatched_hunks=(),
+        skipped_commits=(),
+        budget_limit=3,
+        history_commits=(),
+        topic_metadata=None,
+        path_transitions=(),
+    )
+
+    assert report.ancestry_edges == (edge,)
 
 
 def test_family_path_transitions_exclude_unmatched_walk_commits() -> None:
