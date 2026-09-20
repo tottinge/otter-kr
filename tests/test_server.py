@@ -1284,6 +1284,45 @@ def test_research_tool_reports_structural_import_target_edges(tmp_path: Path) ->
     } in data["edges"]
 
 
+def test_research_tool_preserves_structural_edge_provenance(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "service.py",
+        "def payment(amount, total):\n    amount = total\n    return amount + total\n",
+    )
+    git_repository(tmp_path, "service.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.structural",
+                "term": "amount",
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.structural",
+        repository_root=str(tmp_path),
+        term="amount",
+    )
+
+    assert {
+        "seed": "amount",
+        "neighbor": "total",
+        "weight": 3,
+        "reason": "repeated co-occurrence",
+    } in data["edges"]
+    assert {
+        "seed": "amount",
+        "neighbor": "total",
+        "weight": 1,
+        "reason": "shared scope",
+    } in data["edges"]
+
+
 def test_research_tool_reports_plain_import_alias_target_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "service.py", "import app.models as Payment\nPayment.quote()\n")
     git_repository(tmp_path, "service.py")
