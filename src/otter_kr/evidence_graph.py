@@ -26,7 +26,10 @@ class EvidenceGraph:
         graph = nx.Graph()
         graph.add_nodes_from(self.nodes)
         for edge in self.edges:
-            graph.add_edge(edge.source, edge.target, weight=edge.weight)
+            if graph.has_edge(edge.source, edge.target):
+                graph[edge.source][edge.target]["weight"] += edge.weight
+            else:
+                graph.add_edge(edge.source, edge.target, weight=edge.weight)
         degrees = dict(graph.degree())
         components = tuple(
             sorted(
@@ -41,19 +44,19 @@ class EvidenceGraph:
         )
         community_by_node = dict(communities)
         cross = sum(
-            community_by_node[edge.source] != community_by_node[edge.target] for edge in self.edges
+            community_by_node[source] != community_by_node[target] for source, target in graph.edges
         )
         edge_count = graph.number_of_edges()
         node_count = graph.number_of_nodes()
         bridge_edge_count = sum(1 for _ in nx.bridges(graph))
-        total_weight = sum(edge.weight for edge in self.edges)
+        total_weight = sum(data["weight"] for _, _, data in graph.edges(data=True))
         edge_betweenness = nx.edge_betweenness_centrality(graph, normalized=True)
         bridge_scores = {
             node: round(
                 sum(
                     edge_betweenness.get(tuple(sorted((edge.source, edge.target))), 0.0)
-                    for edge in self.edges
-                    if node in (edge.source, edge.target)
+                    for source, target in graph.edges
+                    if node in (source, target)
                 )
                 / degrees[node],
                 2,

@@ -14,6 +14,7 @@ oracles; human interpretations never replace them.
 | topology bridge ratio | `tests/test_evidence_graph.py` | bridge-edge counts and ratios are explicit and formula-backed |
 | topology community ratio | `tests/test_evidence_graph.py` | cross-community counts have an explicit edge-ratio formula |
 | topology community policy | `tests/test_evidence_graph.py` | derived community measures identify the connected-component policy |
+| topology parallel-edge aggregation | `tests/test_evidence_graph.py` | parallel provenance edges combine before weighted metrics are calculated |
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
 | behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites retain positional indexes or keyword names when receiving the seed |

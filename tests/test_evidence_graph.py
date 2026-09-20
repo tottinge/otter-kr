@@ -51,3 +51,18 @@ def test_empty_graph_reports_zero_edge_ratios() -> None:
     assert topology["edge_count"] == 0
     assert topology["bridge_edge_ratio"] == 0.0
     assert topology["cross_community_edge_ratio"] == 0.0
+
+
+def test_topology_aggregates_parallel_evidence_weights_before_averaging() -> None:
+    topology = EvidenceGraph(
+        nodes=("a", "b"),
+        edges=(
+            EvidenceEdge("a", "b", 2.0, "structural"),
+            EvidenceEdge("a", "b", 1.0, "historical"),
+        ),
+    ).topology()
+
+    assert topology["edge_count"] == 1
+    assert topology["total_edge_weight"] == 3.0
+    assert topology["average_edge_weight"] == 3.0
+    assert topology["bridge_scores"] == {"a": 1.0, "b": 1.0}
