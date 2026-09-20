@@ -43,3 +43,11 @@ def test_builder_canonicalizes_nodes_and_edges() -> None:
     )
     assert graph.nodes == ("a", "b", "c")
     assert graph.edges[0].source == "a"
+
+
+def test_empty_graph_reports_zero_edge_ratios() -> None:
+    topology = EvidenceGraph(nodes=(), edges=()).topology()
+
+    assert topology["edge_count"] == 0
+    assert topology["bridge_edge_ratio"] == 0.0
+    assert topology["cross_community_edge_ratio"] == 0.0
