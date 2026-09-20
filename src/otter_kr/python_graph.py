@@ -16,7 +16,7 @@ def build_python_import_graph(repository: Path) -> EvidenceGraph:
     }
     edges = tuple(
         EvidenceEdge(
-            source=edge.path,
+            source=edge.source_module,
             target=(
                 edge.target_module
                 if edge.target_module in tracked

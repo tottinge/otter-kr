@@ -138,6 +138,36 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     assert_invalid_python_warning(data["warnings"][1], "broken.py")
 
 
+def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) -> None:
+    write_python(tmp_path, "pkg/__init__.py", "")
+    write_python(tmp_path, "pkg/a.py", "value = 1\n")
+    write_python(tmp_path, "pkg/b.py", "import pkg.a\n")
+    git_repository(tmp_path, "pkg")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {"repository_root": str(tmp_path), "operation": "python.graph_topology"},
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.graph_topology",
+        repository_root=str(tmp_path),
+    )
+
+    assert data["nodes"] == ["pkg.__init__", "pkg.a", "pkg.b"]
+    assert data["edges"] == [
+        {
+            "source": "pkg.b",
+            "target": "pkg.a",
+            "weight": 1.0,
+            "provenance": "python.import",
+        }
+    ]
+    assert data["topology"]["component_sizes"] == [1, 2]
+
+
 def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> None:
     server = create_server()
 
