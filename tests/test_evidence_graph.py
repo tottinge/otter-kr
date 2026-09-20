@@ -8,6 +8,7 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
             EvidenceEdge("a", "b", 2.0, "structural"),
             EvidenceEdge("b", "c", 1.0, "historical"),
         ),
+        parameters=(("seed", "Payment"), ("edge_filter", "weight >= 1")),
     ).topology()
 
     assert topology["node_count"] == 3
@@ -19,6 +20,7 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
     assert topology["component_count"] == 1
     assert topology["component_sizes"] == [3]
     assert topology["total_edge_weight"] == 3.0
+    assert topology["parameters"] == {"edge_filter": "weight >= 1", "seed": "Payment"}
     assert topology["formulas"]["average_degree"] == "sum(degrees) / node_count"
     assert topology["formulas"]["bridge_score"] == "sum(edge_betweenness) / node_degree"
 

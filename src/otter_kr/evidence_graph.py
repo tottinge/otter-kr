@@ -62,6 +62,7 @@ class EvidenceGraph:
             for node in sorted(graph)
         }
         return {
+            "parameters": dict(self.parameters),
             "node_count": node_count,
             "edge_count": edge_count,
             "average_degree": round(sum(degrees.values()) / node_count, 2) if node_count else 0.0,
