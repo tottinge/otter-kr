@@ -15,6 +15,7 @@ def test_topology_is_deterministic_and_exposes_formulas() -> None:
     assert topology["edge_count"] == 2
     assert topology["average_degree"] == 1.33
     assert topology["average_edge_weight"] == 1.5
+    assert topology["community_method"] == "connected_components"
     assert topology["community_ids"] == {"a": 0, "b": 0, "c": 0}
     assert topology["cross_community_edge_count"] == 0
     assert topology["component_count"] == 1

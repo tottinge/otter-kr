@@ -68,6 +68,7 @@ class EvidenceGraph:
             "edge_count": edge_count,
             "average_degree": round(sum(degrees.values()) / node_count, 2) if node_count else 0.0,
             "average_edge_weight": round(total_weight / edge_count, 2) if edge_count else 0.0,
+            "community_method": "connected_components",
             "community_ids": dict(sorted(communities)),
             "cross_community_edge_count": cross,
             "cross_community_edge_ratio": round(cross / edge_count, 2) if edge_count else 0.0,
