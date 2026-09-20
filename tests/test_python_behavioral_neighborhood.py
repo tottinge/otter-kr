@@ -47,14 +47,17 @@ def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
 def test_reports_field_store_role_separately_from_field_read(tmp_path: Path) -> None:
     source = tmp_path / "service.py"
     source.write_text(
-        "def payment(amount):\n    amount.total = 1\n    return amount.total\n",
+        "def payment(amount):\n"
+        "    amount.total = 1\n"
+        "    del amount.total\n"
+        "    return amount.total\n",
         encoding="utf-8",
     )
 
     report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
 
     locations = next(edge for edge in report.edges if edge.neighbor == "total").locations
-    assert [location["access"] for location in locations] == ["write", "read"]
+    assert [location["access"] for location in locations] == ["write", "delete", "read"]
 
 
 def test_reports_seed_passed_to_named_call(tmp_path: Path) -> None:
