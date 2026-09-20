@@ -80,6 +80,20 @@ def find_behavioral_neighborhood(
                             argument,
                         )
             if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id != seed
+            ):
+                for argument in node.args:
+                    if isinstance(argument, ast.Name) and argument.id == seed:
+                        _record(
+                            evidence,
+                            locations,
+                            (node.func.id, "passed as argument"),
+                            relative,
+                            node.func,
+                        )
+            if (
                 isinstance(node, ast.Attribute)
                 and isinstance(node.value, ast.Name)
                 and node.value.id == seed
