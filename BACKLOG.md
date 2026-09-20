@@ -21,9 +21,10 @@ Durable architectural decisions live in [`docs/adr/`](docs/adr/); this file trac
 admissions and validation work.
 
 The dated acceptance audit in
-[`docs/backlog-audit-2026-09-02.md`](docs/backlog-audit-2026-09-02.md) distinguishes complete
-implementations with stale labels from partial implementations that still miss written acceptance
-criteria. A matching module name alone is not treated as shipped evidence.
+[`docs/backlog-audit-2026-09-02.md`](docs/backlog-audit-2026-09-02.md) is retained as a historical
+snapshot. The current reconciliation and active follow-up order live in
+[`docs/backlog-audit-2026-09-19.md`](docs/backlog-audit-2026-09-19.md). A matching module name alone
+is not treated as shipped evidence.
 
 ## Reference implementation notes: `../gitminer-dash`
 
@@ -682,6 +683,40 @@ carrier identifier). Restart the otter-kr MCP from the current tree before each 
 - **Admits:** planted fixtures for enclosed, early-exit, and rollup contracts, plus a pinned
   dogfood note when useful.
 - **Acceptance:** characterization runs under `full_test`.
+
+### Active follow-up work
+
+These items preserve the shipped capabilities above while closing acceptance and study gaps found
+by the current reconciliation. They are deliberately evidence and characterization work, not new
+inference or recommendation behavior.
+
+#### KR-050 — Complete characterization replay artifacts
+
+- **Admits:** deterministic fixture identifiers, negative relationship cases, and versioned replay
+  metadata for the planted Git corpus.
+- **Observable result:** each fixture can be regenerated and independently checked without relying
+  on incidental temporary-directory names or human interpretation.
+
+#### KR-051 — Reproduce mature-reference and blind-study packets
+
+- **Admits:** pinned packets and independent checks for the selected mature repositories, with fixed
+  query budgets and raw operational measures.
+- **Observable result:** sampled scores, history edges, warnings, elapsed time, and analyst claims
+  are separately replayable and citeable.
+
+#### KR-052 — Close neighborhood acceptance evidence
+
+- **Admits:** the remaining structural, historical, behavioral, and topology acceptance cases in
+  KR-020 through KR-022a, one evidence shape per slice.
+- **Observable result:** edge provenance, filters, formulas, and locations are independently
+  reproducible without turning association into concept identity.
+
+#### KR-053 — Close topic-family acceptance evidence
+
+- **Admits:** the remaining end-to-end characterization cases across KR-023 through KR-031 in
+  dependency order.
+- **Observable result:** every family member, match, path transition, termination, cache decision,
+  and uncertainty remains citeable under explicit budgets and policies.
 ### KR-042 — Report variable-cluster evidence *(shipped across `d3a1b2b`–`bbfab2d`)*
 
 - **Admits:** bounded Python variable names and, later, explicitly supplied name clusters.
