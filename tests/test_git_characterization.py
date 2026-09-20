@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,10 @@ from otter_kr.git_topic import describe_topic_commit
 
 
 def _commit(repository: Path, message: str) -> str:
+    fixture_environment = os.environ | {
+        "GIT_AUTHOR_DATE": "2099-01-01T00:00:00Z",
+        "GIT_COMMITTER_DATE": "2099-01-01T00:00:00Z",
+    }
     subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
     subprocess.run(
         [
@@ -26,6 +31,7 @@ def _commit(repository: Path, message: str) -> str:
             "-m",
             message,
         ],
+        env=fixture_environment,
         check=True,
     )
     return subprocess.run(
@@ -38,7 +44,7 @@ def _commit(repository: Path, message: str) -> str:
 
 def _repository(tmp_path: Path) -> Path:
     repository = tmp_path / "fixture"
-    repository.mkdir()
+    repository.mkdir(parents=True)
     subprocess.run(["git", "init", "-q", str(repository)], check=True)
     return repository
 
@@ -62,6 +68,43 @@ def test_planted_two_file_change_and_rename_have_independent_git_oracles(tmp_pat
     rename_change = next(change for change in changes if change.commit_sha == renamed)
     assert rename_change.path == "renamed.py"
     assert rename_change.previous_path == "a.py"
+
+
+def test_planted_fixture_commit_ids_are_reproducible(tmp_path: Path) -> None:
+    first_repository = _repository(tmp_path / "first")
+    second_repository = _repository(tmp_path / "second")
+    for repository in (first_repository, second_repository):
+        (repository / "a.py").write_text("a = 1\n", encoding="utf-8")
+        (repository / "b.py").write_text("b = 1\n", encoding="utf-8")
+
+    first = _commit(first_repository, "initial")
+    second = _commit(second_repository, "initial")
+
+    assert first == second
+    assert len(first) == 40
+
+
+def test_unrelated_single_file_edits_do_not_create_affinity_pairs(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    (repository / "a.py").write_text("a = 1\n", encoding="utf-8")
+    _commit(repository, "initial")
+    (repository / "b.py").write_text("b = 1\n", encoding="utf-8")
+    _commit(repository, "initial b")
+    (repository / "a.py").write_text("a = 2\n", encoding="utf-8")
+    _commit(repository, "edit a")
+    (repository / "b.py").write_text("b = 2\n", encoding="utf-8")
+    _commit(repository, "edit b")
+
+    report = collect_global_cochange(
+        repository,
+        since_unix_time=1,
+        limit=5,
+        changes=GitCliHistory(),
+    )
+
+    assert report.excluded_single_file_commits == 4
+    assert report.eligible_commit_count == 0
+    assert report.pairs == ()
 
 
 def test_planted_repeated_edits_and_deletion_preserve_commit_order(tmp_path: Path) -> None:
