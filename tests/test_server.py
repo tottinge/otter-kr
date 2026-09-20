@@ -1471,6 +1471,36 @@ def test_research_tool_bounds_chained_comparison_evidence(tmp_path: Path) -> Non
     assert not any(edge["neighbor"] == "maximum" for edge in data["edges"])
 
 
+def test_research_tool_reports_behavioral_parse_failures_without_losing_valid_edges(
+    tmp_path: Path,
+) -> None:
+    write_python(tmp_path, "valid.py", "def compare(amount, limit):\n    return amount < limit\n")
+    write_python(tmp_path, "broken.py", "def compare(:\n")
+    git_repository(tmp_path, "valid.py", "broken.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.neighborhood.behavioral",
+                "term": "amount",
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.neighborhood.behavioral",
+        repository_root=str(tmp_path),
+        term="amount",
+    )
+
+    assert any(edge["neighbor"] == "limit" for edge in data["edges"])
+    assert any(
+        failure["path"] == "broken.py" and failure["message"] for failure in data["parse_failures"]
+    )
+
+
 def test_research_tool_reports_plain_import_alias_target_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "service.py", "import app.models as Payment\nPayment.quote()\n")
     git_repository(tmp_path, "service.py")
