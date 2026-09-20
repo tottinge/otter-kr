@@ -64,7 +64,7 @@ def test_reports_seed_passed_to_named_call(tmp_path: Path) -> None:
         "neighbor": "validate",
         "reason": "passed as argument",
         "weight": 1,
-        "locations": [{"path": "service.py", "line": 2, "column": 4}],
+        "locations": [{"path": "service.py", "line": 2, "column": 4, "argument_index": 0}],
     } in report.to_dict()["edges"]
 
 

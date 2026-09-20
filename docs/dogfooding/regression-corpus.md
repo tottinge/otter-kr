@@ -16,7 +16,7 @@ oracles; human interpretations never replace them.
 | topology community policy | `tests/test_evidence_graph.py` | derived community measures identify the connected-component policy |
 | repeated structural co-occurrence | `tests/test_python_structural_neighborhood.py` | repeated non-import names have a distinct structural reason and bounded count |
 | behavioral field roles | `tests/test_python_behavioral_neighborhood.py` | field evidence distinguishes reads, writes, and deletes at citeable locations |
-| behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites receiving the seed positionally or by keyword are separately citeable |
+| behavioral call arguments | `tests/test_python_behavioral_neighborhood.py` | named call sites retain positional indexes or keyword names when receiving the seed |
 | behavioral comparison operators | `tests/test_python_behavioral_neighborhood.py` | type/enum comparison locations retain their syntactic operator |
 | behavioral chained comparisons | `tests/test_python_behavioral_neighborhood.py` | comparison evidence names only the comparator directly related to the seed |
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |

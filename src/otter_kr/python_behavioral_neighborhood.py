@@ -84,7 +84,7 @@ def find_behavioral_neighborhood(
                 and isinstance(node.func, ast.Name)
                 and node.func.id != seed
             ):
-                for argument in node.args:
+                for argument_index, argument in enumerate(node.args):
                     if isinstance(argument, ast.Name) and argument.id == seed:
                         _record(
                             evidence,
@@ -92,6 +92,7 @@ def find_behavioral_neighborhood(
                             (node.func.id, "passed as argument"),
                             relative,
                             node.func,
+                            {"argument_index": argument_index},
                         )
                 for keyword in node.keywords:
                     if isinstance(keyword.value, ast.Name) and keyword.value.id == seed:
