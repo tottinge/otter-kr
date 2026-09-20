@@ -14,6 +14,7 @@ oracles; human interpretations never replace them.
 | topic-family ancestry preservation | `tests/test_git_hunk_family.py` | composite history construction retains matched ancestry edges |
 | topic metadata identity | `tests/test_server.py` | family reports retain metadata for the requested topic commit |
 | canonical topic references | `tests/test_server.py` | short Git references expand against the canonical topic SHA |
+| topic-family replay | `docs/dogfooding/kr053-topic-family-replay.md` | bounded family counts and the canonical-reference correction remain citeable |
 | repeated edits and deletion | `tests/test_git_characterization.py` | bounded history is deterministic; deleted paths remain explicit |
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |
 | merge commit | `tests/test_git_characterization.py` | multiple parents are preserved |
