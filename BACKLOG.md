@@ -697,7 +697,7 @@ inference or recommendation behavior.
 - **Observable result:** each fixture can be regenerated and independently checked without relying
   on incidental temporary-directory names or human interpretation.
 
-#### KR-051 — Reproduce mature-reference and blind-study packets
+#### KR-051 — Reproduce mature-reference and blind-study packets *(completed in this slice)*
 
 - **Admits:** pinned packets and independent checks for the selected mature repositories, with fixed
   query budgets and raw operational measures.

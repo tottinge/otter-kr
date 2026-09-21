@@ -45,6 +45,7 @@ oracles; human interpretations never replace them.
 | duplicate compact/full comparison | `docs/dogfooding/kr054-duplicate-evidence.md` | five-repository replay measures payload reduction while preserving groups, citations, shapes, and warnings |
 | planted Git replay manifest | `docs/dogfooding/kr050-git-characterization.md`, `tests/test_git_characterization.py` | versioned fixture identity, negative cases, and direct Git oracle rules remain explicit |
 | variable-cluster admission bounds | `tests/test_operation_registry.py`, `tests/test_server.py` | two through eight names are admitted; nine and mixed term/terms queries are rejected with truthful messages |
+| mature and blind replay delta | `docs/dogfooding/kr051-reference-replay.md` | pinned mature-reference and fixed blind packets retain raw counts, sizes, elapsed times, warnings, and revisions |
 | topic-family replay | `docs/dogfooding/kr053-topic-family-replay.md` | bounded family counts and the canonical-reference correction remain citeable |
 | repeated edits and deletion | `tests/test_git_characterization.py` | bounded history is deterministic; deleted paths remain explicit |
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |
