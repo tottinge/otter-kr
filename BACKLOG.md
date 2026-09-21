@@ -718,7 +718,7 @@ inference or recommendation behavior.
 - **Observable result:** every family member, match, path transition, termination, cache decision,
   and uncertainty remains citeable under explicit budgets and policies.
 
-#### KR-054 — Compact duplicate evidence *(planned; progressive admission)*
+#### KR-054 — Compact duplicate evidence *(completed; progressive admission)*
 
 - **Purpose:** reduce token cost and improve human readability without weakening stable duplicate
   identity or source citations.
