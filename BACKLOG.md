@@ -717,6 +717,31 @@ inference or recommendation behavior.
   dependency order.
 - **Observable result:** every family member, match, path transition, termination, cache decision,
   and uncertainty remains citeable under explicit budgets and policies.
+
+#### KR-054 — Compact duplicate evidence *(planned; progressive admission)*
+
+- **Purpose:** reduce token cost and improve human readability without weakening stable duplicate
+  identity or source citations.
+- **Admission boundary:** duplicate-group representation, from verbose normalized AST fingerprints
+  toward compact identity and structural shape evidence.
+- **Default reject:** no silent change to the existing `python.duplicates` response; unsupported
+  detail modes remain rejected until explicitly admitted.
+- **Slice 0 — Measure current cost** *(gpt-5.6-luna)*: characterize serialized fingerprint sizes,
+  occurrence citations, and current duplicate-group contracts across planted fixtures and the five
+  dogfood repositories.
+- **Slice 1 — Admit digest identity** *(gpt-5.6-sol)*: add a stable short digest alongside the
+  existing fingerprint, with regression tests proving grouping and citations are unchanged.
+- **Slice 2 — Admit compact structural shape** *(gpt-5.6-sol)*: report bounded shape facts such as
+  helper kind, statement count, parameter count, call count, and branch count; keep raw identity
+  evidence available.
+- **Slice 3 — Admit an explicit compact operation** *(gpt-5.6-terra)*: expose a stateless
+  `python.duplicates.compact` operation with a closed schema and stable rejection for unsupported
+  detail requests; preserve `python.duplicates` unchanged.
+- **Slice 4 — Compare agent usefulness** *(gpt-5.6-astra)*: replay the compact and full forms on
+  mature and blind targets, recording token size, candidate selection, grounding citations, and
+  whether the resulting refactoring hypotheses are actionable.
+- **Quality gate:** stop or revise the plan if compact output saves tokens but loses the ability to
+  identify occurrences, distinguish unrelated structures, or support source validation.
 ### KR-042 — Report variable-cluster evidence *(shipped across `d3a1b2b`–`bbfab2d`)*
 
 - **Admits:** bounded Python variable names and, later, explicitly supplied name clusters.

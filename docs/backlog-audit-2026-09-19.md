@@ -29,6 +29,7 @@ The following are follow-up work, not relabeling of shipped capabilities:
 | KR-051 | active | pinned mature-reference packets, independent score/history checks, and blind-study records |
 | KR-052 | complete | structural, historical, behavioral, and topology evidence are characterized |
 | KR-053 | complete | end-to-end family, transition, termination, uncertainty, and cache evidence are characterized |
+| KR-054 | planned | compact duplicate evidence is split into measurement, identity, shape, operation, and usefulness slices |
 
 The carrier-guard and variable-cluster sequence (KR-042–049) is admitted and regression-tested;
 future work must preserve its evidence-only boundary. None of the active items authorizes semantic
