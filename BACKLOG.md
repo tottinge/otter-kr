@@ -690,7 +690,7 @@ These items preserve the shipped capabilities above while closing acceptance and
 by the current reconciliation. They are deliberately evidence and characterization work, not new
 inference or recommendation behavior.
 
-#### KR-050 — Complete characterization replay artifacts
+#### KR-050 — Complete characterization replay artifacts *(completed in this slice)*
 
 - **Admits:** deterministic fixture identifiers, negative relationship cases, and versioned replay
   metadata for the planted Git corpus.
