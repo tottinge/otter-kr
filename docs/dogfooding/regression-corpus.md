@@ -42,6 +42,7 @@ oracles; human interpretations never replace them.
 | duplicate fingerprint digest | `tests/test_python_duplicates.py`, `tests/test_server.py` | compact digest identity accompanies unchanged grouping and citations |
 | duplicate structural shape | `tests/test_python_duplicates.py`, `tests/test_server.py` | bounded shape facts explain duplicate identity without replacing citations |
 | duplicate compact operation | `tests/test_python_duplicates.py`, `tests/test_server.py` | explicit compact detail preserves digest, shape, warnings, and occurrence citations while rejecting unsupported detail |
+| duplicate compact/full comparison | `docs/dogfooding/kr054-duplicate-evidence.md` | five-repository replay measures payload reduction while preserving groups, citations, shapes, and warnings |
 | topic-family replay | `docs/dogfooding/kr053-topic-family-replay.md` | bounded family counts and the canonical-reference correction remain citeable |
 | repeated edits and deletion | `tests/test_git_characterization.py` | bounded history is deterministic; deleted paths remain explicit |
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |

@@ -737,7 +737,7 @@ inference or recommendation behavior.
 - **Slice 3 — Admit an explicit compact operation** *(gpt-5.6-terra; implemented in this slice)*: expose a stateless
   `python.duplicates.compact` operation with a closed schema and stable rejection for unsupported
   detail requests; preserve `python.duplicates` unchanged.
-- **Slice 4 — Compare agent usefulness** *(gpt-5.6-astra)*: replay the compact and full forms on
+- **Slice 4 — Compare agent usefulness** *(gpt-5.6-astra; implemented in this slice)*: replay the compact and full forms on
   mature and blind targets, recording token size, candidate selection, grounding citations, and
   whether the resulting refactoring hypotheses are actionable.
 - **Quality gate:** stop or revise the plan if compact output saves tokens but loses the ability to
