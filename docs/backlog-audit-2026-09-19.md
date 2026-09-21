@@ -28,7 +28,7 @@ The following are follow-up work, not relabeling of shipped capabilities:
 | KR-050 | active | deterministic fixture IDs, negative relationship cases, and replay metadata |
 | KR-051 | active | pinned mature-reference packets, independent score/history checks, and blind-study records |
 | KR-052 | active | remaining KR-020–022a provenance, location, filter, and formula characterization |
-| KR-053 | active | remaining KR-023–031 end-to-end family, transition, uncertainty, and cache characterization |
+| KR-053 | complete | end-to-end family, transition, termination, uncertainty, and cache evidence are characterized |
 
 The carrier-guard and variable-cluster sequence (KR-042–049) is admitted and regression-tested;
 future work must preserve its evidence-only boundary. None of the active items authorizes semantic

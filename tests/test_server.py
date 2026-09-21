@@ -576,6 +576,65 @@ def test_git_topic_family_normalizes_a_short_topic_reference(tmp_path: Path) -> 
     assert [commit["sha"] for commit in data["history_commits"]] == [topic, first]
 
 
+def test_git_topic_family_reports_matches_unmatched_hunks_and_ancestry(tmp_path: Path) -> None:
+    initial = (
+        "\n".join(
+            ["value = 0", *(f"context_{index} = {index}" for index in range(1, 16)), "other = 0"]
+        )
+        + "\n"
+    )
+    write_python(tmp_path, "a.py", initial)
+    git_repository(tmp_path, "a.py")
+    git_commit(tmp_path, "initial")
+    write_python(tmp_path, "a.py", initial.replace("value = 0", "value = 1", 1))
+    prior = git_commit(tmp_path, "change a", "a.py")
+    write_python(tmp_path, "a.py", initial)
+    git_commit(tmp_path, "reset a", "a.py")
+    topic_source = initial.replace("value = 0", "value = 1", 1).replace("other = 0", "other = 2", 1)
+    write_python(tmp_path, "a.py", topic_source)
+    topic = git_commit(tmp_path, "change a and other", "a.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "git.topic_family",
+                "term": topic,
+                "since_unix_time": 1,
+                "limit": 5,
+            },
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="git.topic_family",
+        repository_root=str(tmp_path),
+        term=topic,
+        since_unix_time=1,
+        limit=5,
+    )
+
+    assert data["termination"] == "exhausted"
+    assert any(member["commit_sha"] == prior for member in data["members"])
+    assert any(
+        match["prior_commit_sha"] == prior
+        and match["method"]
+        in {
+            "exact_normalized_body",
+            "context_overlap",
+            "range_overlap",
+        }
+        for match in data["matches"]
+    )
+    assert any(hunk["path"] == "a.py" for hunk in data["unmatched_hunks"])
+    assert any(edge["child_commit_sha"] == prior for edge in data["ancestry_edges"])
+    assert any(
+        transition["commit_sha"] == prior and transition["status"] == "modified"
+        for transition in data["path_transitions"]
+    )
+
+
 @pytest.mark.parametrize(
     ("bounds", "query", "message"),
     [

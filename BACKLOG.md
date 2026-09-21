@@ -711,7 +711,7 @@ inference or recommendation behavior.
 - **Observable result:** edge provenance, filters, formulas, and locations are independently
   reproducible without turning association into concept identity.
 
-#### KR-053 — Close topic-family acceptance evidence
+#### KR-053 — Close topic-family acceptance evidence *(completed in this slice)*
 
 - **Admits:** the remaining end-to-end characterization cases across KR-023 through KR-031 in
   dependency order.
