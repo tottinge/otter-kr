@@ -425,6 +425,14 @@ def test_variable_cluster_query_develops_its_validation_boundary() -> None:
     assert query == VariableClusterQuery(("count", "limit"), 1, 2)
 
 
+def test_variable_cluster_query_admits_eight_names() -> None:
+    names = ["one", "two", "three", "four", "five", "six", "seven", "eight"]
+
+    query = VariableClusterQuery.create(names, 1, 2)
+
+    assert query.terms == tuple(names)
+
+
 def test_variable_occurrence_query_develops_its_validation_boundary() -> None:
     query = VariableOccurrenceQuery.create("count")
 

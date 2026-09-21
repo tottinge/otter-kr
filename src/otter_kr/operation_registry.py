@@ -177,7 +177,7 @@ class VariableClusterQuery:
     ) -> VariableClusterQuery:
         if (
             not isinstance(terms, list | tuple)
-            or not 2 <= len(terms) <= 5
+            or not 2 <= len(terms) <= 8
             or any(not isinstance(name, str) or not name.isidentifier() for name in terms)
             or len(set(terms)) != len(terms)
         ):
@@ -509,8 +509,9 @@ class VariableClusterOperationSpec:
             return context.reject(
                 request.operation,
                 request.repository_root,
-                "terms must contain 2 to 8 distinct Python identifiers.",
+                "term and terms are mutually exclusive.",
                 terms=request.terms,
+                term=request.term,
             )
         if request.terms is None and request.term is None:
             return context.unimplemented(request.operation, request.repository_root)

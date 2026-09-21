@@ -2486,6 +2486,26 @@ def test_variable_cluster_rejects_more_than_eight_names() -> None:
     assert report["error"]["code"] == "invalid_query"
 
 
+def test_variable_cluster_rejects_term_and_terms_together_with_specific_message() -> None:
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": "/repo",
+                "operation": "python.variable_cluster",
+                "term": "one",
+                "terms": ["one", "two"],
+            },
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["error"] == {
+        "code": "invalid_query",
+        "message": "term and terms are mutually exclusive.",
+    }
+
+
 def test_variable_cluster_preserves_terms_on_repository_error() -> None:
     report = asyncio.run(
         call_research(
