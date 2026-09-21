@@ -27,7 +27,7 @@ The following are follow-up work, not relabeling of shipped capabilities:
 | --- | --- | --- |
 | KR-050 | active | deterministic fixture IDs, negative relationship cases, and replay metadata |
 | KR-051 | active | pinned mature-reference packets, independent score/history checks, and blind-study records |
-| KR-052 | active | remaining KR-020–022a provenance, location, filter, and formula characterization |
+| KR-052 | complete | structural, historical, behavioral, and topology evidence are characterized |
 | KR-053 | complete | end-to-end family, transition, termination, uncertainty, and cache evidence are characterized |
 
 The carrier-guard and variable-cluster sequence (KR-042–049) is admitted and regression-tested;
@@ -36,7 +36,6 @@ judgments, root-cause claims, refactoring recommendations, or generated objects 
 
 ## Ordering rule
 
-Complete KR-050 and KR-051 first so later acceptance work has reproducible fixtures and reference
-packets. Then close KR-052 and KR-053 in dependency order, splitting any item that admits more than
-one new evidence shape. Update this file and `BACKLOG.md` in the same commit as each acceptance
-change.
+KR-052 and KR-053 are complete. Continue with KR-050 and KR-051 only where additional replay
+artifacts or mature-reference packets are still missing; update this file and `BACKLOG.md` in the
+same commit as each study or packet change.

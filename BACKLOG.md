@@ -704,7 +704,7 @@ inference or recommendation behavior.
 - **Observable result:** sampled scores, history edges, warnings, elapsed time, and analyst claims
   are separately replayable and citeable.
 
-#### KR-052 — Close neighborhood acceptance evidence
+#### KR-052 — Close neighborhood acceptance evidence *(completed in this slice)*
 
 - **Admits:** the remaining structural, historical, behavioral, and topology acceptance cases in
   KR-020 through KR-022a, one evidence shape per slice.
