@@ -25,8 +25,27 @@ class HelperOccurrence:
 
 
 @dataclass(frozen=True, slots=True)
+class DuplicateShape:
+    kind: str
+    statement_count: int
+    parameter_count: int
+    call_count: int
+    branch_count: int
+
+    def to_dict(self) -> dict[str, int | str]:
+        return {
+            "kind": self.kind,
+            "statement_count": self.statement_count,
+            "parameter_count": self.parameter_count,
+            "call_count": self.call_count,
+            "branch_count": self.branch_count,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class DuplicateGroup:
     fingerprint: str
+    shape: DuplicateShape
     count: int
     occurrences: tuple[HelperOccurrence, ...]
 
@@ -34,6 +53,7 @@ class DuplicateGroup:
         return {
             "fingerprint": self.fingerprint,
             "fingerprint_digest": _fingerprint_digest(self.fingerprint),
+            "shape": self.shape.to_dict(),
             "count": self.count,
             "occurrences": [item.to_dict() for item in self.occurrences],
         }
@@ -42,6 +62,7 @@ class DuplicateGroup:
 @dataclass(frozen=True, slots=True)
 class DuplicatePair:
     fingerprint: str
+    shape: DuplicateShape
     left: HelperOccurrence
     right: HelperOccurrence
 
@@ -49,6 +70,7 @@ class DuplicatePair:
         return {
             "fingerprint": self.fingerprint,
             "fingerprint_digest": _fingerprint_digest(self.fingerprint),
+            "shape": self.shape.to_dict(),
             "left": self.left.to_dict(),
             "right": self.right.to_dict(),
         }
@@ -57,6 +79,27 @@ class DuplicatePair:
 def _fingerprint_digest(fingerprint: str) -> str:
     """Return a compact, stable identity for a normalized structure."""
     return f"sha256:{hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()[:16]}"
+
+
+def _duplicate_shape(node: ast.FunctionDef | ast.AsyncFunctionDef, kind: str) -> DuplicateShape:
+    return DuplicateShape(
+        kind=kind,
+        statement_count=sum(isinstance(item, ast.stmt) for item in ast.walk(node)) - 1,
+        parameter_count=sum(
+            argument.arg not in {"self", "cls"}
+            for argument in [
+                *node.args.posonlyargs,
+                *node.args.args,
+                *node.args.kwonlyargs,
+            ]
+        )
+        + int(node.args.vararg is not None)
+        + int(node.args.kwarg is not None),
+        call_count=sum(isinstance(item, ast.Call) for item in ast.walk(node)),
+        branch_count=sum(
+            isinstance(item, ast.If | ast.IfExp | ast.Match) for item in ast.walk(node)
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +255,7 @@ class _DuplicateCollector(ast.NodeVisitor):
         self.relative_path = relative_path
         self.class_stack: list[str] = []
         self.duplicates: dict[str, list[HelperOccurrence]] = {}
+        self.shapes: dict[str, DuplicateShape] = {}
 
     def _record(self, node: ast.FunctionDef | ast.AsyncFunctionDef, kind: str) -> None:
         occurrence = HelperOccurrence(
@@ -222,7 +266,9 @@ class _DuplicateCollector(ast.NodeVisitor):
             column=node.col_offset,
             end_line=node.end_lineno or node.lineno,
         )
-        self.duplicates.setdefault(_fingerprint(node), []).append(occurrence)
+        fingerprint = _fingerprint(node)
+        self.duplicates.setdefault(fingerprint, []).append(occurrence)
+        self.shapes.setdefault(fingerprint, _duplicate_shape(node, kind))
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -248,6 +294,7 @@ def find_duplicate_helpers(
         raise ValueError(f"Repository is not a directory: {repository}")
 
     grouped: dict[str, list[HelperOccurrence]] = {}
+    shapes: dict[str, DuplicateShape] = {}
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative_path = path.relative_to(repository).as_posix()
@@ -279,10 +326,12 @@ def find_duplicate_helpers(
         collector.visit(tree)
         for fingerprint, occurrences in collector.duplicates.items():
             grouped.setdefault(fingerprint, []).extend(occurrences)
+            shapes.setdefault(fingerprint, collector.shapes[fingerprint])
 
     groups = tuple(
         DuplicateGroup(
             fingerprint=fingerprint,
+            shape=shapes[fingerprint],
             count=len(sorted_occurrences),
             occurrences=sorted_occurrences,
         )
@@ -306,7 +355,7 @@ def find_duplicate_helpers(
         )
     )
     pairs = tuple(
-        DuplicatePair(group.fingerprint, left, right)
+        DuplicatePair(group.fingerprint, group.shape, left, right)
         for group in groups
         for left, right in combinations(group.occurrences, 2)
     )

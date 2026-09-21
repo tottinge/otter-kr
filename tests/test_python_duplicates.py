@@ -45,6 +45,14 @@ def test_reports_duplicate_helper_groups_and_pairs(tmp_path: Path) -> None:
     assert group_data["fingerprint_digest"].startswith("sha256:")
     assert group_data["fingerprint_digest"] == pair_data["fingerprint_digest"]
     assert len(group_data["fingerprint_digest"]) == len("sha256:") + 16
+    assert group_data["shape"] == {
+        "kind": "function",
+        "statement_count": 3,
+        "parameter_count": 2,
+        "call_count": 0,
+        "branch_count": 1,
+    }
+    assert pair_data["shape"] == group_data["shape"]
     assert [item.qualified_name for item in report.groups[0].occurrences] == [
         "first",
         "second",

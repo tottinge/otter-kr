@@ -1876,6 +1876,8 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
         report["data"]["groups"][0]["fingerprint_digest"]
         == report["data"]["pairs"][0]["fingerprint_digest"]
     )
+    assert report["data"]["groups"][0]["shape"]["kind"] == "function"
+    assert report["data"]["groups"][0]["shape"] == report["data"]["pairs"][0]["shape"]
 
 
 def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> None:

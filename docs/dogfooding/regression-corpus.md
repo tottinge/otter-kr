@@ -40,6 +40,7 @@ oracles; human interpretations never replace them.
 | topic-family cache policy | `tests/test_git_topic_cache.py` | cache hits and invalidations expose policy-key differences without reusing stale reports |
 | duplicate-evidence baseline | `docs/dogfooding/kr054-duplicate-evidence.md` | current fingerprint and payload costs are measured before compact admission |
 | duplicate fingerprint digest | `tests/test_python_duplicates.py`, `tests/test_server.py` | compact digest identity accompanies unchanged grouping and citations |
+| duplicate structural shape | `tests/test_python_duplicates.py`, `tests/test_server.py` | bounded shape facts explain duplicate identity without replacing citations |
 | topic-family replay | `docs/dogfooding/kr053-topic-family-replay.md` | bounded family counts and the canonical-reference correction remain citeable |
 | repeated edits and deletion | `tests/test_git_characterization.py` | bounded history is deterministic; deleted paths remain explicit |
 | binary change | `tests/test_git_characterization.py` | unavailable numstat evidence is not invented |

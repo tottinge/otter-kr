@@ -731,7 +731,7 @@ inference or recommendation behavior.
   dogfood repositories.
 - **Slice 1 — Admit digest identity** *(gpt-5.6-sol; implemented in this slice)*: add a stable short digest alongside the
   existing fingerprint, with regression tests proving grouping and citations are unchanged.
-- **Slice 2 — Admit compact structural shape** *(gpt-5.6-sol)*: report bounded shape facts such as
+- **Slice 2 — Admit compact structural shape** *(gpt-5.6-sol; implemented in this slice)*: report bounded shape facts such as
   helper kind, statement count, parameter count, call count, and branch count; keep raw identity
   evidence available.
 - **Slice 3 — Admit an explicit compact operation** *(gpt-5.6-terra)*: expose a stateless
