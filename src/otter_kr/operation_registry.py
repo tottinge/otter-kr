@@ -27,6 +27,7 @@ class ResearchRequest:
     path: str | None = None
     lines: tuple[int, ...] | None = None
     paths: tuple[str, ...] | None = None
+    detail: str | None = None
 
     @classmethod
     def create(
@@ -43,6 +44,7 @@ class ResearchRequest:
         path: str | None = None,
         lines: list[int] | tuple[int, ...] | None = None,
         paths: list[str] | tuple[str, ...] | None = None,
+        detail: str | None = None,
     ) -> ResearchRequest:
         """Normalize MCP tool arguments before operation-specific admission."""
         return cls(
@@ -57,6 +59,7 @@ class ResearchRequest:
             path=path,
             lines=tuple(lines) if lines is not None else None,
             paths=tuple(paths) if paths is not None else None,
+            detail=detail,
         )
 
 
@@ -245,6 +248,26 @@ class OperationSpec:
         if self.echo_unused_query_fields:
             return context.query_run(self.analyzer, **arguments)
         return context.run(request.operation, request.repository_root, self.analyzer, **arguments)
+
+
+@dataclass(frozen=True, slots=True)
+class CompactDuplicateOperationSpec:
+    analyzer: object
+
+    def execute(self, request: ResearchRequest, context: OperationContext) -> object:
+        if request.detail not in {None, "compact"}:
+            return context.reject(
+                request.operation,
+                request.repository_root,
+                "detail must be 'compact' for python.duplicates.compact.",
+                detail=request.detail,
+            )
+        return context.run(
+            request.operation,
+            request.repository_root,
+            self.analyzer,
+            query_detail=request.detail,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -566,6 +589,7 @@ RegisteredOperation = (
     | VariableClusterOperationSpec
     | LifecycleOperationSpec
     | CarrierGuardsOperationSpec
+    | CompactDuplicateOperationSpec
 )
 
 

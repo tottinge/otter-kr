@@ -734,7 +734,7 @@ inference or recommendation behavior.
 - **Slice 2 — Admit compact structural shape** *(gpt-5.6-sol; implemented in this slice)*: report bounded shape facts such as
   helper kind, statement count, parameter count, call count, and branch count; keep raw identity
   evidence available.
-- **Slice 3 — Admit an explicit compact operation** *(gpt-5.6-terra)*: expose a stateless
+- **Slice 3 — Admit an explicit compact operation** *(gpt-5.6-terra; implemented in this slice)*: expose a stateless
   `python.duplicates.compact` operation with a closed schema and stable rejection for unsupported
   detail requests; preserve `python.duplicates` unchanged.
 - **Slice 4 — Compare agent usefulness** *(gpt-5.6-astra)*: replay the compact and full forms on

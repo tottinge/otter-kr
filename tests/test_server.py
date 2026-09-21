@@ -1880,6 +1880,65 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
     assert report["data"]["groups"][0]["shape"] == report["data"]["pairs"][0]["shape"]
 
 
+def test_research_tool_reports_compact_duplicate_helpers_and_rejects_other_details(
+    tmp_path: Path,
+) -> None:
+    write_python(
+        tmp_path,
+        "pkg/helpers.py",
+        (
+            "def first(item, limit):\n"
+            "    if item > limit:\n"
+            "        return item - limit\n"
+            "    return limit - item\n\n"
+            "def second(value, cap):\n"
+            "    if value > cap:\n"
+            "        return value - cap\n"
+            "    return cap - value\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+    server = create_server()
+
+    compact = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.duplicates.compact",
+                "detail": "compact",
+            },
+        )
+    )
+    assert compact["status"] == "ok"
+    assert compact["query"]["detail"] == "compact"
+    assert "fingerprint" not in compact["data"]["groups"][0]
+    assert compact["data"]["groups"][0]["fingerprint_digest"].startswith("sha256:")
+    assert compact["data"]["groups"][0]["occurrences"][0]["qualified_name"] == "first"
+    assert "pairs" not in compact["data"]
+
+    rejected = asyncio.run(
+        call_research(
+            server,
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.duplicates.compact",
+                "detail": "full",
+            },
+        )
+    )
+    assert rejected == {
+        "schema_version": "1",
+        "status": "rejected",
+        "operation": "python.duplicates.compact",
+        "query": {"repository_root": str(tmp_path), "detail": "full"},
+        "error": {
+            "code": "invalid_query",
+            "message": "detail must be 'compact' for python.duplicates.compact.",
+        },
+    }
+
+
 def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> None:
     write_python(
         tmp_path,

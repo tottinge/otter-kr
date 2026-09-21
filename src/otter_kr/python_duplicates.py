@@ -76,6 +76,36 @@ class DuplicatePair:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class CompactDuplicateGroup:
+    fingerprint_digest: str
+    shape: DuplicateShape
+    count: int
+    occurrences: tuple[HelperOccurrence, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "fingerprint_digest": self.fingerprint_digest,
+            "shape": self.shape.to_dict(),
+            "count": self.count,
+            "occurrences": [item.to_dict() for item in self.occurrences],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CompactDuplicateReport:
+    language: str
+    groups: tuple[CompactDuplicateGroup, ...]
+    warnings: tuple[dict[str, str], ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "language": self.language,
+            "groups": [item.to_dict() for item in self.groups],
+            "warnings": list(self.warnings),
+        }
+
+
 def _fingerprint_digest(fingerprint: str) -> str:
     """Return a compact, stable identity for a normalized structure."""
     return f"sha256:{hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()[:16]}"
@@ -365,3 +395,22 @@ def find_duplicate_helpers(
         pairs=pairs,
         warnings=tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
     )
+
+
+def compact_duplicate_helpers(
+    repository: Path,
+    *,
+    file_source: TrackedFileSource | None = None,
+) -> CompactDuplicateReport:
+    """Return duplicate evidence without raw fingerprints or pair expansion."""
+    report = find_duplicate_helpers(repository, file_source=file_source)
+    groups = tuple(
+        CompactDuplicateGroup(
+            fingerprint_digest=_fingerprint_digest(group.fingerprint),
+            shape=group.shape,
+            count=group.count,
+            occurrences=group.occurrences,
+        )
+        for group in report.groups
+    )
+    return CompactDuplicateReport(report.language, groups, report.warnings)

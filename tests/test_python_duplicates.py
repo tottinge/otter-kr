@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from otter_kr.python_duplicates import find_duplicate_helpers
+from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
 from tests.support import assert_invalid_python_warning, git_repository, write_python
 
 
@@ -63,6 +63,62 @@ def test_reports_duplicate_helper_groups_and_pairs(tmp_path: Path) -> None:
         ("first", "Worker.third"),
         ("second", "Worker.third"),
     ]
+
+
+def test_compact_report_keeps_identity_shape_and_occurrence_citations(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "pkg/helpers.py",
+        (
+            "def first(item, limit):\n"
+            "    if item > limit:\n"
+            "        return item - limit\n"
+            "    return limit - item\n\n"
+            "def second(value, cap):\n"
+            "    if value > cap:\n"
+            "        return value - cap\n"
+            "    return cap - value\n"
+        ),
+    )
+    git_repository(tmp_path, "pkg")
+
+    report = compact_duplicate_helpers(tmp_path)
+
+    assert report.to_dict() == {
+        "language": "python",
+        "groups": [
+            {
+                "fingerprint_digest": report.groups[0].fingerprint_digest,
+                "shape": {
+                    "kind": "function",
+                    "statement_count": 3,
+                    "parameter_count": 2,
+                    "call_count": 0,
+                    "branch_count": 1,
+                },
+                "count": 2,
+                "occurrences": [
+                    {
+                        "path": "pkg/helpers.py",
+                        "qualified_name": "first",
+                        "kind": "function",
+                        "line": 1,
+                        "column": 0,
+                        "end_line": 4,
+                    },
+                    {
+                        "path": "pkg/helpers.py",
+                        "qualified_name": "second",
+                        "kind": "function",
+                        "line": 6,
+                        "column": 0,
+                        "end_line": 9,
+                    },
+                ],
+            }
+        ],
+        "warnings": [],
+    }
 
 
 def test_reports_parse_warnings_and_sorts_deterministically(tmp_path: Path) -> None:

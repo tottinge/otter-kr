@@ -27,6 +27,7 @@ from otter_kr.operation_registry import (
     BoundedPathOperationSpec,
     BoundedTermOperationSpec,
     CarrierGuardsOperationSpec,
+    CompactDuplicateOperationSpec,
     LifecycleOperationSpec,
     LineOriginsOperationSpec,
     OperationContext,
@@ -40,7 +41,7 @@ from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
-from otter_kr.python_duplicates import find_duplicate_helpers
+from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
 from otter_kr.python_graph import build_python_import_graph
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_historical_neighborhood import find_historical_neighborhood
@@ -255,6 +256,7 @@ OPERATION_REGISTRY = OperationRegistry(
         "python.literals": OperationSpec(find_repeated_literals),
         "python.groups": OperationSpec(find_repeated_groups),
         "python.duplicates": OperationSpec(find_duplicate_helpers),
+        "python.duplicates.compact": CompactDuplicateOperationSpec(compact_duplicate_helpers),
     }
 )
 
@@ -267,6 +269,7 @@ def _query(
     left_path: str | None = None,
     right_path: str | None = None,
     terms: list[str] | tuple[str, ...] | None = None,
+    detail: str | None = None,
 ) -> dict:
     query = {"repository_root": repository_root}
     if term is not None:
@@ -281,6 +284,8 @@ def _query(
         query["left_path"] = left_path
     if right_path is not None:
         query["right_path"] = right_path
+    if detail is not None:
+        query["detail"] = detail
     return query
 
 
@@ -294,6 +299,7 @@ def _success(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    detail: str | None = None,
 ) -> dict:
     return EvidenceEnvelope(
         operation,
@@ -305,6 +311,7 @@ def _success(
             left_path,
             right_path,
             terms,
+            detail,
         ),
         data,
     ).to_dict()
@@ -321,6 +328,7 @@ def _invalid_query(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    detail: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
@@ -334,6 +342,7 @@ def _invalid_query(
             left_path,
             right_path,
             terms,
+            detail,
         ),
         "error": {
             "code": "invalid_query",
@@ -390,13 +399,14 @@ def _not_a_repository(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    detail: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
         "query": _query(
-            repository_root, term, since_unix_time, limit, left_path, right_path, terms
+            repository_root, term, since_unix_time, limit, left_path, right_path, terms, detail
         ),
         "error": {
             "code": "not_a_repository",
@@ -415,13 +425,14 @@ def _repository_access_failed(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
+    detail: str | None = None,
 ) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
         "operation": operation,
         "query": _query(
-            repository_root, term, since_unix_time, limit, left_path, right_path, terms
+            repository_root, term, since_unix_time, limit, left_path, right_path, terms, detail
         ),
         "error": {
             "code": "repository_access_failed",
@@ -485,6 +496,7 @@ def _run_operation(
     query_limit: int | None = None,
     query_left_path: str | None = None,
     query_right_path: str | None = None,
+    query_detail: str | None = None,
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
@@ -511,6 +523,7 @@ def _run_operation(
             limit=limit,
             left_path=left_path,
             right_path=right_path,
+            detail=query_detail,
         )
 
     repository = Path(repository_root)
@@ -555,6 +568,7 @@ def _run_operation(
             limit=query_limit,
             left_path=query_left_path,
             right_path=query_right_path,
+            detail=query_detail,
         )
     except ValueError as error:
         if catches_value_error:
@@ -568,6 +582,7 @@ def _run_operation(
                 query_limit,
                 query_left_path,
                 query_right_path,
+                query_detail,
             )
         raise
     except GitFileSourceError as error:
@@ -581,6 +596,7 @@ def _run_operation(
             limit,
             left_path,
             right_path,
+            query_detail,
         )
 
     data = report.to_dict() if hasattr(report, "to_dict") else report
@@ -594,6 +610,7 @@ def _run_operation(
         limit,
         left_path,
         right_path,
+        query_detail,
     )
 
 
@@ -658,6 +675,7 @@ def create_server() -> FastMCP:
         path: str | None = None,
         lines: list[int] | None = None,
         paths: list[str] | None = None,
+        detail: str | None = None,
     ) -> dict:
         """Dispatch admitted research operations and reject the remainder."""
 
@@ -673,6 +691,7 @@ def create_server() -> FastMCP:
             path=path,
             lines=lines,
             paths=paths,
+            detail=detail,
         )
         repository_root = request.repository_root
         operation = request.operation
@@ -684,6 +703,7 @@ def create_server() -> FastMCP:
         right_path = request.right_path
         path = request.path
         lines = request.lines
+        detail = request.detail
 
         def run(analyzer, **kwargs):
             return _run_operation(
@@ -695,6 +715,7 @@ def create_server() -> FastMCP:
                 query_limit=limit,
                 query_left_path=left_path,
                 query_right_path=right_path,
+                query_detail=detail,
                 **kwargs,
             )
 
