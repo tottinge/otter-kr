@@ -729,7 +729,7 @@ inference or recommendation behavior.
 - **Slice 0 — Measure current cost** *(gpt-5.6-luna)*: characterize serialized fingerprint sizes,
   occurrence citations, and current duplicate-group contracts across planted fixtures and the five
   dogfood repositories.
-- **Slice 1 — Admit digest identity** *(gpt-5.6-sol)*: add a stable short digest alongside the
+- **Slice 1 — Admit digest identity** *(gpt-5.6-sol; implemented in this slice)*: add a stable short digest alongside the
   existing fingerprint, with regression tests proving grouping and citations are unchanged.
 - **Slice 2 — Admit compact structural shape** *(gpt-5.6-sol)*: report bounded shape facts such as
   helper kind, statement count, parameter count, call count, and branch count; keep raw identity

@@ -40,6 +40,11 @@ def test_reports_duplicate_helper_groups_and_pairs(tmp_path: Path) -> None:
     assert len(report.groups) == 1
     assert report.groups[0].count == 3
     assert report.groups[0].fingerprint == report.pairs[0].fingerprint
+    group_data = report.to_dict()["groups"][0]
+    pair_data = report.to_dict()["pairs"][0]
+    assert group_data["fingerprint_digest"].startswith("sha256:")
+    assert group_data["fingerprint_digest"] == pair_data["fingerprint_digest"]
+    assert len(group_data["fingerprint_digest"]) == len("sha256:") + 16
     assert [item.qualified_name for item in report.groups[0].occurrences] == [
         "first",
         "second",

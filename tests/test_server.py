@@ -1871,6 +1871,11 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
         )
         for item in report["data"]["pairs"]
     ] == [("first", "second")]
+    assert report["data"]["groups"][0]["fingerprint_digest"].startswith("sha256:")
+    assert (
+        report["data"]["groups"][0]["fingerprint_digest"]
+        == report["data"]["pairs"][0]["fingerprint_digest"]
+    )
 
 
 def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> None:

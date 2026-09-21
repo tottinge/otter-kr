@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 from dataclasses import asdict, dataclass
 from itertools import combinations
 from pathlib import Path
@@ -32,6 +33,7 @@ class DuplicateGroup:
     def to_dict(self) -> dict[str, object]:
         return {
             "fingerprint": self.fingerprint,
+            "fingerprint_digest": _fingerprint_digest(self.fingerprint),
             "count": self.count,
             "occurrences": [item.to_dict() for item in self.occurrences],
         }
@@ -46,9 +48,15 @@ class DuplicatePair:
     def to_dict(self) -> dict[str, object]:
         return {
             "fingerprint": self.fingerprint,
+            "fingerprint_digest": _fingerprint_digest(self.fingerprint),
             "left": self.left.to_dict(),
             "right": self.right.to_dict(),
         }
+
+
+def _fingerprint_digest(fingerprint: str) -> str:
+    """Return a compact, stable identity for a normalized structure."""
+    return f"sha256:{hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()[:16]}"
 
 
 @dataclass(frozen=True, slots=True)
