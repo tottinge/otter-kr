@@ -23,6 +23,14 @@ The product remains Python-only and evidence-only: it does not import or execute
 infer semantic concepts, assign quality scores, or recommend refactorings. The detailed admission
 boundaries and remaining research work live in `BACKLOG.md`.
 
+## Evidence layer for refactoring skills
+
+otter-kr is intended to provide citeable, deterministic evidence for
+[otter-skills](https://github.com/tottinge/otter-skills) and other refactoring skills. It reports
+facts such as locations, counts, relationships, and history; an LLM or human uses those facts to
+make and validate design decisions. The MCP deliberately does not replace the reasoning,
+representation, testing, or refactoring skills that consume its evidence.
+
 ## Develop with uv
 
 Install the pinned environment and run all checks:

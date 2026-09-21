@@ -537,9 +537,10 @@ cannot answer all of those questions. Use three deliberately different corpus cl
    repeated hunks, and defect/fix relationships are known exactly. These are the executable oracle
    for correctness and boundary behavior.
 2. **Mature/reference repositories** — the default set is `gitminer-dash`, `quizzology`,
-   `OpenModelica`, and `otter-kr`, covering long history, medium application structure,
-   parser-warning edge cases, and self-hosting. These test scale, path diversity, real merge
-   practices, and whether reports are viable to inspect.
+   `OpenModelica`, `otter-kr`, and `langchain-ai/deepagents`, covering long history, medium
+   application structure, parser-warning edge cases, self-hosting, and a larger multi-package
+   Python project. These test scale, path diversity, real merge practices, and whether reports
+   are viable to inspect.
 3. **Blind discovery targets** — repositories selected without tailoring queries to expected
    answers. The default set is also used for discovery unless a slice needs a distinct target such
    as `boxed/mutmut`; the consumer records hypotheses separately from MCP output and may not edit
