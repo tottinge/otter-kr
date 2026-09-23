@@ -187,3 +187,46 @@ def test_reports_repeated_direct_comparison_rules(tmp_path: Path) -> None:
             ],
         }
     ]
+
+
+def test_reports_repeated_direct_calculation_rules(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    total: int\n"
+        "\n"
+        "def adjusted(order: Order):\n"
+        "    return order.total * 2\n"
+        "\n"
+        "def projected(order: Order):\n"
+        "    return order.total * 2\n",
+    )
+    git_repository(tmp_path, "orders.py")
+
+    report = find_external_field_rules(tmp_path, "Order")
+
+    assert report.to_dict()["rules"] == [
+        {
+            "kind": "calculation",
+            "normalized": {"field": "total", "operator": "*", "operand": "2"},
+            "occurrence_count": 2,
+            "functions": ["adjusted", "projected"],
+            "occurrence_refs": [
+                {
+                    "path": "orders.py",
+                    "line": 5,
+                    "column": 11,
+                    "function": "adjusted",
+                    "expression": "order.total * 2",
+                },
+                {
+                    "path": "orders.py",
+                    "line": 8,
+                    "column": 11,
+                    "function": "projected",
+                    "expression": "order.total * 2",
+                },
+            ],
+        }
+    ]

@@ -85,9 +85,8 @@ class RuleOccurrence:
     column: int
     function: str
     expression: str
-    field: str
-    operator: str
-    value: str
+    kind: str
+    normalized: dict[str, str]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -101,19 +100,14 @@ class RuleOccurrence:
 
 @dataclass(frozen=True, slots=True)
 class RepeatedRule:
-    field: str
-    operator: str
-    value: str
+    kind: str
+    normalized: dict[str, str]
     occurrences: tuple[RuleOccurrence, ...]
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "kind": "comparison",
-            "normalized": {
-                "field": self.field,
-                "operator": self.operator,
-                "value": self.value,
-            },
+            "kind": self.kind,
+            "normalized": dict(self.normalized),
             "occurrence_count": len(self.occurrences),
             "functions": sorted({item.function for item in self.occurrences}),
             "occurrence_refs": [item.to_dict() for item in self.occurrences],
@@ -244,9 +238,55 @@ class _ExternalAccessCollector(ast.NodeVisitor):
                         node.col_offset,
                         self.function_stack[-1],
                         ast.unparse(node),
-                        carrier_attribute.attr,
-                        operator,
-                        ast.unparse(value),
+                        "comparison",
+                        {
+                            "field": carrier_attribute.attr,
+                            "operator": operator,
+                            "value": ast.unparse(value),
+                        },
+                    )
+                )
+        self.generic_visit(node)
+
+    def visit_BinOp(self, node: ast.BinOp) -> None:
+        if self.function_stack:
+            carrier_attribute = None
+            operand = None
+            if (
+                isinstance(node.left, ast.Attribute)
+                and isinstance(node.left.value, ast.Name)
+                and node.left.value.id in self.carrier_bindings[-1]
+            ):
+                carrier_attribute, operand = node.left, node.right
+            elif (
+                isinstance(node.right, ast.Attribute)
+                and isinstance(node.right.value, ast.Name)
+                and node.right.value.id in self.carrier_bindings[-1]
+            ):
+                carrier_attribute, operand = node.right, node.left
+            operator = {
+                ast.Add: "+",
+                ast.Sub: "-",
+                ast.Mult: "*",
+                ast.Div: "/",
+                ast.FloorDiv: "//",
+                ast.Mod: "%",
+                ast.Pow: "**",
+            }.get(type(node.op))
+            if carrier_attribute is not None and operand is not None and operator is not None:
+                self.rule_occurrences.append(
+                    RuleOccurrence(
+                        self.path,
+                        node.lineno,
+                        node.col_offset,
+                        self.function_stack[-1],
+                        ast.unparse(node),
+                        "calculation",
+                        {
+                            "field": carrier_attribute.attr,
+                            "operator": operator,
+                            "operand": ast.unparse(operand),
+                        },
                     )
                 )
         self.generic_visit(node)
@@ -312,20 +352,19 @@ def _affinities(accesses: tuple[FieldAccess, ...]) -> tuple[FieldAffinity, ...]:
 
 
 def _repeated_rules(occurrences: tuple[RuleOccurrence, ...]) -> tuple[RepeatedRule, ...]:
-    grouped: dict[tuple[str, str, str], list[RuleOccurrence]] = {}
+    grouped: dict[tuple[str, tuple[tuple[str, str], ...]], list[RuleOccurrence]] = {}
     for occurrence in occurrences:
-        key = (occurrence.field, occurrence.operator, occurrence.value)
+        key = (occurrence.kind, tuple(sorted(occurrence.normalized.items())))
         grouped.setdefault(key, []).append(occurrence)
     return tuple(
         RepeatedRule(
-            field,
-            operator,
-            value,
+            kind,
+            dict(normalized),
             tuple(
                 sorted(items, key=lambda item: (item.path, item.line, item.column, item.function))
             ),
         )
-        for (field, operator, value), items in sorted(grouped.items())
+        for (kind, normalized), items in sorted(grouped.items())
         if len(items) > 1
     )
 
