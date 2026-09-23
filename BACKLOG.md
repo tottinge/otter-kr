@@ -779,13 +779,15 @@ multi-name summaries.
   semantics.
 - **Operation:** `python.external_field_rules`, queried by an explicit carrier name.
 - **Admitted:** class/dataclass declarations, annotated carrier-parameter bindings, direct field
-  reads/writes/deletes, deterministic occurrence citations, and pairwise field-affinity rollups.
+  reads/writes/deletes, deterministic occurrence citations, pairwise field-affinity rollups, and
+  repeated direct comparison rules normalized by field/operator/value.
 - **Still rejected:** semantic ownership, boundary classification, confidence scores, candidate
-  refactorings, untyped alias inference, indirect dataflow, and normalized rule-shape inference.
+  refactorings, untyped alias inference, indirect dataflow, and calculations, normalization,
+  formatting, or derivation rule shapes.
 - **Evidence boundary:** the report describes repeated external field use; the consuming LLM or
   skill decides whether a rule has one coherent owner.
-- **Next slices:** admit normalized repeated rule shapes, then link existing test/history evidence
-  without duplicating their report contracts.
+- **Next slices:** admit one additional rule shape at a time, then link existing test/history
+  evidence without duplicating their report contracts.
 
 ## Backlog quality rules
 

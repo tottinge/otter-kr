@@ -110,6 +110,7 @@ def test_reports_carrier_fields_and_repeated_external_field_affinity(tmp_path: P
             }
         ],
         "warnings": [],
+        "rules": [],
     }
 
 
@@ -140,3 +141,49 @@ def test_reports_dataclass_and_excludes_carrier_methods_and_untyped_access(tmp_p
     assert report.declarations[0].kind == "dataclass"
     assert report.affinities == ()
     assert report.warnings == ()
+
+
+def test_reports_repeated_direct_comparison_rules(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    status: str\n"
+        "    total: int\n"
+        "\n"
+        "def close(order: Order):\n"
+        "    if order.status == 'open':\n"
+        "        return order.total\n"
+        "\n"
+        "def reopen(order: Order):\n"
+        "    if order.status == 'open':\n"
+        "        return order.total\n",
+    )
+    git_repository(tmp_path, "orders.py")
+
+    report = find_external_field_rules(tmp_path, "Order")
+
+    assert report.to_dict()["rules"] == [
+        {
+            "kind": "comparison",
+            "normalized": {"field": "status", "operator": "==", "value": "'open'"},
+            "occurrence_count": 2,
+            "functions": ["close", "reopen"],
+            "occurrence_refs": [
+                {
+                    "path": "orders.py",
+                    "line": 6,
+                    "column": 7,
+                    "function": "close",
+                    "expression": "order.status == 'open'",
+                },
+                {
+                    "path": "orders.py",
+                    "line": 10,
+                    "column": 7,
+                    "function": "reopen",
+                    "expression": "order.status == 'open'",
+                },
+            ],
+        }
+    ]

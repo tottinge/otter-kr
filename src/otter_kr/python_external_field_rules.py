@@ -79,12 +79,55 @@ class FieldAffinity:
 
 
 @dataclass(frozen=True, slots=True)
+class RuleOccurrence:
+    path: str
+    line: int
+    column: int
+    function: str
+    expression: str
+    field: str
+    operator: str
+    value: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "path": self.path,
+            "line": self.line,
+            "column": self.column,
+            "function": self.function,
+            "expression": self.expression,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RepeatedRule:
+    field: str
+    operator: str
+    value: str
+    occurrences: tuple[RuleOccurrence, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "kind": "comparison",
+            "normalized": {
+                "field": self.field,
+                "operator": self.operator,
+                "value": self.value,
+            },
+            "occurrence_count": len(self.occurrences),
+            "functions": sorted({item.function for item in self.occurrences}),
+            "occurrence_refs": [item.to_dict() for item in self.occurrences],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ExternalFieldRulesReport:
     language: str
     carrier: str
     declarations: tuple[CarrierDeclaration, ...]
     affinities: tuple[FieldAffinity, ...]
     warnings: tuple[dict[str, str], ...]
+    rules: tuple[RepeatedRule, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -93,6 +136,7 @@ class ExternalFieldRulesReport:
             "declarations": [item.to_dict() for item in self.declarations],
             "affinities": [item.to_dict() for item in self.affinities],
             "warnings": list(self.warnings),
+            "rules": [item.to_dict() for item in self.rules],
         }
 
 
@@ -134,6 +178,7 @@ class _ExternalAccessCollector(ast.NodeVisitor):
         self.function_stack: list[str] = []
         self.carrier_bindings: list[set[str]] = []
         self.accesses: list[FieldAccess] = []
+        self.rule_occurrences: list[RuleOccurrence] = []
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.class_stack.append(node.name)
@@ -161,6 +206,50 @@ class _ExternalAccessCollector(ast.NodeVisitor):
         self.function_stack.pop()
 
     visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Compare(self, node: ast.Compare) -> None:
+        if self.function_stack and len(node.ops) == 1 and len(node.comparators) == 1:
+            left, right = node.left, node.comparators[0]
+            carrier_attribute = None
+            value = None
+            if (
+                isinstance(left, ast.Attribute)
+                and isinstance(left.value, ast.Name)
+                and left.value.id in self.carrier_bindings[-1]
+            ):
+                carrier_attribute, value = left, right
+            elif (
+                isinstance(right, ast.Attribute)
+                and isinstance(right.value, ast.Name)
+                and right.value.id in self.carrier_bindings[-1]
+            ):
+                carrier_attribute, value = right, left
+            operator = {
+                ast.Eq: "==",
+                ast.NotEq: "!=",
+                ast.Is: "is",
+                ast.IsNot: "is not",
+                ast.Lt: "<",
+                ast.LtE: "<=",
+                ast.Gt: ">",
+                ast.GtE: ">=",
+                ast.In: "in",
+                ast.NotIn: "not in",
+            }.get(type(node.ops[0]))
+            if carrier_attribute is not None and value is not None and operator is not None:
+                self.rule_occurrences.append(
+                    RuleOccurrence(
+                        self.path,
+                        node.lineno,
+                        node.col_offset,
+                        self.function_stack[-1],
+                        ast.unparse(node),
+                        carrier_attribute.attr,
+                        operator,
+                        ast.unparse(value),
+                    )
+                )
+        self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if (
@@ -222,6 +311,25 @@ def _affinities(accesses: tuple[FieldAccess, ...]) -> tuple[FieldAffinity, ...]:
     return tuple(result)
 
 
+def _repeated_rules(occurrences: tuple[RuleOccurrence, ...]) -> tuple[RepeatedRule, ...]:
+    grouped: dict[tuple[str, str, str], list[RuleOccurrence]] = {}
+    for occurrence in occurrences:
+        key = (occurrence.field, occurrence.operator, occurrence.value)
+        grouped.setdefault(key, []).append(occurrence)
+    return tuple(
+        RepeatedRule(
+            field,
+            operator,
+            value,
+            tuple(
+                sorted(items, key=lambda item: (item.path, item.line, item.column, item.function))
+            ),
+        )
+        for (field, operator, value), items in sorted(grouped.items())
+        if len(items) > 1
+    )
+
+
 def find_external_field_rules(
     repository: Path,
     carrier: str,
@@ -233,6 +341,7 @@ def find_external_field_rules(
 
     declarations: list[CarrierDeclaration] = []
     accesses: list[FieldAccess] = []
+    rule_occurrences: list[RuleOccurrence] = []
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
@@ -262,6 +371,7 @@ def find_external_field_rules(
         collector = _ExternalAccessCollector(relative, carrier)
         collector.visit(tree)
         accesses.extend(collector.accesses)
+        rule_occurrences.extend(collector.rule_occurrences)
 
     ordered_accesses = tuple(
         sorted(
@@ -282,4 +392,5 @@ def find_external_field_rules(
         tuple(sorted(declarations, key=lambda item: (item.path, item.line, item.column))),
         _affinities(ordered_accesses),
         tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
+        _repeated_rules(tuple(rule_occurrences)),
     )

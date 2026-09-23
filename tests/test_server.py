@@ -147,10 +147,12 @@ def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
         "    total: int\n"
         "\n"
         "def close(order: Order):\n"
-        "    return order.status, order.total\n"
+        "    if order.status == 'open':\n"
+        "        return order.total\n"
         "\n"
         "def summarize(order: Order):\n"
-        "    return order.status, order.total\n",
+        "    if order.status == 'open':\n"
+        "        return order.status, order.total\n",
     )
     git_repository(tmp_path, "orders.py")
 
@@ -173,6 +175,11 @@ def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     )
     assert data["carrier"] == "Order"
     assert data["affinities"][0]["fields"] == ["status", "total"]
+    assert data["rules"][0]["normalized"] == {
+        "field": "status",
+        "operator": "==",
+        "value": "'open'",
+    }
 
 
 def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) -> None:
