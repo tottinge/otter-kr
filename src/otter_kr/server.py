@@ -42,6 +42,7 @@ from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
+from otter_kr.python_external_field_rules import find_external_field_rules
 from otter_kr.python_graph import build_python_import_graph
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_historical_neighborhood import find_historical_neighborhood
@@ -197,6 +198,11 @@ OPERATION_REGISTRY = OperationRegistry(
         ),
         "python.object_lifecycle": LifecycleOperationSpec(find_object_lifecycle),
         "python.carrier_guards": CarrierGuardsOperationSpec(find_carrier_guards),
+        "python.external_field_rules": OperationSpec(
+            find_external_field_rules,
+            requires_term=True,
+            term_message="A carrier name is required for python.external_field_rules.",
+        ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,

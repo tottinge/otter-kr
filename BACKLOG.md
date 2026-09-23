@@ -772,6 +772,21 @@ Priority favors the simplest high-learning evidence first: exact occurrences, re
 context, and an explicit two-name cluster precede construction, aliases, tests/history, and bounded
 multi-name summaries.
 
+### KR-055 — Report external field-affinity evidence *(Slices 1–2 admitted)*
+
+- **Purpose:** expose structural evidence that multiple external functions access the same fields
+  on an explicitly identified class or dataclass, without calling that evidence misplaced
+  semantics.
+- **Operation:** `python.external_field_rules`, queried by an explicit carrier name.
+- **Admitted:** class/dataclass declarations, annotated carrier-parameter bindings, direct field
+  reads/writes/deletes, deterministic occurrence citations, and pairwise field-affinity rollups.
+- **Still rejected:** semantic ownership, boundary classification, confidence scores, candidate
+  refactorings, untyped alias inference, indirect dataflow, and normalized rule-shape inference.
+- **Evidence boundary:** the report describes repeated external field use; the consuming LLM or
+  skill decides whether a rule has one coherent owner.
+- **Next slices:** admit normalized repeated rule shapes, then link existing test/history evidence
+  without duplicating their report contracts.
+
 ## Backlog quality rules
 
 Use the refactoring skills as review criteria, not as a reason to pre-build abstractions:

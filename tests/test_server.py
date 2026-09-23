@@ -138,6 +138,43 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     assert_invalid_python_warning(data["warnings"][1], "broken.py")
 
 
+def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    status: str\n"
+        "    total: int\n"
+        "\n"
+        "def close(order: Order):\n"
+        "    return order.status, order.total\n"
+        "\n"
+        "def summarize(order: Order):\n"
+        "    return order.status, order.total\n",
+    )
+    git_repository(tmp_path, "orders.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.external_field_rules",
+                "term": "Order",
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="python.external_field_rules",
+        repository_root=str(tmp_path),
+        term="Order",
+    )
+    assert data["carrier"] == "Order"
+    assert data["affinities"][0]["fields"] == ["status", "total"]
+
+
 def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "pkg/__init__.py", "")
     write_python(tmp_path, "pkg/a.py", "value = 1\n")

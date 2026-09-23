@@ -9,8 +9,9 @@ for interpretation and engineering judgment.
 One stateless `research` tool dispatches deterministic Python and Git evidence operations. Current
 Python evidence covers tracked-file inventory and parse health, names, imports, tests, complexity,
 repeated literals and groups, structural duplicates, type discriminations, exact/structural/
-historical/behavioral neighborhoods, graph topology, and seed-scoped carrier guards. Composite
-operations project seed evidence, term-change evidence, representation inventories, and review
+historical/behavioral neighborhoods, graph topology, seed-scoped carrier guards, and external
+field affinity. Composite operations project seed evidence, term-change evidence, representation
+inventories, and review
 packets without adding design judgments.
 
 Git evidence covers bounded history, snapshots, hotspots, normalized co-change at global/file/pair
