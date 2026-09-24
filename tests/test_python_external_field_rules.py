@@ -111,6 +111,7 @@ def test_reports_carrier_fields_and_repeated_external_field_affinity(tmp_path: P
         ],
         "warnings": [],
         "rules": [],
+        "test_evidence": [],
     }
 
 
@@ -365,3 +366,22 @@ def test_reports_repeated_direct_field_format_rules(tmp_path: Path) -> None:
             ],
         }
     ]
+
+
+def test_links_test_evidence_for_observed_external_functions(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n    status: str\n\ndef close(order: Order):\n    return order.status\n",
+    )
+    write_python(
+        tmp_path,
+        "tests/test_orders.py",
+        "from orders import close\n\ndef test_close():\n    close(None)\n",
+    )
+    git_repository(tmp_path, "orders.py", "tests")
+
+    report = find_external_field_rules(tmp_path, "Order")
+
+    assert report.to_dict()["test_evidence"][0]["function"] == "close"
+    assert report.to_dict()["test_evidence"][0]["report"]["mapping_status"] == "matched"

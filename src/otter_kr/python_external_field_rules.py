@@ -8,6 +8,7 @@ from itertools import combinations
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.python_tests import find_tests_for_symbol
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +123,7 @@ class ExternalFieldRulesReport:
     affinities: tuple[FieldAffinity, ...]
     warnings: tuple[dict[str, str], ...]
     rules: tuple[RepeatedRule, ...] = ()
+    test_evidence: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -131,6 +133,7 @@ class ExternalFieldRulesReport:
             "affinities": [item.to_dict() for item in self.affinities],
             "warnings": list(self.warnings),
             "rules": [item.to_dict() for item in self.rules],
+            "test_evidence": list(self.test_evidence),
         }
 
 
@@ -422,6 +425,22 @@ def _repeated_rules(occurrences: tuple[RuleOccurrence, ...]) -> tuple[RepeatedRu
     )
 
 
+def _test_evidence(
+    repository: Path,
+    accesses: tuple[FieldAccess, ...],
+    rule_occurrences: tuple[RuleOccurrence, ...],
+) -> tuple[dict[str, object], ...]:
+    functions = sorted(
+        {item.function.rsplit(".", 1)[-1] for item in [*accesses, *rule_occurrences]}
+    )
+    evidence: list[dict[str, object]] = []
+    for function in functions:
+        report = find_tests_for_symbol(repository, function)
+        if report.candidates:
+            evidence.append({"function": function, "report": report.to_dict()})
+    return tuple(evidence)
+
+
 def find_external_field_rules(
     repository: Path,
     carrier: str,
@@ -478,11 +497,18 @@ def find_external_field_rules(
             ),
         )
     )
+    ordered_rules = tuple(
+        sorted(
+            rule_occurrences,
+            key=lambda item: (item.path, item.line, item.column, item.function),
+        )
+    )
     return ExternalFieldRulesReport(
         "python",
         carrier,
         tuple(sorted(declarations, key=lambda item: (item.path, item.line, item.column))),
         _affinities(ordered_accesses),
         tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
-        _repeated_rules(tuple(rule_occurrences)),
+        _repeated_rules(ordered_rules),
+        _test_evidence(repository, ordered_accesses, ordered_rules),
     )

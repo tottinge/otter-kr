@@ -781,14 +781,16 @@ multi-name summaries.
 - **Admitted:** class/dataclass declarations, annotated carrier-parameter bindings, direct field
   reads/writes/deletes, deterministic occurrence citations, pairwise field-affinity rollups, and
   repeated direct comparison, arithmetic, zero/one-positional-argument field-call, and single-field
-  f-string format rules normalized by their structural operands.
+  f-string format rules normalized by their structural operands, plus positive links to existing
+  test-mapping evidence.
 - **Still rejected:** semantic ownership, boundary classification, confidence scores, candidate
   refactorings, untyped alias inference, indirect dataflow, multi-argument or keyword calls,
-  normalization, presentation ownership, or derivation rule shapes.
+  history evidence without explicit bounds, normalization, presentation ownership, or derivation
+  rule shapes.
 - **Evidence boundary:** the report describes repeated external field use; the consuming LLM or
   skill decides whether a rule has one coherent owner.
-- **Next slices:** admit one additional rule shape at a time, then link existing test/history
-  evidence without duplicating their report contracts.
+- **Next slices:** add bounded history evidence without duplicating the Git report contract, then
+  consider additional rule shapes one at a time.
 
 ## Backlog quality rules
 
