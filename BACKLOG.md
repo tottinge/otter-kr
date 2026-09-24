@@ -780,10 +780,11 @@ multi-name summaries.
 - **Operation:** `python.external_field_rules`, queried by an explicit carrier name.
 - **Admitted:** class/dataclass declarations, annotated carrier-parameter bindings, direct field
   reads/writes/deletes, deterministic occurrence citations, pairwise field-affinity rollups, and
-  repeated direct comparison and arithmetic rules normalized by field/operator/operand.
+  repeated direct comparison, arithmetic, and zero-argument field-call rules normalized by their
+  structural operands.
 - **Still rejected:** semantic ownership, boundary classification, confidence scores, candidate
-  refactorings, untyped alias inference, indirect dataflow, normalization, formatting, or
-  derivation rule shapes.
+  refactorings, untyped alias inference, indirect dataflow, argument-bearing calls, normalization,
+  formatting, or derivation rule shapes.
 - **Evidence boundary:** the report describes repeated external field use; the consuming LLM or
   skill decides whether a rule has one coherent owner.
 - **Next slices:** admit one additional rule shape at a time, then link existing test/history

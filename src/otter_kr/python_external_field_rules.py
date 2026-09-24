@@ -291,6 +291,33 @@ class _ExternalAccessCollector(ast.NodeVisitor):
                 )
         self.generic_visit(node)
 
+    def visit_Call(self, node: ast.Call) -> None:
+        if (
+            self.function_stack
+            and not node.args
+            and not node.keywords
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Attribute)
+            and isinstance(node.func.value.value, ast.Name)
+            and node.func.value.value.id in self.carrier_bindings[-1]
+        ):
+            self.rule_occurrences.append(
+                RuleOccurrence(
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    self.function_stack[-1],
+                    ast.unparse(node),
+                    "call",
+                    {
+                        "field": node.func.value.attr,
+                        "method": node.func.attr,
+                        "arguments": "",
+                    },
+                )
+            )
+        self.generic_visit(node)
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if (
             self.function_stack

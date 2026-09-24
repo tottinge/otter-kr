@@ -230,3 +230,46 @@ def test_reports_repeated_direct_calculation_rules(tmp_path: Path) -> None:
             ],
         }
     ]
+
+
+def test_reports_repeated_direct_field_call_rules(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    status: str\n"
+        "\n"
+        "def clean(order: Order):\n"
+        "    return order.status.strip()\n"
+        "\n"
+        "def display(order: Order):\n"
+        "    return order.status.strip()\n",
+    )
+    git_repository(tmp_path, "orders.py")
+
+    report = find_external_field_rules(tmp_path, "Order")
+
+    assert report.to_dict()["rules"] == [
+        {
+            "kind": "call",
+            "normalized": {"field": "status", "method": "strip", "arguments": ""},
+            "occurrence_count": 2,
+            "functions": ["clean", "display"],
+            "occurrence_refs": [
+                {
+                    "path": "orders.py",
+                    "line": 5,
+                    "column": 11,
+                    "function": "clean",
+                    "expression": "order.status.strip()",
+                },
+                {
+                    "path": "orders.py",
+                    "line": 8,
+                    "column": 11,
+                    "function": "display",
+                    "expression": "order.status.strip()",
+                },
+            ],
+        }
+    ]
