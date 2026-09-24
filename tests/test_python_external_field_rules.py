@@ -322,3 +322,46 @@ def test_reports_repeated_direct_field_calls_with_one_positional_argument(
             ],
         }
     ]
+
+
+def test_reports_repeated_direct_field_format_rules(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    status: str\n"
+        "\n"
+        "def label(order: Order):\n"
+        "    return f'status={order.status}'\n"
+        "\n"
+        "def describe(order: Order):\n"
+        "    return f'status={order.status}'\n",
+    )
+    git_repository(tmp_path, "orders.py")
+
+    report = find_external_field_rules(tmp_path, "Order")
+
+    assert report.to_dict()["rules"] == [
+        {
+            "kind": "format",
+            "normalized": {"field": "status", "format": "f-string"},
+            "occurrence_count": 2,
+            "functions": ["describe", "label"],
+            "occurrence_refs": [
+                {
+                    "path": "orders.py",
+                    "line": 5,
+                    "column": 11,
+                    "function": "label",
+                    "expression": "f'status={order.status}'",
+                },
+                {
+                    "path": "orders.py",
+                    "line": 8,
+                    "column": 11,
+                    "function": "describe",
+                    "expression": "f'status={order.status}'",
+                },
+            ],
+        }
+    ]

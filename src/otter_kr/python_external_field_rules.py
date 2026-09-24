@@ -318,6 +318,32 @@ class _ExternalAccessCollector(ast.NodeVisitor):
             )
         self.generic_visit(node)
 
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> None:
+        if not self.function_stack:
+            self.generic_visit(node)
+            return
+        fields = [
+            value.value.attr
+            for value in node.values
+            if isinstance(value, ast.FormattedValue)
+            and isinstance(value.value, ast.Attribute)
+            and isinstance(value.value.value, ast.Name)
+            and value.value.value.id in self.carrier_bindings[-1]
+        ]
+        if len(fields) == 1:
+            self.rule_occurrences.append(
+                RuleOccurrence(
+                    self.path,
+                    node.lineno,
+                    node.col_offset,
+                    self.function_stack[-1],
+                    ast.unparse(node),
+                    "format",
+                    {"field": fields[0], "format": "f-string"},
+                )
+            )
+        self.generic_visit(node)
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if (
             self.function_stack
