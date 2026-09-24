@@ -294,7 +294,7 @@ class _ExternalAccessCollector(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         if (
             self.function_stack
-            and not node.args
+            and len(node.args) <= 1
             and not node.keywords
             and isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Attribute)
@@ -312,7 +312,7 @@ class _ExternalAccessCollector(ast.NodeVisitor):
                     {
                         "field": node.func.value.attr,
                         "method": node.func.attr,
-                        "arguments": "",
+                        "arguments": ast.unparse(node.args[0]) if node.args else "",
                     },
                 )
             )
