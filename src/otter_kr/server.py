@@ -203,6 +203,15 @@ OPERATION_REGISTRY = OperationRegistry(
             requires_term=True,
             term_message="A carrier name is required for python.external_field_rules.",
         ),
+        "python.external_field_rules.history": BoundedTermOperationSpec(
+            lambda repository, carrier, *, since_unix_time, limit: find_external_field_rules(
+                repository,
+                carrier,
+                since_unix_time=since_unix_time,
+                limit=limit,
+            ),
+            term_message="A carrier name is required for python.external_field_rules.history.",
+        ),
         "git.cochange.pair": BoundedPairOperationSpec(
             lambda repository,
             *,

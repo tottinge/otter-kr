@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from otter_kr.python_external_field_rules import find_external_field_rules
-from tests.support import git_repository, write_python
+from tests.support import git_commit, git_repository, write_python
 
 
 def test_reports_carrier_fields_and_repeated_external_field_affinity(tmp_path: Path) -> None:
@@ -112,6 +112,7 @@ def test_reports_carrier_fields_and_repeated_external_field_affinity(tmp_path: P
         "warnings": [],
         "rules": [],
         "test_evidence": [],
+        "history_evidence": None,
     }
 
 
@@ -385,3 +386,28 @@ def test_links_test_evidence_for_observed_external_functions(tmp_path: Path) -> 
 
     assert report.to_dict()["test_evidence"][0]["function"] == "close"
     assert report.to_dict()["test_evidence"][0]["report"]["mapping_status"] == "matched"
+
+
+def test_reports_bounded_history_for_observed_carrier_paths(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n    status: str\n\ndef close(order: Order):\n    return order.status\n",
+    )
+    git_repository(tmp_path, "orders.py")
+    git_commit(tmp_path, "add order", "orders.py")
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n"
+        "    status: str\n"
+        "    total: int\n"
+        "\n"
+        "def close(order: Order):\n"
+        "    return order.status, order.total\n",
+    )
+    git_commit(tmp_path, "add total", "orders.py")
+
+    report = find_external_field_rules(tmp_path, "Order", since_unix_time=1, limit=10)
+
+    assert report.to_dict()["history_evidence"]["files"][0]["path"] == "orders.py"

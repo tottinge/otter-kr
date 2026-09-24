@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 
+from otter_kr.git_cli_history import GitCliHistory
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.python_tests import find_tests_for_symbol
 
 
@@ -124,6 +126,7 @@ class ExternalFieldRulesReport:
     warnings: tuple[dict[str, str], ...]
     rules: tuple[RepeatedRule, ...] = ()
     test_evidence: tuple[dict[str, object], ...] = ()
+    history_evidence: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -134,6 +137,7 @@ class ExternalFieldRulesReport:
             "warnings": list(self.warnings),
             "rules": [item.to_dict() for item in self.rules],
             "test_evidence": list(self.test_evidence),
+            "history_evidence": self.history_evidence,
         }
 
 
@@ -445,6 +449,9 @@ def find_external_field_rules(
     repository: Path,
     carrier: str,
     file_source: TrackedFileSource | None = None,
+    *,
+    since_unix_time: int | None = None,
+    limit: int | None = None,
 ) -> ExternalFieldRulesReport:
     repository = repository.resolve()
     if not repository.is_dir():
@@ -503,6 +510,20 @@ def find_external_field_rules(
             key=lambda item: (item.path, item.line, item.column, item.function),
         )
     )
+    history_evidence = None
+    if since_unix_time is not None and limit is not None:
+        snapshot = collect_git_history_snapshot(
+            repository,
+            since_unix_time=since_unix_time,
+            limit=limit,
+            changes=GitCliHistory(),
+        ).to_dict()
+        observed_paths = {item.path for item in declarations} | {
+            item.path for item in ordered_accesses
+        }
+        history_evidence = snapshot | {
+            "files": [item for item in snapshot["files"] if item["path"] in observed_paths]
+        }
     return ExternalFieldRulesReport(
         "python",
         carrier,
@@ -511,4 +532,5 @@ def find_external_field_rules(
         tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
         _repeated_rules(ordered_rules),
         _test_evidence(repository, ordered_accesses, ordered_rules),
+        history_evidence,
     )

@@ -782,15 +782,14 @@ multi-name summaries.
   reads/writes/deletes, deterministic occurrence citations, pairwise field-affinity rollups, and
   repeated direct comparison, arithmetic, zero/one-positional-argument field-call, and single-field
   f-string format rules normalized by their structural operands, plus positive links to existing
-  test-mapping evidence.
+  test-mapping evidence and a separate bounded-history operation filtered to observed paths.
 - **Still rejected:** semantic ownership, boundary classification, confidence scores, candidate
   refactorings, untyped alias inference, indirect dataflow, multi-argument or keyword calls,
-  history evidence without explicit bounds, normalization, presentation ownership, or derivation
-  rule shapes.
+  unbounded history evidence, normalization, presentation ownership, or derivation rule shapes.
 - **Evidence boundary:** the report describes repeated external field use; the consuming LLM or
   skill decides whether a rule has one coherent owner.
-- **Next slices:** add bounded history evidence without duplicating the Git report contract, then
-  consider additional rule shapes one at a time.
+- **Next slices:** consider additional rule shapes one at a time, without widening into semantic
+  ownership or refactoring recommendations.
 
 ## Backlog quality rules
 

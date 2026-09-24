@@ -182,6 +182,39 @@ def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     }
 
 
+def test_research_tool_reports_bounded_external_field_rule_history(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "orders.py",
+        "class Order:\n    status: str\n\ndef close(order: Order):\n    return order.status\n",
+    )
+    git_repository(tmp_path, "orders.py")
+    git_commit(tmp_path, "add order", "orders.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path),
+                "operation": "python.external_field_rules.history",
+                "term": "Order",
+                "since_unix_time": 1,
+                "limit": 10,
+            },
+        )
+    )
+
+    data = assert_ok_report(
+        report,
+        operation="python.external_field_rules.history",
+        repository_root=str(tmp_path),
+        term="Order",
+        since_unix_time=1,
+        limit=10,
+    )
+    assert data["history_evidence"]["files"][0]["path"] == "orders.py"
+
+
 def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) -> None:
     write_python(tmp_path, "pkg/__init__.py", "")
     write_python(tmp_path, "pkg/a.py", "value = 1\n")
