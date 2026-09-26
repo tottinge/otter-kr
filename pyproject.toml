@@ -37,7 +37,12 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B", "SIM", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
+# Tests intentionally use assertions and trusted local Git fixtures.
+"tests/**/*.py" = ["S101", "S603", "S607"]
+# These are the two narrowly reviewed, shell-disabled Git adapters. Their
+# inputs are validated or assembled from fixed Git arguments before execution.
+"src/otter_kr/git_cli_history.py" = ["S603"]
+"src/otter_kr/git_files.py" = ["S603"]
