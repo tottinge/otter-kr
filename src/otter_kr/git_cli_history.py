@@ -24,6 +24,7 @@ from otter_kr.git_ports import (
 _LOG_FORMAT = "%H%x00%P%x00%ct%x00%an%x00%ae%x00%s"
 _MAX_COMMIT_LIMIT = 5000
 _SHA_PATTERN = re.compile(r"^[0-9a-f]{7,40}$")
+_REVISION_PATTERN = re.compile(r"^(?:[A-Za-z0-9._/-]+)(?:~[0-9]+|\^[0-9]*)?$")
 
 GitRunner = Callable[[tuple[str, ...]], tuple[int, bytes, bytes]]
 
@@ -50,7 +51,7 @@ class GitHistoryPatchTooLargeError(GitHistoryError):
 
 
 def _default_runner(command: tuple[str, ...]) -> tuple[int, bytes, bytes]:
-    result = subprocess.run(command, check=False, capture_output=True)
+    result = subprocess.run(command, check=False, capture_output=True, shell=False)
     return result.returncode, result.stdout, result.stderr
 
 
@@ -134,6 +135,8 @@ class GitCliHistory(
     def line_origins(
         self, repository: Path, path: str, revision: str, lines: tuple[int, ...]
     ) -> list[LineOrigin]:
+        path = _validate_paths((path,))[0]
+        revision = _validate_revision(revision)
         origins: list[LineOrigin] = []
         for line in lines:
             command = (
@@ -350,6 +353,14 @@ def _validate_since_unix_time(since_unix_time: int) -> None:
 def _validate_sha(value: str, *, field_name: str) -> str:
     if not _SHA_PATTERN.fullmatch(value):
         raise GitHistoryValidationError(f"{field_name} must be a Git SHA: {value}")
+    return value
+
+
+def _validate_revision(value: str) -> str:
+    if not _REVISION_PATTERN.fullmatch(value):
+        raise GitHistoryValidationError(
+            "revision must be a Git revision name, SHA, or simple parent selector."
+        )
     return value
 
 

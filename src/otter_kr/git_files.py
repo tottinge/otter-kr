@@ -26,7 +26,7 @@ class GitCliFileSource:
     def python_files(self, repository: Path) -> list[Path]:
         command = ("git", "-C", str(repository), "ls-files", "--cached", "-z", "--", "*.py")
         try:
-            result = subprocess.run(command, check=False, capture_output=True)
+            result = subprocess.run(command, check=False, capture_output=True, shell=False)
         except OSError as error:
             raise GitFileSourceError(command, None, str(error)) from error
         if result.returncode != 0:

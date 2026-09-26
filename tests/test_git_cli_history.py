@@ -1,9 +1,27 @@
 import ast
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from tests.support import git_commit, git_repository, write_python
+
+
+def test_default_runner_disables_shell_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    from otter_kr.git_cli_history import _default_runner
+
+    captured: dict[str, object] = {}
+
+    def run(command: tuple[str, ...], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        captured["command"] = command
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, b"", b"")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    _default_runner(("git", "--version"))
+
+    assert captured["shell"] is False
 
 
 def _module_path(name: str) -> Path:
@@ -200,9 +218,10 @@ def test_commit_metadata_rejects_invalid_query_values(tmp_path: Path) -> None:
         )
 
     with pytest.raises(GitHistoryValidationError, match="paths must be repository-relative"):
+        invalid_path = str(tmp_path / "file.py")
         history.commit_metadata(
             tmp_path,
-            CommitHistoryQuery(limit=1, since_unix_time=1, paths=("/tmp/file.py",)),
+            CommitHistoryQuery(limit=1, since_unix_time=1, paths=(invalid_path,)),
         )
 
 

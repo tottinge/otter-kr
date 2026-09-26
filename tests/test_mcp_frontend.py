@@ -2,15 +2,8 @@ import asyncio
 from pathlib import Path
 
 import pytest
-from fastmcp import Client
 
-from otter_kr.operation_registry import (
-    OperationContext,
-    OperationRegistry,
-    OperationSpec,
-    ResearchRequest,
-)
-from otter_kr.server import create_server, dispatch_research
+from otter_kr.server import create_server
 from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
@@ -53,25 +46,8 @@ def assert_ok_report(
     return report["data"]
 
 
-def test_dispatch_research_admits_a_registry_entry_without_dispatcher_changes() -> None:
-    def analyzer(repository: Path) -> dict[str, str]:
-        return {"repository": str(repository)}
-
-    def run(*args: object, **kwargs: object) -> dict[str, bool]:
-        return {"executed": True}
-
-    context = OperationContext(
-        run=run,
-        query_run=run,
-        bounded=run,
-        reject=run,
-        unimplemented=run,
-    )
-    registry = OperationRegistry({"python.example": OperationSpec(analyzer)})
-
-    result = dispatch_research(ResearchRequest.create("/repo", "python.example"), registry, context)
-
-    assert result == {"executed": True}
+def research(server: object, request: dict) -> dict:
+    return asyncio.run(call_research(server, request))
 
 
 def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path) -> None:
@@ -304,15 +280,10 @@ def test_graph_topology_reports_zero_ratios_for_isolated_nodes(tmp_path: Path) -
 def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> None:
     server = create_server()
 
-    async def call_research(repository_root: str, operation: str) -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": repository_root, "operation": operation},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research("/repo/two", "git.affinity"))
+    rejection = research(
+        server,
+        {"repository_root": "/repo/two", "operation": "git.affinity"},
+    )
 
     assert rejection == {
         "schema_version": "1",
@@ -826,20 +797,15 @@ def test_research_tool_reports_bounded_git_history_context(tmp_path: Path) -> No
     second = git_commit(tmp_path, "adjust service", "pkg/service.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.history",
-                    "since_unix_time": 1,
-                    "limit": 2,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.history",
+            "since_unix_time": 1,
+            "limit": 2,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.history",
@@ -884,20 +850,15 @@ def test_research_tool_reports_git_hotspots(tmp_path: Path) -> None:
     git_commit(tmp_path, "adjust service", "pkg/service.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.hotspots",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.hotspots",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.hotspots",
@@ -918,20 +879,15 @@ def test_research_tool_reports_git_history_snapshot(tmp_path: Path) -> None:
     git_commit(tmp_path, "update", "pkg/service.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.snapshot",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.snapshot",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.snapshot",
@@ -951,20 +907,15 @@ def test_research_tool_reports_git_distributions(tmp_path: Path) -> None:
     git_commit(tmp_path, "routine maintenance", "pkg/service.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.distributions",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.distributions",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.distributions",
@@ -986,20 +937,15 @@ def test_research_tool_reports_global_git_cochange(tmp_path: Path) -> None:
     git_commit(tmp_path, "adjust pair", "pkg/a.py", "pkg/b.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.cochange",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.cochange",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.cochange",
@@ -1024,21 +970,16 @@ def test_research_tool_reports_focus_file_cochange(tmp_path: Path) -> None:
     git_commit(tmp_path, "adjust pair", "pkg/a.py", "pkg/b.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.cochange.file",
-                    "term": "pkg/a.py",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.cochange.file",
+            "term": "pkg/a.py",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.cochange.file",
@@ -1060,22 +1001,17 @@ def test_research_tool_reports_explicit_pair_cochange(tmp_path: Path) -> None:
     git_commit(tmp_path, "initial pair")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.cochange.pair",
-                    "left_path": "pkg/a.py",
-                    "right_path": "pkg/b.py",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.cochange.pair",
+            "left_path": "pkg/a.py",
+            "right_path": "pkg/b.py",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
     data = assert_ok_report(
         report,
         operation="git.cochange.pair",
@@ -1093,21 +1029,16 @@ def test_research_tool_reports_explicit_pair_cochange(tmp_path: Path) -> None:
 def test_research_tool_rejects_pair_without_both_paths() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": "/repo",
-                    "operation": "git.cochange.pair",
-                    "left_path": "pkg/a.py",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {
+            "repository_root": "/repo",
+            "operation": "git.cochange.pair",
+            "left_path": "pkg/a.py",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
 
     assert rejection["error"]["code"] == "invalid_query"
 
@@ -1115,20 +1046,15 @@ def test_research_tool_rejects_pair_without_both_paths() -> None:
 def test_research_tool_rejects_focus_file_cochange_without_term() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": "/repo",
-                    "operation": "git.cochange.file",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {
+            "repository_root": "/repo",
+            "operation": "git.cochange.file",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1139,21 +1065,16 @@ def test_research_tool_rejects_focus_file_cochange_without_term() -> None:
 def test_research_tool_rejects_non_relative_focus_file() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": "/repo",
-                    "operation": "git.cochange.file",
-                    "term": "/pkg/a.py",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {
+            "repository_root": "/repo",
+            "operation": "git.cochange.file",
+            "term": "/pkg/a.py",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1164,15 +1085,10 @@ def test_research_tool_rejects_non_relative_focus_file() -> None:
 def test_research_tool_rejects_git_cochange_without_bounds() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "git.cochange"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "git.cochange"},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1183,15 +1099,10 @@ def test_research_tool_rejects_git_cochange_without_bounds() -> None:
 def test_research_tool_rejects_git_hotspots_without_bounds() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "git.hotspots"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "git.hotspots"},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1202,15 +1113,10 @@ def test_research_tool_rejects_git_hotspots_without_bounds() -> None:
 def test_research_tool_rejects_git_history_without_explicit_since_boundary() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "git.history", "limit": 10},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "git.history", "limit": 10},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1221,15 +1127,10 @@ def test_research_tool_rejects_git_history_without_explicit_since_boundary() -> 
 def test_research_tool_rejects_git_history_without_explicit_limit() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "git.history", "since_unix_time": 1},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "git.history", "since_unix_time": 1},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1240,20 +1141,15 @@ def test_research_tool_rejects_git_history_without_explicit_limit() -> None:
 def test_research_tool_reports_git_history_failure_evidence(tmp_path: Path) -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.history",
-                    "since_unix_time": 1,
-                    "limit": 10,
-                },
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.history",
+            "since_unix_time": 1,
+            "limit": 10,
+        },
+    )
 
     assert rejection["status"] == "rejected"
     assert rejection["error"]["code"] == "repository_access_failed"
@@ -1374,16 +1270,14 @@ def test_research_tool_calls_are_independent(tmp_path: Path) -> None:
 
     server = create_server()
 
-    async def call_research(repository_root: str) -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": repository_root, "operation": "python.inventory"},
-            )
-            return result.data
-
-    first = asyncio.run(call_research(str(tmp_path)))
-    second = asyncio.run(call_research(str(other)))
+    first = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.inventory"},
+    )
+    second = research(
+        server,
+        {"repository_root": str(other), "operation": "python.inventory"},
+    )
 
     assert [item["path"] for item in first["data"]["files"]] == [
         "alpha.py",
@@ -1397,15 +1291,10 @@ def test_research_tool_admits_python_inventory(tmp_path) -> None:
     git_repository(tmp_path, "module.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.inventory"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.inventory"},
+    )
 
     assert report["status"] == "ok"
     assert report["operation"] == "python.inventory"
@@ -1417,19 +1306,14 @@ def test_research_tool_reports_python_name_occurrences(tmp_path: Path) -> None:
     git_repository(tmp_path, "orders.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "python.names",
-                    "term": "order",
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "python.names",
+            "term": "order",
+        },
+    )
 
     assert report["status"] == "ok"
     assert report["query"]["term"] == "order"
@@ -1763,15 +1647,10 @@ def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
     git_repository(tmp_path, "pkg")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.imports"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.imports"},
+    )
     data = assert_ok_report(
         report,
         operation="python.imports",
@@ -1803,15 +1682,10 @@ def test_research_tool_reports_python_import_edges(tmp_path: Path) -> None:
 def test_research_tool_rejects_python_names_without_term() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "python.names"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "python.names"},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -1822,15 +1696,10 @@ def test_research_tool_rejects_python_names_without_term() -> None:
 def test_research_tool_reports_git_failure_evidence(tmp_path: Path) -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.inventory"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.inventory"},
+    )
 
     assert rejection["status"] == "rejected"
     assert rejection["error"]["code"] == "repository_access_failed"
@@ -1841,23 +1710,18 @@ def test_research_tool_reports_git_failure_evidence(tmp_path: Path) -> None:
 def test_research_tool_rejects_missing_repository_root() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": "/repo/missing",
-                    "operation": "python.imports",
-                    "term": "Widget",
-                    "since_unix_time": 123,
-                    "limit": 7,
-                    "left_path": "left.py",
-                    "right_path": "right.py",
-                },
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {
+            "repository_root": "/repo/missing",
+            "operation": "python.imports",
+            "term": "Widget",
+            "since_unix_time": 123,
+            "limit": 7,
+            "left_path": "left.py",
+            "right_path": "right.py",
+        },
+    )
 
     assert rejection == {
         "schema_version": "1",
@@ -1887,15 +1751,10 @@ def test_research_tool_reports_repeated_python_literals(tmp_path: Path) -> None:
     git_repository(tmp_path, "app.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.literals"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.literals"},
+    )
 
     assert report["status"] == "ok"
     assert report["operation"] == "python.literals"
@@ -1925,15 +1784,10 @@ def test_research_tool_reports_duplicate_python_helpers(tmp_path: Path) -> None:
     git_repository(tmp_path, "pkg")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": str(tmp_path), "operation": "python.duplicates"},
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {"repository_root": str(tmp_path), "operation": "python.duplicates"},
+    )
 
     assert report["status"] == "ok"
     assert report["operation"] == "python.duplicates"
@@ -2037,19 +1891,14 @@ def test_research_tool_reports_python_type_discriminations(tmp_path: Path) -> No
     git_repository(tmp_path, "pkg")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "python.discriminations",
-                    "term": "Status",
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "python.discriminations",
+            "term": "Status",
+        },
+    )
 
     assert report["status"] == "ok"
     assert report["operation"] == "python.discriminations"
@@ -2071,19 +1920,14 @@ def test_research_tool_reports_python_test_candidates_for_selected_symbol(tmp_pa
     git_repository(tmp_path, "tests")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "python.tests",
-                    "term": "collect_payment",
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "python.tests",
+            "term": "collect_payment",
+        },
+    )
 
     assert report["status"] == "ok"
     assert report["operation"] == "python.tests"
@@ -2266,15 +2110,10 @@ def test_seed_evidence_composite_includes_carrier_guards_for_identifier(tmp_path
 def test_research_tool_rejects_python_discriminations_without_term() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "python.discriminations"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "python.discriminations"},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -2320,15 +2159,10 @@ def test_research_tool_rejects_unsafe_carrier_guards_path() -> None:
 def test_research_tool_rejects_python_tests_without_term() -> None:
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {"repository_root": "/repo", "operation": "python.tests"},
-            )
-            return result.data
-
-    rejection = asyncio.run(call_research())
+    rejection = research(
+        server,
+        {"repository_root": "/repo", "operation": "python.tests"},
+    )
 
     assert rejection["error"] == {
         "code": "invalid_query",
@@ -2342,21 +2176,16 @@ def test_research_tool_reports_line_origins(tmp_path: Path) -> None:
     git_commit(tmp_path, "initial", "service.py")
     server = create_server()
 
-    async def call_research() -> dict:
-        async with Client(server) as client:
-            result = await client.call_tool(
-                "research",
-                {
-                    "repository_root": str(tmp_path),
-                    "operation": "git.line_origins",
-                    "term": "HEAD",
-                    "path": "service.py",
-                    "lines": [1],
-                },
-            )
-            return result.data
-
-    report = asyncio.run(call_research())
+    report = research(
+        server,
+        {
+            "repository_root": str(tmp_path),
+            "operation": "git.line_origins",
+            "term": "HEAD",
+            "path": "service.py",
+            "lines": [1],
+        },
+    )
     assert report["status"] == "ok"
     assert report["data"]["origins"][0]["text"] == "value = 1"
 
