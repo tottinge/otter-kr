@@ -354,6 +354,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Find duplicate Python helpers",
         "Find duplicate helper implementations in tracked Python files.",
     ),
+    _TypedToolDescriptor(
+        "git.snapshot",
+        "git_snapshot",
+        "Inspect Git snapshot",
+        "Describe the current tracked Git snapshot and working tree state.",
+    ),
 )
 
 
@@ -960,6 +966,11 @@ def create_server() -> FastMCP:
     def python_duplicates(repository_root: str) -> dict:
         """Find duplicate helper implementations in tracked Python files."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[10].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[11])
+    def git_snapshot(repository_root: str) -> dict:
+        """Describe the current tracked Git snapshot and working tree state."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[11].operation)
 
     return server
 

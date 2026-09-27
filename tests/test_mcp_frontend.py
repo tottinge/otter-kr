@@ -374,6 +374,25 @@ def test_python_duplicates_tool_has_a_repository_only_contract(tmp_path: Path) -
     assert result["operation"] == "python.duplicates"
 
 
+def test_git_snapshot_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_snapshot")
+            result = await client.call_tool(
+                "git_snapshot",
+                {"repository_root": str(tmp_path)},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "snapshot" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert result["operation"] == "git.snapshot"
+
+
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     write_python(
         tmp_path,
