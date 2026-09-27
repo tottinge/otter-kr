@@ -324,6 +324,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Find Python imports",
         "List imports, imported modules, and imported names in tracked Python files.",
     ),
+    _TypedToolDescriptor(
+        "python.graph_topology",
+        "python_graph_topology",
+        "Map Python import topology",
+        "Build a deterministic Python import graph and report its topology.",
+    ),
 )
 
 
@@ -905,6 +911,11 @@ def create_server() -> FastMCP:
     def python_imports(repository_root: str) -> dict:
         """List imported modules and imported names in tracked Python files."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[5].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[6])
+    def python_graph_topology(repository_root: str) -> dict:
+        """Build a deterministic Python import graph and report its topology."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[6].operation)
 
     return server
 
