@@ -336,6 +336,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Analyze Python complexity",
         "Measure cyclomatic complexity in tracked Python files.",
     ),
+    _TypedToolDescriptor(
+        "python.literals",
+        "python_literals",
+        "Find repeated Python literals",
+        "Find repeated literals in tracked Python files.",
+    ),
 )
 
 
@@ -927,6 +933,11 @@ def create_server() -> FastMCP:
     def python_complexity(repository_root: str) -> dict:
         """Measure cyclomatic complexity in tracked Python files."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[7].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[8])
+    def python_literals(repository_root: str) -> dict:
+        """Find repeated literals in tracked Python files."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[8].operation)
 
     return server
 
