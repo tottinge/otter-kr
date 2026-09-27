@@ -431,6 +431,29 @@ def test_git_hotspots_tool_has_a_repository_only_contract(tmp_path: Path) -> Non
     assert result["operation"] == "git.hotspots"
 
 
+def test_git_cochange_tool_has_a_typed_bounded_contract() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_cochange")
+            result = await client.call_tool(
+                "git_cochange",
+                {"repository_root": "/repo", "since_unix_time": 1, "limit": 10},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "co-change" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root", "since_unix_time", "limit"]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "since_unix_time",
+        "limit",
+    }
+    assert result["operation"] == "git.cochange"
+
+
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     write_python(
         tmp_path,

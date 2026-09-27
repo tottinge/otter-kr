@@ -372,6 +372,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Inspect Git hotspots",
         "Identify Git hotspots: repository files with concentrated historical change activity.",
     ),
+    _TypedToolDescriptor(
+        "git.cochange",
+        "git_cochange",
+        "Inspect Git co-change",
+        "Find bounded co-change relationships among repository files.",
+    ),
 )
 
 
@@ -993,6 +999,16 @@ def create_server() -> FastMCP:
     def git_hotspots(repository_root: str) -> dict:
         """Identify Git hotspots: repository files with concentrated historical change activity."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[13].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[14])
+    def git_cochange(repository_root: str, since_unix_time: int, limit: int) -> dict:
+        """Find bounded co-change relationships among repository files."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[14].operation,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
 
     return server
 
