@@ -378,6 +378,153 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Inspect Git co-change",
         "Find bounded co-change relationships among repository files.",
     ),
+    _TypedToolDescriptor(
+        "git.topic", "git_topic", "Describe a Git topic", "Describe a commit topic."
+    ),
+    _TypedToolDescriptor(
+        "git.topic_hunks",
+        "git_topic_hunks",
+        "Inspect topic hunks",
+        "Collect changed hunks for a commit topic.",
+    ),
+    _TypedToolDescriptor(
+        "git.topic_walk",
+        "git_topic_walk",
+        "Walk a Git topic",
+        "Walk bounded history related to a commit topic.",
+    ),
+    _TypedToolDescriptor(
+        "git.topic_family",
+        "git_topic_family",
+        "Find a Git topic family",
+        "Find bounded history in a commit topic family.",
+    ),
+    _TypedToolDescriptor(
+        "python.term_change_evidence",
+        "python_term_change_evidence",
+        "Find Python term change evidence",
+        "Find bounded Git change evidence for a Python term.",
+    ),
+    _TypedToolDescriptor(
+        "python.representation_inventory",
+        "python_representation_inventory",
+        "Inventory Python representations",
+        "Inventory bounded representation evidence in a Python repository.",
+    ),
+    _TypedToolDescriptor(
+        "git.review_packet",
+        "git_review_packet",
+        "Build a Git review packet",
+        "Build a bounded review packet for a repository.",
+    ),
+    _TypedToolDescriptor(
+        "git.review_packet.file",
+        "git_review_packet_file",
+        "Build a file review packet",
+        "Build a bounded review packet focused on one repository-relative file.",
+    ),
+    _TypedToolDescriptor(
+        "git.review_packet.files",
+        "git_review_packet_files",
+        "Build a multi-file review packet",
+        "Build a bounded review packet focused on repository-relative files.",
+    ),
+    _TypedToolDescriptor(
+        "git.review_packet.revision",
+        "git_review_packet_revision",
+        "Build a revision review packet",
+        "Build a bounded review packet for a commit revision.",
+    ),
+    _TypedToolDescriptor(
+        "git.cochange.file",
+        "git_cochange_file",
+        "Inspect file co-change",
+        "Find bounded co-change relationships for one repository-relative file.",
+    ),
+    _TypedToolDescriptor(
+        "git.branch_additions",
+        "git_branch_additions",
+        "Inspect branch additions",
+        "Find bounded branch additions for one repository-relative file.",
+    ),
+    _TypedToolDescriptor(
+        "python.variable_cluster",
+        "python_variable_cluster",
+        "Find a Python variable cluster",
+        "Find related Python variables using a term or distinct identifier terms.",
+    ),
+    _TypedToolDescriptor(
+        "python.object_lifecycle",
+        "python_object_lifecycle",
+        "Trace a Python object lifecycle",
+        "Trace a bounded Python object lifecycle for a carrier name.",
+    ),
+    _TypedToolDescriptor(
+        "python.carrier_guards",
+        "python_carrier_guards",
+        "Find Python carrier guards",
+        "Find guards for a Python carrier, optionally scoped to a path.",
+    ),
+    _TypedToolDescriptor(
+        "python.external_field_rules",
+        "python_external_field_rules",
+        "Find external field rules",
+        "Find external field rules for a Python carrier.",
+    ),
+    _TypedToolDescriptor(
+        "python.external_field_rules.history",
+        "python_external_field_rules_history",
+        "Find historical external field rules",
+        "Find bounded historical external field rules for a Python carrier.",
+    ),
+    _TypedToolDescriptor(
+        "python.neighborhood",
+        "python_neighborhood",
+        "Find a Python neighborhood",
+        "Find the Python neighborhood around a seed.",
+    ),
+    _TypedToolDescriptor(
+        "python.neighborhood.structural",
+        "python_neighborhood_structural",
+        "Find a structural Python neighborhood",
+        "Find the structural Python neighborhood around a seed.",
+    ),
+    _TypedToolDescriptor(
+        "python.neighborhood.historical",
+        "python_neighborhood_historical",
+        "Find a historical Python neighborhood",
+        "Find a bounded historical Python neighborhood around a seed.",
+    ),
+    _TypedToolDescriptor(
+        "python.neighborhood.behavioral",
+        "python_neighborhood_behavioral",
+        "Find a behavioral Python neighborhood",
+        "Find the behavioral Python neighborhood around a seed.",
+    ),
+    _TypedToolDescriptor(
+        "python.seed_evidence",
+        "python_seed_evidence",
+        "Find Python seed evidence",
+        "Find evidence related to a Python seed.",
+    ),
+    _TypedToolDescriptor(
+        "python.discriminations",
+        "python_discriminations",
+        "Find Python discriminations",
+        "Find type discriminations for a Python term.",
+    ),
+    _TypedToolDescriptor(
+        "python.tests",
+        "python_tests",
+        "Find Python tests",
+        "Find tests related to a Python symbol.",
+    ),
+    _TypedToolDescriptor(
+        "python.duplicates.compact",
+        "python_duplicates_compact",
+        "Compact duplicate Python helpers",
+        "Return a compact duplicate-helper report for a Python repository.",
+    ),
 )
 
 
@@ -1008,6 +1155,250 @@ def create_server() -> FastMCP:
             _TYPED_TOOL_DESCRIPTORS[14].operation,
             since_unix_time=since_unix_time,
             limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[15])
+    def git_topic(repository_root: str, commit: str) -> dict:
+        """Describe a commit topic."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[15].operation, term=commit)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[16])
+    def git_topic_hunks(repository_root: str, commit: str) -> dict:
+        """Collect changed hunks for a commit topic."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[16].operation, term=commit)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[17])
+    def git_topic_walk(repository_root: str, commit: str, since_unix_time: int, limit: int) -> dict:
+        """Walk bounded history related to a commit topic."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[17].operation,
+            term=commit,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[18])
+    def git_topic_family(
+        repository_root: str, commit: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find bounded history in a commit topic family."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[18].operation,
+            term=commit,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[19])
+    def python_term_change_evidence(
+        repository_root: str, term: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find bounded Git change evidence for a Python term."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[19].operation,
+            term=term,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[20])
+    def python_representation_inventory(
+        repository_root: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Inventory bounded representation evidence in a Python repository."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[20].operation,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[21])
+    def git_review_packet(repository_root: str, since_unix_time: int, limit: int) -> dict:
+        """Build a bounded review packet for a repository."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[21].operation,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[22])
+    def git_review_packet_file(
+        repository_root: str, path: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Build a bounded review packet focused on one repository-relative file."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[22].operation,
+            path=path,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[23])
+    def git_review_packet_files(
+        repository_root: str, paths: list[str], since_unix_time: int, limit: int
+    ) -> dict:
+        """Build a bounded review packet focused on repository-relative files."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[23].operation,
+            paths=paths,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[24])
+    def git_review_packet_revision(
+        repository_root: str, revision: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Build a bounded review packet for a commit revision."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[24].operation,
+            term=revision,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[25])
+    def git_cochange_file(
+        repository_root: str, path: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find bounded co-change relationships for one repository-relative file."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[25].operation,
+            path=path,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[26])
+    def git_branch_additions(
+        repository_root: str, path: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find bounded branch additions for one repository-relative file."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[26].operation,
+            path=path,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[27])
+    def python_variable_cluster(
+        repository_root: str,
+        term: str | None = None,
+        terms: list[str] | None = None,
+    ) -> dict:
+        """Find related Python variables using a term or distinct identifier terms."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[27].operation,
+            term=term,
+            terms=terms,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[28])
+    def python_object_lifecycle(
+        repository_root: str,
+        carrier: str,
+        since_unix_time: int | None = None,
+        limit: int | None = None,
+    ) -> dict:
+        """Trace a bounded Python object lifecycle for a carrier name."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[28].operation,
+            term=carrier,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[29])
+    def python_carrier_guards(repository_root: str, carrier: str, path: str | None = None) -> dict:
+        """Find guards for a Python carrier, optionally scoped to a path."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[29].operation,
+            term=carrier,
+            path=path,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[30])
+    def python_external_field_rules(repository_root: str, carrier: str) -> dict:
+        """Find external field rules for a Python carrier."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[30].operation, term=carrier)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[31])
+    def python_external_field_rules_history(
+        repository_root: str, carrier: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find bounded historical external field rules for a Python carrier."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[31].operation,
+            term=carrier,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[32])
+    def python_neighborhood(repository_root: str, seed: str) -> dict:
+        """Find the Python neighborhood around a seed."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[32].operation, term=seed)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[33])
+    def python_neighborhood_structural(repository_root: str, seed: str) -> dict:
+        """Find the structural Python neighborhood around a seed."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[33].operation, term=seed)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[34])
+    def python_neighborhood_historical(
+        repository_root: str, seed: str, since_unix_time: int, limit: int
+    ) -> dict:
+        """Find a bounded historical Python neighborhood around a seed."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[34].operation,
+            term=seed,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[35])
+    def python_neighborhood_behavioral(repository_root: str, seed: str) -> dict:
+        """Find the behavioral Python neighborhood around a seed."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[35].operation, term=seed)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[36])
+    def python_seed_evidence(repository_root: str, seed: str) -> dict:
+        """Find evidence related to a Python seed."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[36].operation, term=seed)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[37])
+    def python_discriminations(repository_root: str, term: str) -> dict:
+        """Find type discriminations for a Python term."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[37].operation, term=term)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[38])
+    def python_tests(repository_root: str, term: str) -> dict:
+        """Find tests related to a Python symbol."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[38].operation, term=term)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[39])
+    def python_duplicates_compact(repository_root: str, detail: str | None = None) -> dict:
+        """Return a compact duplicate-helper report for a Python repository."""
+        return research(
+            repository_root,
+            _TYPED_TOOL_DESCRIPTORS[39].operation,
+            detail=detail,
         )
 
     return server

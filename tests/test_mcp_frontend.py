@@ -120,6 +120,57 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     assert_invalid_python_warning(data["warnings"][1], "broken.py")
 
 
+def test_every_admitted_operation_has_a_typed_frontend() -> None:
+    async def inspect_tools() -> list[str]:
+        async with Client(create_server()) as client:
+            return [tool.name for tool in await client.list_tools()]
+
+    typed_names = {
+        "python_inventory",
+        "git_history",
+        "git_line_origins",
+        "python_names",
+        "git_cochange_pair",
+        "python_imports",
+        "python_graph_topology",
+        "python_complexity",
+        "python_literals",
+        "python_groups",
+        "python_duplicates",
+        "git_snapshot",
+        "git_distributions",
+        "git_hotspots",
+        "git_cochange",
+        "git_topic",
+        "git_topic_hunks",
+        "git_topic_walk",
+        "git_topic_family",
+        "python_term_change_evidence",
+        "python_representation_inventory",
+        "git_review_packet",
+        "git_review_packet_file",
+        "git_review_packet_files",
+        "git_review_packet_revision",
+        "git_cochange_file",
+        "git_branch_additions",
+        "python_variable_cluster",
+        "python_object_lifecycle",
+        "python_carrier_guards",
+        "python_external_field_rules",
+        "python_external_field_rules_history",
+        "python_neighborhood",
+        "python_neighborhood_structural",
+        "python_neighborhood_historical",
+        "python_neighborhood_behavioral",
+        "python_seed_evidence",
+        "python_discriminations",
+        "python_tests",
+        "python_duplicates_compact",
+    }
+
+    assert typed_names <= set(asyncio.run(inspect_tools()))
+
+
 def test_research_tool_schema_guides_operation_selection() -> None:
     async def inspect_tool() -> object:
         async with Client(create_server()) as client:
