@@ -1158,9 +1158,14 @@ def create_server() -> FastMCP:
         return research(repository_root, _typed_tool("git.distributions").operation)
 
     @read_only_tool(_typed_tool("git.hotspots"))
-    def git_hotspots(repository_root: str) -> dict:
+    def git_hotspots(repository_root: str, since_unix_time: int, limit: int) -> dict:
         """Identify Git hotspots: repository files with concentrated historical change activity."""
-        return research(repository_root, _typed_tool("git.hotspots").operation)
+        return research(
+            repository_root,
+            _typed_tool("git.hotspots").operation,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
 
     @read_only_tool(_typed_tool("git.cochange"))
     def git_cochange(repository_root: str, since_unix_time: int, limit: int) -> dict:
@@ -1249,7 +1254,7 @@ def create_server() -> FastMCP:
         return research(
             repository_root,
             _typed_tool("git.review_packet.file").operation,
-            path=path,
+            term=path,
             since_unix_time=since_unix_time,
             limit=limit,
         )
@@ -1288,7 +1293,7 @@ def create_server() -> FastMCP:
         return research(
             repository_root,
             _typed_tool("git.cochange.file").operation,
-            path=path,
+            term=path,
             since_unix_time=since_unix_time,
             limit=limit,
         )
@@ -1301,7 +1306,7 @@ def create_server() -> FastMCP:
         return research(
             repository_root,
             _typed_tool("git.branch_additions").operation,
-            path=path,
+            term=path,
             since_unix_time=since_unix_time,
             limit=limit,
         )

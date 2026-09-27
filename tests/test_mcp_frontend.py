@@ -464,22 +464,26 @@ def test_git_distributions_tool_has_a_repository_only_contract(tmp_path: Path) -
     assert result["operation"] == "git.distributions"
 
 
-def test_git_hotspots_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
+def test_git_hotspots_tool_has_a_typed_bounded_contract() -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:
             tools = await client.list_tools()
             tool = next(tool for tool in tools if tool.name == "git_hotspots")
             result = await client.call_tool(
                 "git_hotspots",
-                {"repository_root": str(tmp_path)},
+                {"repository_root": "/repo", "since_unix_time": 1, "limit": 10},
             )
             return tool, result.data
 
     tool, result = asyncio.run(inspect_and_call())
 
     assert "hotspot" in tool.description
-    assert tool.inputSchema["required"] == ["repository_root"]
-    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert tool.inputSchema["required"] == ["repository_root", "since_unix_time", "limit"]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "since_unix_time",
+        "limit",
+    }
     assert result["operation"] == "git.hotspots"
 
 
@@ -504,6 +508,40 @@ def test_git_cochange_tool_has_a_typed_bounded_contract() -> None:
         "limit",
     }
     assert result["operation"] == "git.cochange"
+
+
+def test_git_review_packet_file_has_a_typed_path_contract() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_review_packet_file")
+            result = await client.call_tool(
+                "git_review_packet_file",
+                {
+                    "repository_root": "/repo",
+                    "path": "service.py",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "one repository-relative file" in tool.description
+    assert tool.inputSchema["required"] == [
+        "repository_root",
+        "path",
+        "since_unix_time",
+        "limit",
+    ]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "path",
+        "since_unix_time",
+        "limit",
+    }
+    assert result["operation"] == "git.review_packet.file"
 
 
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
