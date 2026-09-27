@@ -6,8 +6,9 @@ for interpretation and engineering judgment.
 
 ## Current capability
 
-One stateless `research` tool dispatches deterministic Python and Git evidence operations. Current
-Python evidence covers tracked-file inventory and parse health, names, imports, tests, complexity,
+Operation-specific stateless tools expose deterministic Python and Git evidence operations. The
+legacy `research` tool remains as a compatibility router for clients that cannot yet select typed
+tools directly. Current Python evidence covers tracked-file inventory and parse health, names, imports, tests, complexity,
 repeated literals and groups, structural duplicates, type discriminations, exact/structural/
 historical/behavioral neighborhoods, graph topology, seed-scoped carrier guards, and external
 field affinity. Composite operations project seed evidence, term-change evidence, representation
@@ -67,9 +68,10 @@ An MCP client can launch it from any directory with an entry like this (replace 
 }
 ```
 
-Call `research` with `repository_root` set to an absolute or runtime-relative repository directory,
-an admitted `operation`, and that operation's explicit query fields. For example,
-`python.names` requires `term`, while bounded Git operations require `since_unix_time` and `limit`.
+Prefer the operation-specific tools, such as `python_inventory`, `python_names`, and `git_history`.
+Each typed tool names its required inputs directly: `python_names` requires `term`, while bounded
+Git tools require `since_unix_time` and `limit`. The compatibility `research` router accepts the
+same admitted operations and fields for older clients.
 
 ## Design boundary
 

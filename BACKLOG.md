@@ -12,10 +12,10 @@ humans and agents to make well-founded design, testing, and refactoring decision
 skills own interpretation and change; this server owns inspectable evidence. See [ADR
 0006](docs/adr/0006-grounding-before-generation.md).
 
-The repository currently contains a `names` implementation, but it is not part of the admitted
-product contract yet. The first product slice is deliberately a reject-everything stateless
-walking skeleton. Every item below is deliberately phrased as an end-to-end admission, not as a
-component task.
+The repository now admits the implemented evidence operations through operation-specific typed
+MCP tools. The generic `research` entry point remains as a compatibility router while clients
+migrate. Historical slice descriptions below retain their original acceptance language; new
+work should extend the typed surface and preserve the compatibility envelope.
 
 Durable architectural decisions live in [`docs/adr/`](docs/adr/); this file tracks iteration-sized
 admissions and validation work.
