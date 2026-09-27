@@ -786,6 +786,61 @@ def create_server() -> FastMCP:
         )
         return dispatch_research(request, OPERATION_REGISTRY, context)
 
+    @server.tool(
+        name="python_inventory",
+        title="Inventory Python files",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def python_inventory(repository_root: str) -> dict:
+        """List tracked Python files and report parse health for a repository."""
+        return research(repository_root, "python.inventory")
+
+    @server.tool(
+        name="git_history",
+        title="Read bounded Git history",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def git_history(repository_root: str, since_unix_time: int, limit: int) -> dict:
+        """Return bounded Git history after a positive timestamp, capped by limit."""
+        return research(
+            repository_root,
+            "git.history",
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
+    @server.tool(
+        name="git_line_origins",
+        title="Find Git line origins",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def git_line_origins(
+        repository_root: str,
+        revision: str,
+        path: str,
+        lines: list[int],
+    ) -> dict:
+        """Find line origins at a Git revision for a repository-relative path and line list."""
+        return research(
+            repository_root,
+            "git.line_origins",
+            term=revision,
+            path=path,
+            lines=lines,
+        )
+
     return server
 
 

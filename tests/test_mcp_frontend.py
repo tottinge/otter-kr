@@ -73,7 +73,12 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     )
     tool_names = asyncio.run(list_tools(server))
 
-    assert tool_names == ["research"]
+    assert {
+        "research",
+        "python_inventory",
+        "git_history",
+        "git_line_origins",
+    } <= set(tool_names)
     assert report["schema_version"] == "1"
     assert report["status"] == "ok"
     assert report["operation"] == "python.inventory"
@@ -126,6 +131,77 @@ def test_research_tool_schema_guides_operation_selection() -> None:
     operation_schema = tool.inputSchema["properties"]["operation"]
     assert operation_schema["enum"] == list(OPERATION_REGISTRY.names())
     assert {"git.history", "python.inventory", "python.tests"} <= set(operation_schema["enum"])
+
+
+def test_python_inventory_tool_has_a_typed_contract() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "python_inventory")
+            result = await client.call_tool(
+                "python_inventory",
+                {"repository_root": "/repo"},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "tracked Python files" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert result["operation"] == "python.inventory"
+
+
+def test_git_history_tool_has_a_typed_bounded_contract() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_history")
+            result = await client.call_tool(
+                "git_history",
+                {"repository_root": "/repo", "since_unix_time": 1, "limit": 10},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "bounded Git history" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root", "since_unix_time", "limit"]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "since_unix_time",
+        "limit",
+    }
+    assert result["operation"] == "git.history"
+
+
+def test_git_line_origins_tool_has_named_inputs() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_line_origins")
+            result = await client.call_tool(
+                "git_line_origins",
+                {
+                    "repository_root": "/repo",
+                    "revision": "HEAD",
+                    "path": "service.py",
+                    "lines": [1],
+                },
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "revision" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root", "revision", "path", "lines"]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "revision",
+        "path",
+        "lines",
+    }
+    assert result["operation"] == "git.line_origins"
 
 
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
