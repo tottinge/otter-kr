@@ -1,5 +1,6 @@
 """FastMCP transport for repository evidence tools."""
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -275,6 +276,48 @@ OPERATION_REGISTRY = OperationRegistry(
         "python.duplicates": OperationSpec(find_duplicate_helpers),
         "python.duplicates.compact": CompactDuplicateOperationSpec(compact_duplicate_helpers),
     }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedToolDescriptor:
+    operation: str
+    name: str
+    title: str
+    description: str
+
+
+_TYPED_TOOL_DESCRIPTORS = (
+    _TypedToolDescriptor(
+        "python.inventory",
+        "python_inventory",
+        "Inventory Python files",
+        "List tracked Python files and report parse health for a repository.",
+    ),
+    _TypedToolDescriptor(
+        "git.history",
+        "git_history",
+        "Read bounded Git history",
+        "Return bounded Git history after a positive timestamp, capped by limit.",
+    ),
+    _TypedToolDescriptor(
+        "git.line_origins",
+        "git_line_origins",
+        "Find Git line origins",
+        "Find line origins at a Git revision for a repository-relative path and line list.",
+    ),
+    _TypedToolDescriptor(
+        "python.names",
+        "python_names",
+        "Find Python names",
+        "Find definitions and uses of a Python symbol in a repository.",
+    ),
+    _TypedToolDescriptor(
+        "git.cochange.pair",
+        "git_cochange_pair",
+        "Compare two co-changing files",
+        "Compare co-change evidence for two repository-relative paths within bounded history.",
+    ),
 )
 
 
@@ -786,46 +829,34 @@ def create_server() -> FastMCP:
         )
         return dispatch_research(request, OPERATION_REGISTRY, context)
 
-    @server.tool(
-        name="python_inventory",
-        title="Inventory Python files",
-        annotations=ToolAnnotations(
-            readOnlyHint=True,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
-    )
+    def read_only_tool(descriptor: _TypedToolDescriptor):
+        return server.tool(
+            name=descriptor.name,
+            title=descriptor.title,
+            description=descriptor.description,
+            annotations=ToolAnnotations(
+                readOnlyHint=True,
+                idempotentHint=True,
+                openWorldHint=False,
+            ),
+        )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[0])
     def python_inventory(repository_root: str) -> dict:
         """List tracked Python files and report parse health for a repository."""
-        return research(repository_root, "python.inventory")
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[0].operation)
 
-    @server.tool(
-        name="git_history",
-        title="Read bounded Git history",
-        annotations=ToolAnnotations(
-            readOnlyHint=True,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
-    )
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[1])
     def git_history(repository_root: str, since_unix_time: int, limit: int) -> dict:
         """Return bounded Git history after a positive timestamp, capped by limit."""
         return research(
             repository_root,
-            "git.history",
+            _TYPED_TOOL_DESCRIPTORS[1].operation,
             since_unix_time=since_unix_time,
             limit=limit,
         )
 
-    @server.tool(
-        name="git_line_origins",
-        title="Find Git line origins",
-        annotations=ToolAnnotations(
-            readOnlyHint=True,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
-    )
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[2])
     def git_line_origins(
         repository_root: str,
         revision: str,
@@ -835,34 +866,18 @@ def create_server() -> FastMCP:
         """Find line origins at a Git revision for a repository-relative path and line list."""
         return research(
             repository_root,
-            "git.line_origins",
+            _TYPED_TOOL_DESCRIPTORS[2].operation,
             term=revision,
             path=path,
             lines=lines,
         )
 
-    @server.tool(
-        name="python_names",
-        title="Find Python names",
-        annotations=ToolAnnotations(
-            readOnlyHint=True,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
-    )
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[3])
     def python_names(repository_root: str, term: str) -> dict:
         """Find definitions and uses of a Python symbol in a repository."""
-        return research(repository_root, "python.names", term=term)
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[3].operation, term=term)
 
-    @server.tool(
-        name="git_cochange_pair",
-        title="Compare two co-changing files",
-        annotations=ToolAnnotations(
-            readOnlyHint=True,
-            idempotentHint=True,
-            openWorldHint=False,
-        ),
-    )
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[4])
     def git_cochange_pair(
         repository_root: str,
         left_path: str,
@@ -873,7 +888,7 @@ def create_server() -> FastMCP:
         """Compare co-change evidence for two repository-relative paths within bounded history."""
         return research(
             repository_root,
-            "git.cochange.pair",
+            _TYPED_TOOL_DESCRIPTORS[4].operation,
             left_path=left_path,
             right_path=right_path,
             since_unix_time=since_unix_time,
