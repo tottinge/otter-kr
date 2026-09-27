@@ -360,6 +360,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Inspect Git snapshot",
         "Describe the current tracked Git snapshot and working tree state.",
     ),
+    _TypedToolDescriptor(
+        "git.distributions",
+        "git_distributions",
+        "Inspect Git distributions",
+        "Summarize the distribution of commits and changes in repository history.",
+    ),
 )
 
 
@@ -971,6 +977,11 @@ def create_server() -> FastMCP:
     def git_snapshot(repository_root: str) -> dict:
         """Describe the current tracked Git snapshot and working tree state."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[11].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[12])
+    def git_distributions(repository_root: str) -> dict:
+        """Summarize the distribution of commits and changes in repository history."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[12].operation)
 
     return server
 
