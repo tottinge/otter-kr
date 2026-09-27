@@ -355,6 +355,25 @@ def test_python_groups_tool_has_a_repository_only_contract(tmp_path: Path) -> No
     assert result["operation"] == "python.groups"
 
 
+def test_python_duplicates_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "python_duplicates")
+            result = await client.call_tool(
+                "python_duplicates",
+                {"repository_root": str(tmp_path)},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "duplicate" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert result["operation"] == "python.duplicates"
+
+
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     write_python(
         tmp_path,

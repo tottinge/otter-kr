@@ -348,6 +348,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Find repeated Python groups",
         "Find repeated code groups in tracked Python files.",
     ),
+    _TypedToolDescriptor(
+        "python.duplicates",
+        "python_duplicates",
+        "Find duplicate Python helpers",
+        "Find duplicate helper implementations in tracked Python files.",
+    ),
 )
 
 
@@ -949,6 +955,11 @@ def create_server() -> FastMCP:
     def python_groups(repository_root: str) -> dict:
         """Find repeated code groups in tracked Python files."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[9].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[10])
+    def python_duplicates(repository_root: str) -> dict:
+        """Find duplicate helper implementations in tracked Python files."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[10].operation)
 
     return server
 
