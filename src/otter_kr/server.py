@@ -318,6 +318,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Compare two co-changing files",
         "Compare co-change evidence for two repository-relative paths within bounded history.",
     ),
+    _TypedToolDescriptor(
+        "python.imports",
+        "python_imports",
+        "Find Python imports",
+        "List imports, imported modules, and imported names in tracked Python files.",
+    ),
 )
 
 
@@ -894,6 +900,11 @@ def create_server() -> FastMCP:
             since_unix_time=since_unix_time,
             limit=limit,
         )
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[5])
+    def python_imports(repository_root: str) -> dict:
+        """List imported modules and imported names in tracked Python files."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[5].operation)
 
     return server
 

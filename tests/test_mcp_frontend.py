@@ -260,6 +260,25 @@ def test_git_cochange_pair_tool_has_two_paths_and_bounds() -> None:
     assert result["operation"] == "git.cochange.pair"
 
 
+def test_python_imports_tool_has_a_repository_only_contract() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "python_imports")
+            result = await client.call_tool(
+                "python_imports",
+                {"repository_root": "/repo"},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "imports" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert result["operation"] == "python.imports"
+
+
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     write_python(
         tmp_path,
