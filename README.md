@@ -53,6 +53,9 @@ uv run otter-kr-contract > /tmp/otter-kr-contract.json
 
 This is generated output, not a second interface definition. Do not hand-edit a provider guide's
 tool names or fields; consume this contract or connect the provider directly to the MCP server.
+Provider projects may keep curated workflow examples as JSON tests and validate them with
+`uv run otter-kr-contract --validate-examples provider-examples.json`; unknown tools, fields, and
+missing required arguments then fail in CI.
 
 Run the stdio server:
 
