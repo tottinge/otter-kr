@@ -366,6 +366,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Inspect Git distributions",
         "Summarize the distribution of commits and changes in repository history.",
     ),
+    _TypedToolDescriptor(
+        "git.hotspots",
+        "git_hotspots",
+        "Inspect Git hotspots",
+        "Identify Git hotspots: repository files with concentrated historical change activity.",
+    ),
 )
 
 
@@ -982,6 +988,11 @@ def create_server() -> FastMCP:
     def git_distributions(repository_root: str) -> dict:
         """Summarize the distribution of commits and changes in repository history."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[12].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[13])
+    def git_hotspots(repository_root: str) -> dict:
+        """Identify Git hotspots: repository files with concentrated historical change activity."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[13].operation)
 
     return server
 
