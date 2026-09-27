@@ -841,6 +841,45 @@ def create_server() -> FastMCP:
             lines=lines,
         )
 
+    @server.tool(
+        name="python_names",
+        title="Find Python names",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def python_names(repository_root: str, term: str) -> dict:
+        """Find definitions and uses of a Python symbol in a repository."""
+        return research(repository_root, "python.names", term=term)
+
+    @server.tool(
+        name="git_cochange_pair",
+        title="Compare two co-changing files",
+        annotations=ToolAnnotations(
+            readOnlyHint=True,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
+    )
+    def git_cochange_pair(
+        repository_root: str,
+        left_path: str,
+        right_path: str,
+        since_unix_time: int,
+        limit: int,
+    ) -> dict:
+        """Compare co-change evidence for two repository-relative paths within bounded history."""
+        return research(
+            repository_root,
+            "git.cochange.pair",
+            left_path=left_path,
+            right_path=right_path,
+            since_unix_time=since_unix_time,
+            limit=limit,
+        )
+
     return server
 
 

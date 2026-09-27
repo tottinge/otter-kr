@@ -204,6 +204,62 @@ def test_git_line_origins_tool_has_named_inputs() -> None:
     assert result["operation"] == "git.line_origins"
 
 
+def test_python_names_tool_has_a_required_term() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "python_names")
+            result = await client.call_tool(
+                "python_names",
+                {"repository_root": "/repo", "term": "payment"},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "symbol" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root", "term"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root", "term"}
+    assert result["operation"] == "python.names"
+
+
+def test_git_cochange_pair_tool_has_two_paths_and_bounds() -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "git_cochange_pair")
+            result = await client.call_tool(
+                "git_cochange_pair",
+                {
+                    "repository_root": "/repo",
+                    "left_path": "a.py",
+                    "right_path": "b.py",
+                    "since_unix_time": 1,
+                    "limit": 10,
+                },
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "two repository-relative paths" in tool.description
+    assert tool.inputSchema["required"] == [
+        "repository_root",
+        "left_path",
+        "right_path",
+        "since_unix_time",
+        "limit",
+    ]
+    assert set(tool.inputSchema["properties"]) == {
+        "repository_root",
+        "left_path",
+        "right_path",
+        "since_unix_time",
+        "limit",
+    }
+    assert result["operation"] == "git.cochange.pair"
+
+
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
     write_python(
         tmp_path,
