@@ -342,6 +342,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Find repeated Python literals",
         "Find repeated literals in tracked Python files.",
     ),
+    _TypedToolDescriptor(
+        "python.groups",
+        "python_groups",
+        "Find repeated Python groups",
+        "Find repeated code groups in tracked Python files.",
+    ),
 )
 
 
@@ -938,6 +944,11 @@ def create_server() -> FastMCP:
     def python_literals(repository_root: str) -> dict:
         """Find repeated literals in tracked Python files."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[8].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[9])
+    def python_groups(repository_root: str) -> dict:
+        """Find repeated code groups in tracked Python files."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[9].operation)
 
     return server
 
