@@ -330,6 +330,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Map Python import topology",
         "Build a deterministic Python import graph and report its topology.",
     ),
+    _TypedToolDescriptor(
+        "python.complexity",
+        "python_complexity",
+        "Analyze Python complexity",
+        "Measure cyclomatic complexity in tracked Python files.",
+    ),
 )
 
 
@@ -916,6 +922,11 @@ def create_server() -> FastMCP:
     def python_graph_topology(repository_root: str) -> dict:
         """Build a deterministic Python import graph and report its topology."""
         return research(repository_root, _TYPED_TOOL_DESCRIPTORS[6].operation)
+
+    @read_only_tool(_TYPED_TOOL_DESCRIPTORS[7])
+    def python_complexity(repository_root: str) -> dict:
+        """Measure cyclomatic complexity in tracked Python files."""
+        return research(repository_root, _TYPED_TOOL_DESCRIPTORS[7].operation)
 
     return server
 
