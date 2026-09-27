@@ -2,8 +2,9 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from fastmcp import Client
 
-from otter_kr.server import create_server
+from otter_kr.server import OPERATION_REGISTRY, create_server
 from tests.support import (
     assert_invalid_python_warning,
     assert_syntax_error_details,
@@ -112,6 +113,19 @@ def test_research_tool_reports_python_inventory_and_parse_health(tmp_path: Path)
     }
     assert_unreadable_file_warning(data["warnings"][0], "bad_encoding.py")
     assert_invalid_python_warning(data["warnings"][1], "broken.py")
+
+
+def test_research_tool_schema_guides_operation_selection() -> None:
+    async def inspect_tool() -> object:
+        async with Client(create_server()) as client:
+            return (await client.list_tools())[0]
+
+    tool = asyncio.run(inspect_tool())
+
+    assert "Choose one admitted operation" in tool.description
+    operation_schema = tool.inputSchema["properties"]["operation"]
+    assert operation_schema["enum"] == list(OPERATION_REGISTRY.names())
+    assert {"git.history", "python.inventory", "python.tests"} <= set(operation_schema["enum"])
 
 
 def test_research_tool_reports_external_field_rules(tmp_path: Path) -> None:
@@ -285,15 +299,28 @@ def test_research_tool_rejects_non_admitted_operations_with_stable_shape() -> No
         {"repository_root": "/repo/two", "operation": "git.affinity"},
     )
 
-    assert rejection == {
-        "schema_version": "1",
-        "status": "rejected",
-        "operation": "git.affinity",
-        "query": {"repository_root": "/repo/two"},
-        "error": {
-            "code": "not_implemented",
-            "message": "No repository research capabilities have been admitted yet.",
-        },
+    assert rejection["schema_version"] == "1"
+    assert rejection["status"] == "rejected"
+    assert rejection["operation"] == "git.affinity"
+    assert rejection["query"] == {"repository_root": "/repo/two"}
+    assert rejection["error"]["code"] == "not_implemented"
+    assert rejection["error"]["message"] == (
+        "No repository research capabilities have been admitted yet."
+    )
+    assert rejection["error"]["correction"]["action"] == (
+        "Retry with one of the admitted operation names."
+    )
+
+
+def test_research_tool_corrects_unknown_operation_with_admitted_names() -> None:
+    rejection = research(
+        create_server(),
+        {"repository_root": "/repo", "operation": "python.unknown"},
+    )
+
+    assert rejection["error"]["correction"] == {
+        "action": "Retry with one of the admitted operation names.",
+        "valid_operations": list(OPERATION_REGISTRY.names()),
     }
 
 

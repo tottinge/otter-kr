@@ -1,9 +1,11 @@
 """FastMCP transport for repository evidence tools."""
 
 from pathlib import Path
+from typing import Annotated
 
 from fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from otter_kr.change_evidence import collect_term_change_evidence
 from otter_kr.evidence_envelope import EvidenceEnvelope
@@ -379,7 +381,11 @@ def _not_implemented(operation: str, repository_root: str) -> dict:
     }
 
 
-def _not_admitted(operation: str, repository_root: str) -> dict:
+def _not_admitted(
+    operation: str,
+    repository_root: str,
+    valid_operations: tuple[str, ...],
+) -> dict:
     return {
         "schema_version": "1",
         "status": "rejected",
@@ -388,6 +394,10 @@ def _not_admitted(operation: str, repository_root: str) -> dict:
         "error": {
             "code": "not_implemented",
             "message": "No repository research capabilities have been admitted yet.",
+            "correction": {
+                "action": "Retry with one of the admitted operation names.",
+                "valid_operations": list(valid_operations),
+            },
         },
     }
 
@@ -400,7 +410,7 @@ def dispatch_research(
     """Dispatch one normalized request through an injectable registry."""
     spec = registry.find(request.operation)
     if spec is None:
-        return _not_admitted(request.operation, request.repository_root)
+        return _not_admitted(request.operation, request.repository_root, registry.names())
     return spec.execute(request, context)
 
 
@@ -680,7 +690,16 @@ def create_server() -> FastMCP:
     )
     def research(
         repository_root: str,
-        operation: str,
+        operation: Annotated[
+            str,
+            Field(
+                description=(
+                    "Choose one admitted operation from the enum. Use the operation-specific "
+                    "fields described in this tool's instructions."
+                ),
+                json_schema_extra={"enum": list(OPERATION_REGISTRY.names())},
+            ),
+        ],
         term: str | None = None,
         terms: list[str] | None = None,
         since_unix_time: int | None = None,
@@ -692,7 +711,31 @@ def create_server() -> FastMCP:
         paths: list[str] | None = None,
         detail: str | None = None,
     ) -> dict:
-        """Dispatch admitted research operations and reject the remainder."""
+        """Choose one admitted operation and provide only the fields it needs.
+
+        The repository_root is the repository to inspect. The operation enum is authoritative.
+        Use term for a symbol, seed, carrier, commit reference, or the focus path required by
+        git.cochange.file, git.review_packet.file, and git.branch_additions. Use path for
+        python.carrier_guards and git.line_origins. Use paths for git.review_packet.files.
+
+        Bounded Git operations require both since_unix_time (positive Unix timestamp) and limit
+        (positive result cap): git.history, git.snapshot, git.distributions, git.hotspots,
+        git.cochange, git.cochange.file, git.cochange.pair, git.branch_additions,
+        git.review_packet, git.review_packet.file, git.review_packet.files,
+        git.review_packet.revision, git.topic_walk, and git.topic_family.
+
+        Term-based operations require term: git.topic, git.topic_hunks, git.topic_walk,
+        git.topic_family, python.names, python.neighborhood, python.neighborhood.structural,
+        python.neighborhood.historical, python.neighborhood.behavioral, python.seed_evidence,
+        python.discriminations, python.tests, python.external_field_rules, and
+        python.external_field_rules.history. git.line_origins requires term as the revision,
+        path, and at least one line. git.cochange.pair requires left_path and right_path.
+        python.variable_cluster accepts either term or 2–8 distinct Python identifiers in terms.
+        python.duplicates.compact accepts detail='compact' when detail is supplied.
+
+        If a request is rejected, use the structured error message and correction information to
+        repair the request and retry; do not invent an unsupported operation or field shape.
+        """
 
         request = ResearchRequest.create(
             repository_root,

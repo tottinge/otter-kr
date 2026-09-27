@@ -603,3 +603,7 @@ class OperationRegistry:
     def find(self, operation: str) -> RegisteredOperation | None:
         """Return the admitted specification, or ``None`` for rejection."""
         return self._specifications.get(operation)
+
+    def names(self) -> tuple[str, ...]:
+        """Return admitted operation names in stable provider-facing order."""
+        return tuple(sorted(self._specifications))
