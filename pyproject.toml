@@ -11,6 +11,7 @@ dependencies = [
 
 [project.scripts]
 otter-kr = "otter_kr.server:main"
+otter-kr-contract = "otter_kr.provider_contract:main"
 
 [dependency-groups]
 dev = [

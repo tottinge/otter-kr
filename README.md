@@ -44,6 +44,16 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
+Generate the provider contract directly from the live MCP schemas when a client cannot use
+runtime tool discovery:
+
+```shell
+uv run otter-kr-contract > /tmp/otter-kr-contract.json
+```
+
+This is generated output, not a second interface definition. Do not hand-edit a provider guide's
+tool names or fields; consume this contract or connect the provider directly to the MCP server.
+
 Run the stdio server:
 
 ```shell
