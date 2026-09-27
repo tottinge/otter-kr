@@ -924,6 +924,8 @@ def create_server() -> FastMCP:
         name="otter-kr",
         instructions=(
             "Research source repositories using deterministic evidence. "
+            "Prefer the operation-specific typed tools; use the compatibility research router "
+            "only when no typed tool matches the request. "
             "Use the returned locations and counts as evidence; reserve semantic conclusions "
             "for your own reasoning."
         ),
@@ -944,8 +946,9 @@ def create_server() -> FastMCP:
             str,
             Field(
                 description=(
-                    "Choose one admitted operation from the enum. Use the operation-specific "
-                    "fields described in this tool's instructions."
+                    "Compatibility router: prefer the matching operation-specific typed tool. "
+                    "If no typed tool matches, choose one admitted operation from the enum and "
+                    "provide only its operation-specific fields."
                 ),
                 json_schema_extra={"enum": list(OPERATION_REGISTRY.names())},
             ),
@@ -961,7 +964,10 @@ def create_server() -> FastMCP:
         paths: list[str] | None = None,
         detail: str | None = None,
     ) -> dict:
-        """Choose one admitted operation and provide only the fields it needs.
+        """Compatibility router for callers that cannot use an operation-specific typed tool.
+
+        Prefer the matching typed tool whenever one is available. Choose one admitted operation
+        and provide only the fields it needs.
 
         The repository_root is the repository to inspect. The operation enum is authoritative.
         Use term for a symbol, seed, carrier, commit reference, or the focus path required by

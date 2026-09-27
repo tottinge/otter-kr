@@ -178,7 +178,8 @@ def test_research_tool_schema_guides_operation_selection() -> None:
 
     tool = asyncio.run(inspect_tool())
 
-    assert "Choose one admitted operation" in tool.description
+    assert "Compatibility router" in tool.description
+    assert "operation-specific typed tool" in tool.description
     operation_schema = tool.inputSchema["properties"]["operation"]
     assert operation_schema["enum"] == list(OPERATION_REGISTRY.names())
     assert {"git.history", "python.inventory", "python.tests"} <= set(operation_schema["enum"])
