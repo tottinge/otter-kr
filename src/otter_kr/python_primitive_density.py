@@ -1,4 +1,4 @@
-"""Deterministic evidence for primitive payload density in Python nodes."""
+"""Deterministic evidence for primitive density in Python nodes."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ _GENERIC_NAMES = {
 
 
 @dataclass(frozen=True, slots=True)
-class PrimitivePayloadNode:
+class PrimitiveDensityNode:
     name: str
     line: int
     column: int
@@ -49,9 +49,9 @@ class PrimitivePayloadNode:
 
 
 @dataclass(frozen=True, slots=True)
-class PrimitivePayloadFile:
+class PrimitiveDensityFile:
     path: str
-    nodes: tuple[PrimitivePayloadNode, ...]
+    nodes: tuple[PrimitiveDensityNode, ...]
 
     @property
     def primitive_count(self) -> int:
@@ -83,9 +83,9 @@ class PrimitivePayloadFile:
 
 
 @dataclass(frozen=True, slots=True)
-class PrimitivePayloadReport:
+class PrimitiveDensityReport:
     language: str
-    files: tuple[PrimitivePayloadFile, ...]
+    files: tuple[PrimitiveDensityFile, ...]
     warnings: tuple[dict[str, str], ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -112,9 +112,9 @@ def _annotation_kind(annotation: ast.expr) -> str | None:
     return "specialized"
 
 
-class _PayloadCollector(ast.NodeVisitor):
+class _DensityCollector(ast.NodeVisitor):
     def __init__(self) -> None:
-        self.nodes: list[PrimitivePayloadNode] = []
+        self.nodes: list[PrimitiveDensityNode] = []
         self._scope: list[str] = []
 
     def _record(self, node: ast.AST, name: str, annotations: list[ast.expr]) -> None:
@@ -122,7 +122,7 @@ class _PayloadCollector(ast.NodeVisitor):
         specialized_count = sum(_annotation_kind(item) == "specialized" for item in annotations)
         if primitive_count or specialized_count:
             self.nodes.append(
-                PrimitivePayloadNode(
+                PrimitiveDensityNode(
                     name=name,
                     line=node.lineno,
                     column=node.col_offset,
@@ -159,15 +159,15 @@ class _PayloadCollector(ast.NodeVisitor):
     visit_AsyncFunctionDef = _visit_function
 
 
-def analyze_primitive_payload(
+def analyze_primitive_density(
     repository: Path, file_source: TrackedFileSource | None = None
-) -> PrimitivePayloadReport:
-    """Measure annotated primitive versus specialized payloads in tracked Python files."""
+) -> PrimitiveDensityReport:
+    """Measure annotated primitive versus specialized types in tracked Python files."""
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
 
-    files: list[PrimitivePayloadFile] = []
+    files: list[PrimitiveDensityFile] = []
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
@@ -193,10 +193,10 @@ def analyze_primitive_payload(
                 }
             )
             continue
-        collector = _PayloadCollector()
+        collector = _DensityCollector()
         collector.visit(tree)
-        files.append(PrimitivePayloadFile(relative, tuple(collector.nodes)))
-    return PrimitivePayloadReport(
+        files.append(PrimitiveDensityFile(relative, tuple(collector.nodes)))
+    return PrimitiveDensityReport(
         "python",
         tuple(files),
         tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),

@@ -55,7 +55,7 @@ from otter_kr.python_literals import find_repeated_literals
 from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_object_lifecycle import find_object_lifecycle
-from otter_kr.python_primitive_payload import analyze_primitive_payload
+from otter_kr.python_primitive_density import analyze_primitive_density
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 from otter_kr.python_variable_cluster import find_variable_cluster, find_variable_occurrences
@@ -274,7 +274,7 @@ OPERATION_REGISTRY = OperationRegistry(
         "python.complexity": OperationSpec(analyze_python_complexity, catches_value_error=False),
         "python.literals": OperationSpec(find_repeated_literals),
         "python.groups": OperationSpec(find_repeated_groups),
-        "python.primitive_payload": OperationSpec(analyze_primitive_payload),
+        "python.primitive_density": OperationSpec(analyze_primitive_density),
         "python.duplicates": OperationSpec(find_duplicate_helpers),
         "python.duplicates.compact": CompactDuplicateOperationSpec(compact_duplicate_helpers),
     }
@@ -351,10 +351,10 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Find repeated code groups in tracked Python files.",
     ),
     _TypedToolDescriptor(
-        "python.primitive_payload",
-        "python_primitive_payload",
-        "Measure Python primitive payload density",
-        "Measure annotated primitive versus specialized payloads in tracked Python files.",
+        "python.primitive_density",
+        "python_primitive_density",
+        "Measure Python primitive density",
+        "Measure annotated primitive versus specialized types in tracked Python files.",
     ),
     _TypedToolDescriptor(
         "python.duplicates",
@@ -1150,10 +1150,10 @@ def create_server() -> FastMCP:
         """Find repeated code groups in tracked Python files."""
         return research(repository_root, _typed_tool("python.groups").operation)
 
-    @read_only_tool(_typed_tool("python.primitive_payload"))
-    def python_primitive_payload(repository_root: str) -> dict:
-        """Measure annotated primitive versus specialized payloads in tracked Python files."""
-        return research(repository_root, _typed_tool("python.primitive_payload").operation)
+    @read_only_tool(_typed_tool("python.primitive_density"))
+    def python_primitive_density(repository_root: str) -> dict:
+        """Measure annotated primitive versus specialized types in tracked Python files."""
+        return research(repository_root, _typed_tool("python.primitive_density").operation)
 
     @read_only_tool(_typed_tool("python.duplicates"))
     def python_duplicates(repository_root: str) -> dict:

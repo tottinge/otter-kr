@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from otter_kr.python_primitive_payload import analyze_primitive_payload
+from otter_kr.python_primitive_density import analyze_primitive_density
 from tests.support import git_repository, write_python
 
 
-def test_reports_primitive_payload_ratio_for_files_and_nodes(tmp_path: Path) -> None:
+def test_reports_primitive_density_ratio_for_files_and_nodes(tmp_path: Path) -> None:
     write_python(
         tmp_path,
         "orders.py",
@@ -19,7 +19,7 @@ def test_reports_primitive_payload_ratio_for_files_and_nodes(tmp_path: Path) -> 
     )
     git_repository(tmp_path, "orders.py")
 
-    report = analyze_primitive_payload(tmp_path)
+    report = analyze_primitive_density(tmp_path)
 
     file_evidence = report.files[0]
     assert file_evidence.path == "orders.py"
@@ -34,7 +34,7 @@ def test_reports_primitive_payload_ratio_for_files_and_nodes(tmp_path: Path) -> 
     ]
 
 
-def test_ignores_unannotated_payload_values(tmp_path: Path) -> None:
+def test_ignores_unannotated_values(tmp_path: Path) -> None:
     write_python(
         tmp_path,
         "plain.py",
@@ -42,7 +42,7 @@ def test_ignores_unannotated_payload_values(tmp_path: Path) -> None:
     )
     git_repository(tmp_path, "plain.py")
 
-    report = analyze_primitive_payload(tmp_path)
+    report = analyze_primitive_density(tmp_path)
 
     assert report.files[0].nodes == ()
     assert report.files[0].primitive_count == 0
