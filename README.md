@@ -33,6 +33,10 @@ facts such as locations, counts, relationships, and history; an LLM or human use
 make and validate design decisions. The MCP deliberately does not replace the reasoning,
 representation, testing, or refactoring skills that consume its evidence.
 
+The [refactoring situation catalog](docs/refactoring-catalog.md) maps the current
+evidence operations to hypotheses and otter-skills hand-offs without turning
+heuristics into automatic smell labels.
+
 ## Develop with uv
 
 Install the pinned environment and run all checks:

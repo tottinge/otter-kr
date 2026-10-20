@@ -136,6 +136,7 @@ def test_every_admitted_operation_has_a_typed_frontend() -> None:
         "python_complexity",
         "python_literals",
         "python_groups",
+        "python_primitive_payload",
         "python_duplicates",
         "git_snapshot",
         "git_distributions",
@@ -405,6 +406,25 @@ def test_python_groups_tool_has_a_repository_only_contract(tmp_path: Path) -> No
     assert tool.inputSchema["required"] == ["repository_root"]
     assert set(tool.inputSchema["properties"]) == {"repository_root"}
     assert result["operation"] == "python.groups"
+
+
+def test_python_primitive_payload_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
+    async def inspect_and_call() -> tuple[object, dict]:
+        async with Client(create_server()) as client:
+            tools = await client.list_tools()
+            tool = next(tool for tool in tools if tool.name == "python_primitive_payload")
+            result = await client.call_tool(
+                "python_primitive_payload",
+                {"repository_root": str(tmp_path)},
+            )
+            return tool, result.data
+
+    tool, result = asyncio.run(inspect_and_call())
+
+    assert "primitive" in tool.description
+    assert tool.inputSchema["required"] == ["repository_root"]
+    assert set(tool.inputSchema["properties"]) == {"repository_root"}
+    assert result["operation"] == "python.primitive_payload"
 
 
 def test_python_duplicates_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
