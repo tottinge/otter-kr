@@ -52,6 +52,66 @@ signature annotations are outside the measured body.
   Unsupported control flow such as loop `else`, filtered or async comprehensions,
   conditional expressions, or exception handling produces a function diagnostic.
 
+### Python function and class profiles
+
+Pass an absolute `repository_root`, a repository-relative path to a tracked Python file,
+and a dotted `qualified_name`. Use names such as `Class.method` or `outer.inner` for
+nested definitions. These examples use the otter-kr checkout as the target repository.
+
+```json
+[
+  {
+    "tool": "python_function_profile",
+    "arguments": {
+      "repository_root": "/absolute/path/to/otter-kr",
+      "path": "src/otter_kr/review_packet.py",
+      "qualified_name": "collect_review_packet"
+    }
+  },
+  {
+    "tool": "python_function_profiles",
+    "arguments": {
+      "repository_root": "/absolute/path/to/otter-kr",
+      "targets": [
+        {"path": "src/otter_kr/server.py", "qualified_name": "_run_operation"},
+        {"path": "src/otter_kr/python_graph.py", "qualified_name": "build_python_import_graph"}
+      ]
+    }
+  },
+  {
+    "tool": "python_class_profile",
+    "arguments": {
+      "repository_root": "/absolute/path/to/otter-kr",
+      "path": "src/otter_kr/evidence_graph.py",
+      "qualified_name": "EvidenceGraph",
+      "limit": 4
+    }
+  }
+]
+```
+
+- A function profile includes its source span, cyclomatic complexity, primitive density
+  from parameter annotations, and structural measures for operands, operations, and paths.
+  It also reports locations for explicit `if` predicates, comparisons, and attribute reads
+  and writes in the function body. Each site list shows up to 16 entries, with a total
+  count and a truncation flag.
+- A batch accepts 1–16 targets, parses each selected file once, and returns one profile per
+  target in request order. Check each profile's `match_status` for missing, ambiguous,
+  or unavailable definitions.
+- A class profile includes its source span and primitive density for annotations in the
+  class body. It profiles direct methods in source order, with a default limit of 8
+  and a maximum of 16. Each method includes up to 16 observed read or write sites
+  for directly annotated fields accessed through the receiver's name. Check
+  `methods_truncated` and each method's field-access truncation flag.
+
+A structural measure returns a diagnostic when its syntax rules cannot produce a count.
+Other measurements in the same profile can still be available. For a change review, use
+`git_review_packet_files` with the changed paths, a history start timestamp
+(`since_unix_time`), and a `limit` to get file-level context. Then use
+`python_function_profiles` to inspect the changed definitions and follow their source
+locations. Check the packet's history and dependency truncation flags when using that
+context to support a finding.
+
 ## Evidence layer for refactoring skills
 
 otter-kr is intended to provide citeable, deterministic evidence for
