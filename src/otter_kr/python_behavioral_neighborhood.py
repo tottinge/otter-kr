@@ -10,7 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal, TypedDict
 
-from otter_kr.git_files import GitCliFileSource, GitRepository, TrackedFileSource
+from otter_kr.git_files import GitCliFileSource, GitRepository
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,19 +52,15 @@ class InvalidBehavioralSeed(ValueError):
     """The seed is outside the supported Python identifier syntax."""
 
 
-def analyze_behavioral_neighborhood(
+def find_behavioral_neighborhood(
     repository: GitRepository, seed: str
 ) -> PythonBehavioralNeighborhoodReport:
-    return _find_behavioral_neighborhood(repository.root, seed, GitCliFileSource())
-
-
-def find_behavioral_neighborhood(
-    repository: Path, seed: str, file_source: TrackedFileSource | None = None
-) -> PythonBehavioralNeighborhoodReport:
-    repository = repository.resolve()
-    if not repository.is_dir():
-        raise ValueError(f"Repository is not a directory: {repository}")
-    return _find_behavioral_neighborhood(repository, seed, file_source or GitCliFileSource())
+    if not seed.isidentifier():
+        raise InvalidBehavioralSeed("Seed must be a Python identifier")
+    root = repository.root
+    files = GitCliFileSource().python_files(root)
+    sources = [(path.relative_to(root).as_posix(), path) for path in files]
+    return _measure_behavioral_neighborhood(seed, sources)
 
 
 class BehavioralRelationship(StrEnum):
@@ -112,16 +108,6 @@ class BehavioralObservation:
             "column": self.site.col_offset,
             **(self.detail or {}),
         }
-
-
-def _find_behavioral_neighborhood(
-    repository: Path, seed: str, file_source: TrackedFileSource
-) -> PythonBehavioralNeighborhoodReport:
-    if not seed.isidentifier():
-        raise InvalidBehavioralSeed("Seed must be a Python identifier")
-    files = file_source.python_files(repository)
-    sources = [(path.relative_to(repository).as_posix(), path) for path in files]
-    return _measure_behavioral_neighborhood(seed, sources)
 
 
 def _measure_behavioral_neighborhood(

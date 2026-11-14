@@ -1,14 +1,25 @@
 from pathlib import Path
 
-from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
+from otter_kr.git_files import GitRepository
+from otter_kr.python_behavioral_neighborhood import (
+    _measure_behavioral_neighborhood,
+    find_behavioral_neighborhood,
+)
+from tests.support import git_repository
 
 
-class FakeFiles:
-    def __init__(self, paths: list[Path]) -> None:
-        self.paths = paths
+def test_finds_behavioral_evidence_from_a_validated_repository(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text("amount.validate()\n", encoding="utf-8")
+    git_repository(tmp_path, source.name)
 
-    def python_files(self, repository: Path) -> list[Path]:
-        return self.paths
+    report = find_behavioral_neighborhood(GitRepository(tmp_path), "amount")
+
+    assert report.files_scanned == 1
+    assert [(edge.neighbor, edge.reason) for edge in report.edges] == [
+        ("validate", "field access"),
+        ("validate", "method call"),
+    ]
 
 
 def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
@@ -17,7 +28,7 @@ def test_reports_calls_fields_and_comparisons(tmp_path: Path) -> None:
         "def payment(amount):\n    amount.validate()\n    return amount == Currency.USD\n",
         encoding="utf-8",
     )
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     edges = [edge.to_dict() for edge in report.edges]
     assert {
@@ -53,7 +64,7 @@ def test_reports_field_store_role_separately_from_field_read(tmp_path: Path) -> 
         encoding="utf-8",
     )
 
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     locations = next(edge for edge in report.edges if edge.neighbor == "total").locations
     assert [location["access"] for location in locations] == ["write", "delete", "read"]
@@ -66,7 +77,7 @@ def test_reports_seed_passed_to_named_call(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     assert {
         "seed": "amount",
@@ -84,7 +95,7 @@ def test_chained_comparison_reports_only_seed_direct_comparator(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     assert any(
         edge.neighbor == "limit" and edge.reason == "type/enum comparison" for edge in report.edges
@@ -99,7 +110,7 @@ def test_reports_seed_passed_to_named_keyword_argument(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     assert {
         "seed": "amount",
@@ -118,7 +129,7 @@ def test_calls_preserve_seed_roles_and_count_argument_occurrences(tmp_path: Path
         encoding="utf-8",
     )
 
-    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+    report = _measure_behavioral_neighborhood("amount", [(source.name, source)])
 
     assert report.to_dict()["edges"] == [
         {

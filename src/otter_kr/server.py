@@ -42,7 +42,7 @@ from otter_kr.operation_registry import (
 )
 from otter_kr.python_behavioral_neighborhood import (
     InvalidBehavioralSeed,
-    analyze_behavioral_neighborhood,
+    find_behavioral_neighborhood,
 )
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_class_profile import ClassProfileQuery, profile_python_class
@@ -263,7 +263,7 @@ OPERATION_REGISTRY = OperationRegistry(
             term_message="A seed is required for python.neighborhood.historical.",
         ),
         "python.neighborhood.behavioral": OperationSpec(
-            analyze_behavioral_neighborhood,
+            find_behavioral_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.behavioral.",
             requires_git_repository=True,
