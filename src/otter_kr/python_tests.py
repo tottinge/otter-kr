@@ -414,14 +414,23 @@ def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
 def find_tests_for_symbol(
     repository: Path, symbol: str, file_source: TrackedFileSource | None = None
 ) -> TestMappingReport:
+    return find_tests_for_symbols(repository, (symbol,), file_source)[symbol]
+
+
+def find_tests_for_symbols(
+    repository: Path, symbols: tuple[str, ...], file_source: TrackedFileSource | None = None
+) -> dict[str, TestMappingReport]:
+    """Map distinct symbols using one pass over the tracked Python files."""
+    if not symbols:
+        return {}
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
-    if not symbol.isidentifier():
+    if any(not symbol.isidentifier() for symbol in symbols):
         raise ValueError("Symbol must be a valid Python identifier")
 
-    candidates: list[TestCandidate] = []
-    matching_imports: list[MatchingImport] = []
+    candidates: dict[str, list[TestCandidate]] = {symbol: [] for symbol in symbols}
+    matching_imports: dict[str, list[MatchingImport]] = {symbol: [] for symbol in candidates}
     warnings: list[dict[str, str]] = []
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
@@ -447,11 +456,25 @@ def find_tests_for_symbol(
                 }
             )
             continue
-        matching_imports.extend(_matching_imports_in_tree(relative, tree, symbol))
-        collector = _TestCollector(relative, symbol, _parent_map(tree))
-        collector.visit(tree)
-        candidates.extend(collector.candidates)
+        parents = _parent_map(tree)
+        for symbol in candidates:
+            matching_imports[symbol].extend(_matching_imports_in_tree(relative, tree, symbol))
+            collector = _TestCollector(relative, symbol, parents)
+            collector.visit(tree)
+            candidates[symbol].extend(collector.candidates)
+    warnings.sort(key=lambda item: (item["path"], item["code"]))
+    return {
+        symbol: _test_mapping_report(symbol, candidates[symbol], matching_imports[symbol], warnings)
+        for symbol in candidates
+    }
 
+
+def _test_mapping_report(
+    symbol: str,
+    candidates: list[TestCandidate],
+    matching_imports: list[MatchingImport],
+    warnings: list[dict[str, str]],
+) -> TestMappingReport:
     return TestMappingReport(
         language="python",
         symbol=symbol,
@@ -473,5 +496,5 @@ def find_tests_for_symbol(
                 ),
             )
         ),
-        warnings=tuple(sorted(warnings, key=lambda item: (item["path"], item["code"]))),
+        warnings=tuple(dict(warning) for warning in warnings),
     )

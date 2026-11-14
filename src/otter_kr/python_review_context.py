@@ -8,7 +8,7 @@ from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource
 from otter_kr.python_imports import import_python
-from otter_kr.python_tests import find_tests_for_symbol
+from otter_kr.python_tests import find_tests_for_symbols
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +61,9 @@ def collect_python_review_context(
                 )
     names.sort(key=lambda item: (str(item["path"]), int(item["line"]), int(item["column"])))
     selected = tuple(names[:limit])
-    tests = tuple(find_tests_for_symbol(resolved, str(item["name"])).to_dict() for item in selected)
+    symbols = tuple(str(item["name"]) for item in selected)
+    mappings = find_tests_for_symbols(resolved, symbols)
+    tests = tuple(mappings[symbol].to_dict() for symbol in symbols)
     dependencies = import_python(resolved).to_dict()
     if selected_paths is not None:
         dependencies["edges"] = [
