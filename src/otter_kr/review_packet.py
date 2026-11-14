@@ -76,7 +76,6 @@ def collect_review_packet(
         else None
     )
     selected_paths = paths or ((path,) if path is not None else None)
-    file_scope_inventory = None
     packet = compose_review_packet(
         scope={
             "repository_root": str(repository.resolve()),
@@ -89,8 +88,8 @@ def collect_review_packet(
         },
         history=snapshot.to_dict(),
         inventory=(
-            revision_source or file_scope_inventory
-            if revision_source is not None or file_scope_inventory is not None
+            revision_source
+            if revision_source is not None
             else collect_representation_inventory(
                 repository,
                 since_unix_time=since_unix_time,
