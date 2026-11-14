@@ -1,10 +1,15 @@
 """Compose existing Python measurements for an exact tracked function."""
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections import defaultdict
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from otter_kr.python_complexity import _collect_tracked_functions, _function_metrics
+from otter_kr.python_complexity import (
+    _collect_tracked_functions,
+    _CollectedFunction,
+    _function_metrics,
+)
 from otter_kr.python_primitive_density import _measure_annotations, _parameter_annotations
 from otter_kr.python_structural_complexity import (
     UnsupportedStructuralSyntax,
@@ -42,14 +47,49 @@ def _structural_measure(counter: Callable[[], int]) -> dict[str, object]:
 
 def profile_python_function(repository: Path, target: FunctionTarget) -> dict[str, object]:
     """Return metrics for the one definition matching the file and qualified name."""
+    return _profiles_for_targets(repository, (target,))[0]
+
+
+def profile_python_functions(
+    repository: Path, targets: Sequence[FunctionTarget]
+) -> dict[str, object]:
+    """Return one profile per requested target in request order."""
+    return {
+        "profiles": [
+            {"target": asdict(target), **profile}
+            for target, profile in zip(
+                targets, _profiles_for_targets(repository, targets), strict=True
+            )
+        ]
+    }
+
+
+def _profiles_for_targets(
+    repository: Path, targets: Sequence[FunctionTarget]
+) -> list[dict[str, object]]:
+    selected = {(target.path, target.qualified_name): target for target in targets}
+    definitions: dict[FunctionTarget, list[_CollectedFunction]] = defaultdict(list)
     warnings: list[dict[str, str]] = []
-    matches = [
-        definition
-        for definition in _collect_tracked_functions(
-            repository, None, warnings, target_path=target.path
-        )
-        if definition.qualified_name == target.qualified_name
-    ]
+    for definition in _collect_tracked_functions(
+        repository, None, warnings, target_paths={target.path for target in targets}
+    ):
+        target = selected.get((definition.path, definition.qualified_name))
+        if target is not None:
+            definitions[target].append(definition)
+
+    warnings_by_path: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for warning in warnings:
+        warnings_by_path[warning["path"]].append(warning)
+    profiles = {
+        target: _profile_matches(definitions[target], warnings_by_path[target.path])
+        for target in selected.values()
+    }
+    return [profiles[target] for target in targets]
+
+
+def _profile_matches(
+    matches: list[_CollectedFunction], warnings: list[dict[str, str]]
+) -> dict[str, object]:
     if not matches:
         return {"match_status": "unavailable" if warnings else "not_found", "warnings": warnings}
     if len(matches) > 1:

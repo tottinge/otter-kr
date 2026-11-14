@@ -511,6 +511,41 @@ def test_python_function_profile_reports_unresolved_identity(
     assert "function" not in result["data"]
 
 
+def test_python_function_profiles_reports_each_requested_target_in_order(tmp_path: Path) -> None:
+    write_python(tmp_path, "a.py", "def first(): pass\ndef second(): pass\n")
+    write_python(tmp_path, "b.py", "def first(x: int): return x\n")
+    git_repository(tmp_path, "a.py", "b.py")
+    targets = [
+        {"path": "b.py", "qualified_name": "first"},
+        {"path": "a.py", "qualified_name": "missing"},
+        {"path": "a.py", "qualified_name": "second"},
+        {"path": "a.py", "qualified_name": "first"},
+    ]
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profiles", {"repository_root": str(tmp_path), "targets": targets}
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    assert result["query"] == {"repository_root": str(tmp_path), "targets": targets}
+    profiles = result["data"]["profiles"]
+    assert [profile["target"] for profile in profiles] == targets
+    assert [profile["match_status"] for profile in profiles] == [
+        "found",
+        "not_found",
+        "found",
+        "found",
+    ]
+    assert profiles[0]["primitive_density"]["primitive_count"] == 1
+    assert profiles[2]["function"]["line"] == 2
+    assert profiles[3]["function"]["line"] == 1
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

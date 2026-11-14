@@ -1,6 +1,6 @@
 """FastMCP transport for repository evidence tools."""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -46,7 +46,11 @@ from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
 from otter_kr.python_external_field_rules import find_external_field_rules
-from otter_kr.python_function_profile import FunctionTarget, profile_python_function
+from otter_kr.python_function_profile import (
+    FunctionTarget,
+    profile_python_function,
+    profile_python_functions,
+)
 from otter_kr.python_graph import build_python_import_graph
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_historical_neighborhood import find_historical_neighborhood
@@ -348,6 +352,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "python_function_profile",
         "Profile an exact Python function",
         "Combine complexity and primitive density for one tracked Python function or method.",
+    ),
+    _TypedToolDescriptor(
+        "python.function_profiles",
+        "python_function_profiles",
+        "Profile selected Python functions",
+        "Combine evidence for up to 16 exact tracked Python functions or methods.",
     ),
     _TypedToolDescriptor(
         "python.structural_complexity",
@@ -1159,6 +1169,22 @@ def create_server() -> FastMCP:
             return {**_invalid_query(operation, repository_root, str(error)), "query": query}
         result = _run_operation(
             operation, repository_root, profile_python_function, query_object=target
+        )
+        return {**result, "query": query}
+
+    @read_only_tool(_typed_tool("python.function_profiles"))
+    def python_function_profiles(
+        repository_root: str,
+        targets: Annotated[list[FunctionTarget], Field(min_length=1, max_length=16)],
+    ) -> dict:
+        """Profile exact functions by repository-relative path and qualified name."""
+        operation = _typed_tool("python.function_profiles").operation
+        query = {
+            **_query(repository_root),
+            "targets": [asdict(target) for target in targets],
+        }
+        result = _run_operation(
+            operation, repository_root, profile_python_functions, query_object=targets
         )
         return {**result, "query": query}
 
