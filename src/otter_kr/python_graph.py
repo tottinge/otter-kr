@@ -14,14 +14,14 @@ def build_python_import_graph(repository: Path) -> EvidenceGraph:
         path.relative_to(repository.resolve()).with_suffix("").as_posix().replace("/", ".")
         for path in _tracked_python_files(repository)
     }
+    import_targets = {module: module for module in tracked}
+    for module in tracked:
+        if module.startswith("src."):
+            import_targets.setdefault(module.removeprefix("src."), module)
     edges = tuple(
         EvidenceEdge(
             source=edge.source_module,
-            target=(
-                edge.target_module
-                if edge.target_module in tracked
-                else f"module:{edge.target_module}"
-            ),
+            target=import_targets.get(edge.target_module, f"module:{edge.target_module}"),
             weight=1.0,
             provenance="python.import",
         )

@@ -734,6 +734,31 @@ def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) ->
     assert data["topology"]["component_sizes"] == [1, 2]
 
 
+def test_graph_topology_resolves_absolute_imports_in_src_layout(tmp_path: Path) -> None:
+    write_python(tmp_path, "src/pkg/__init__.py", "")
+    write_python(tmp_path, "src/pkg/a.py", "value = 1\n")
+    write_python(tmp_path, "src/pkg/b.py", "import pkg.a\nimport external.a\n")
+    git_repository(tmp_path, "src")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {"repository_root": str(tmp_path), "operation": "python.graph_topology"},
+        )
+    )
+    data = assert_ok_report(
+        report,
+        operation="python.graph_topology",
+        repository_root=str(tmp_path),
+    )
+
+    assert {edge["target"] for edge in data["edges"] if edge["source"] == "src.pkg.b"} == {
+        "src.pkg.a",
+        "module:external.a",
+    }
+    assert "module:pkg.a" not in data["nodes"]
+
+
 def test_graph_topology_preserves_parameters_and_formula_evidence(tmp_path: Path) -> None:
     write_python(tmp_path, "a.py", "value = 1\n")
     write_python(tmp_path, "b.py", "import a\n")
