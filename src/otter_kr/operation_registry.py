@@ -452,7 +452,7 @@ class LineOriginsOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class VariableClusterOperationSpec:
-    cluster_analyzer: object
+    cluster_analyzer: Callable[..., object]
     occurrence_analyzer: object
 
     def _execute_occurrence(
@@ -491,12 +491,11 @@ class VariableClusterOperationSpec:
         return context.run(
             request.operation,
             request.repository_root,
-            self.cluster_analyzer,
+            partial(self.cluster_analyzer, names=query.terms),
             terms=query.terms,
             query_terms=query.terms,
             since_unix_time=query.since_unix_time,
             limit=query.limit,
-            pass_bounds_with_terms=True,
         )
 
     def execute(

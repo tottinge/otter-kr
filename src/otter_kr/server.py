@@ -827,7 +827,6 @@ def _run_operation(
     term_message: str | None = None,
     catches_value_error: bool = True,
     pass_bounds_with_term: bool = False,
-    pass_bounds_with_terms: bool = False,
     query_object: object | None = None,
 ) -> dict:
     query_term = term if query_term is None else query_term
@@ -856,16 +855,6 @@ def _run_operation(
     try:
         if query_object is not None:
             report = analyzer(repository, query_object)
-        elif terms is not None:
-            if pass_bounds_with_terms:
-                report = analyzer(
-                    repository,
-                    terms,
-                    since_unix_time=since_unix_time,
-                    limit=limit,
-                )
-            else:
-                report = analyzer(repository, terms)
         elif term is not None and pass_bounds_with_term:
             report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:

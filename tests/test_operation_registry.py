@@ -305,12 +305,18 @@ def test_carrier_guards_operation_spec_owns_path_scope() -> None:
 
 def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
     calls: list[tuple[object, ...]] = []
-    cluster_analyzer = object()
     occurrence_analyzer = object()
 
-    def runner(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "ran"
+    def cluster_analyzer(repository, names, *, since_unix_time=None, limit=None):
+        return repository, names, since_unix_time, limit
+
+    def runner(operation, repository_root, analyzer, **kwargs):
+        calls.append((operation, repository_root, analyzer, kwargs))
+        if analyzer is occurrence_analyzer:
+            return "ran"
+        return analyzer(
+            repository_root, since_unix_time=kwargs["since_unix_time"], limit=kwargs["limit"]
+        )
 
     def reject(*args: object, **kwargs: object) -> str:
         calls.append((*args, kwargs))
@@ -327,19 +333,7 @@ def test_variable_cluster_operation_spec_owns_both_query_forms() -> None:
         ),
         execution_context(runner, reject=reject, unimplemented=unimplemented),
     )
-    assert cluster == "ran"
-    assert calls[-1] == (
-        "python.variable_cluster",
-        "/repo",
-        cluster_analyzer,
-        {
-            "terms": ("count", "limit"),
-            "query_terms": ("count", "limit"),
-            "since_unix_time": None,
-            "limit": 2,
-            "pass_bounds_with_terms": True,
-        },
-    )
+    assert cluster == ("/repo", ("count", "limit"), None, 2)
 
     occurrence = spec.execute(
         ResearchRequest.create("/repo", "python.variable_cluster", term="count"),
