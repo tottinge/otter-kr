@@ -339,6 +339,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "Measure cyclomatic complexity in tracked Python files.",
     ),
     _TypedToolDescriptor(
+        "python.structural_complexity",
+        "python_structural_complexity",
+        "Measure Python structural complexity",
+        "Measure operands, operations, or paths in tracked Python files.",
+    ),
+    _TypedToolDescriptor(
         "python.literals",
         "python_literals",
         "Find repeated Python literals",
@@ -1139,6 +1145,21 @@ def create_server() -> FastMCP:
     def python_complexity(repository_root: str) -> dict:
         """Measure cyclomatic complexity in tracked Python files."""
         return research(repository_root, _typed_tool("python.complexity").operation)
+
+    @read_only_tool(_typed_tool("python.structural_complexity"))
+    def python_structural_complexity(repository_root: str, measure: str) -> dict:
+        """Reject structural complexity measures until one is admitted."""
+        operation = _typed_tool("python.structural_complexity").operation
+        return {
+            "schema_version": "1",
+            "status": "rejected",
+            "operation": operation,
+            "query": {**_query(repository_root), "measure": measure},
+            "error": {
+                "code": "unsupported_measure",
+                "message": f"Structural complexity measure '{measure}' is not admitted yet.",
+            },
+        }
 
     @read_only_tool(_typed_tool("python.literals"))
     def python_literals(repository_root: str) -> dict:
