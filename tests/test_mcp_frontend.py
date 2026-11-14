@@ -589,6 +589,50 @@ def test_python_class_profile_selects_exact_class_and_bounds_methods(tmp_path: P
     assert profile["methods"][0]["primitive_density"]["primitive_count"] == 1
 
 
+def test_python_class_profile_reports_direct_field_reads_and_writes(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "class Counter:\n"
+        "    count: int\n"
+        "    def increment(receiver, other):\n"
+        "        def nested(): return receiver.count\n"
+        "        receiver.count += other.count\n"
+        "        receiver.undeclared = 1\n"
+        "        return receiver.count\n"
+        "    def reset(self): self.count = 0\n"
+        "    @staticmethod\n"
+        "    def unrelated(receiver): return receiver.count\n",
+    )
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_class_profile",
+                {
+                    "repository_root": str(tmp_path),
+                    "path": "example.py",
+                    "qualified_name": "Counter",
+                },
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    increment, reset, unrelated = result["data"]["methods"]
+    evidence = increment["field_accesses"]
+    assert evidence["site_count"] == 2
+    assert evidence["truncated"] is False
+    assert [(site["field"], site["line"], site["operations"]) for site in evidence["sites"]] == [
+        ("count", 5, ["read", "write"]),
+        ("count", 7, ["read"]),
+    ]
+    assert [site["operations"] for site in reset["field_accesses"]["sites"]] == [["write"]]
+    assert unrelated["field_accesses"]["sites"] == []
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

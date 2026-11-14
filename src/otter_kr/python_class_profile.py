@@ -1,12 +1,15 @@
 """Compose declared-field and method evidence for an exact tracked Python class."""
 
 import ast
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.python_complexity import _collect_tracked_python_trees, _FunctionCollector
 from otter_kr.python_function_profile import FunctionTarget, _profile_matches
 from otter_kr.python_primitive_density import _measure_annotations
+
+_FIELD_SITE_LIMIT = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +28,59 @@ class _ClassCollector(_FunctionCollector):
         if self.qualified_name(node.name) == self.target_name:
             self.matches.append(node)
         super().visit_ClassDef(node)
+
+
+def _method_body_nodes(
+    node: ast.AST,
+) -> Iterator[tuple[ast.AST, ast.AST]]:
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+        return
+    for child in ast.iter_child_nodes(node):
+        yield child, node
+        yield from _method_body_nodes(child)
+
+
+def _method_field_accesses(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, fields: set[str]
+) -> dict[str, object]:
+    """Find syntactic accesses through the first positional parameter's name."""
+    positional = [*node.args.posonlyargs, *node.args.args]
+    static = any(
+        ast.unparse(decorator) in {"staticmethod", "builtins.staticmethod"}
+        for decorator in node.decorator_list
+    )
+    sites = []
+    if positional and fields and not static:
+        receiver = positional[0].arg
+        for statement in node.body:
+            for access, parent in _method_body_nodes(statement):
+                if not (
+                    isinstance(access, ast.Attribute)
+                    and isinstance(access.value, ast.Name)
+                    and access.value.id == receiver
+                    and access.attr in fields
+                ):
+                    continue
+                if isinstance(access.ctx, ast.Load):
+                    operations = ["read"]
+                elif isinstance(access.ctx, ast.Store):
+                    operations = (
+                        ["read", "write"]
+                        if isinstance(parent, ast.AugAssign) and parent.target is access
+                        else ["write"]
+                    )
+                else:
+                    continue
+                sites.append((access.lineno, access.col_offset, access.attr, operations))
+    sites.sort()
+    return {
+        "site_count": len(sites),
+        "truncated": len(sites) > _FIELD_SITE_LIMIT,
+        "sites": [
+            {"field": field, "line": line, "column": column, "operations": operations}
+            for line, column, field, operations in sites[:_FIELD_SITE_LIMIT]
+        ],
+    }
 
 
 def profile_python_class(repository: Path, query: ClassProfileQuery) -> dict[str, object]:
@@ -47,10 +103,13 @@ def profile_python_class(repository: Path, query: ClassProfileQuery) -> dict[str
         }
 
     node = collector.matches[0]
-    fields = [
-        statement.annotation for statement in node.body if isinstance(statement, ast.AnnAssign)
-    ]
-    density = _measure_annotations(node, target.qualified_name, fields)
+    declarations = [statement for statement in node.body if isinstance(statement, ast.AnnAssign)]
+    fields = {
+        statement.target.id for statement in declarations if isinstance(statement.target, ast.Name)
+    }
+    density = _measure_annotations(
+        node, target.qualified_name, [statement.annotation for statement in declarations]
+    )
     direct_statements = set(node.body)
     methods = [
         definition for definition in collector.definitions if definition.node in direct_statements
@@ -72,6 +131,12 @@ def profile_python_class(repository: Path, query: ClassProfileQuery) -> dict[str
         },
         "method_count": len(methods),
         "methods_truncated": len(methods) > query.limit,
-        "methods": [_profile_matches([method], []) for method in methods[: query.limit]],
+        "methods": [
+            {
+                **_profile_matches([method], []),
+                "field_accesses": _method_field_accesses(method.node, fields),
+            }
+            for method in methods[: query.limit]
+        ],
         "warnings": warnings,
     }
