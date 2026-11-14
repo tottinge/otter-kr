@@ -1056,9 +1056,9 @@ def test_research_tool_reports_bounded_external_field_rule_history(tmp_path: Pat
 
 
 def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) -> None:
-    write_python(tmp_path, "pkg/__init__.py", "")
+    write_python(tmp_path, "pkg/__init__.py", "import pkg.a\n")
     write_python(tmp_path, "pkg/a.py", "value = 1\n")
-    write_python(tmp_path, "pkg/b.py", "import pkg.a\n")
+    write_python(tmp_path, "pkg/b.py", "import pkg\nimport pkg.a\n")
     git_repository(tmp_path, "pkg")
 
     report = asyncio.run(
@@ -1073,22 +1073,19 @@ def test_graph_topology_uses_module_identity_for_import_edges(tmp_path: Path) ->
         repository_root=str(tmp_path),
     )
 
-    assert data["nodes"] == ["pkg.__init__", "pkg.a", "pkg.b"]
-    assert data["edges"] == [
-        {
-            "source": "pkg.b",
-            "target": "pkg.a",
-            "weight": 1.0,
-            "provenance": "python.import",
-        }
-    ]
-    assert data["topology"]["component_sizes"] == [1, 2]
+    assert data["nodes"] == ["pkg", "pkg.a", "pkg.b"]
+    assert {(edge["source"], edge["target"]) for edge in data["edges"]} == {
+        ("pkg", "pkg.a"),
+        ("pkg.b", "pkg"),
+        ("pkg.b", "pkg.a"),
+    }
+    assert data["topology"]["component_sizes"] == [3]
 
 
 def test_graph_topology_resolves_absolute_imports_in_src_layout(tmp_path: Path) -> None:
-    write_python(tmp_path, "src/pkg/__init__.py", "")
+    write_python(tmp_path, "src/pkg/__init__.py", "from .a import value\n")
     write_python(tmp_path, "src/pkg/a.py", "value = 1\n")
-    write_python(tmp_path, "src/pkg/b.py", "import pkg.a\nimport external.a\n")
+    write_python(tmp_path, "src/pkg/b.py", "import pkg\nimport pkg.a\nimport external.a\n")
     git_repository(tmp_path, "src")
 
     report = asyncio.run(
@@ -1104,10 +1101,16 @@ def test_graph_topology_resolves_absolute_imports_in_src_layout(tmp_path: Path) 
     )
 
     assert {edge["target"] for edge in data["edges"] if edge["source"] == "src.pkg.b"} == {
+        "src.pkg",
         "src.pkg.a",
         "module:external.a",
     }
     assert "module:pkg.a" not in data["nodes"]
+    assert "module:pkg" not in data["nodes"]
+    assert "src.pkg.__init__" not in data["nodes"]
+    assert {edge["target"] for edge in data["edges"] if edge["source"] == "src.pkg"} == {
+        "src.pkg.a"
+    }
 
 
 def test_graph_topology_preserves_parameters_and_formula_evidence(tmp_path: Path) -> None:

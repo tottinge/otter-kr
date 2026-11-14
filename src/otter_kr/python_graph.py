@@ -5,13 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from otter_kr.evidence_graph import EvidenceEdge, EvidenceGraph, build_evidence_graph
+from otter_kr.python_identity import module_name
 from otter_kr.python_imports import import_python
 
 
 def build_python_import_graph(repository: Path) -> EvidenceGraph:
     report = import_python(repository)
     tracked = {
-        path.relative_to(repository.resolve()).with_suffix("").as_posix().replace("/", ".")
+        module_name(path.relative_to(repository.resolve()))
         for path in _tracked_python_files(repository)
     }
     import_targets = {module: module for module in tracked}
