@@ -215,10 +215,6 @@ class _OperationCounter(ast.NodeVisitor):
             raise UnsupportedStructuralSyntax(
                 "Keyword unpacking is unsupported in operation measurements."
             )
-        if isinstance(node, ast.Dict) and any(key is None for key in node.keys):
-            raise UnsupportedStructuralSyntax(
-                "Dictionary unpacking is unsupported in operation measurements."
-            )
         super().generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:

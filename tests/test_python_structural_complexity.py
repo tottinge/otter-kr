@@ -140,6 +140,8 @@ def test_counts_boolean_comparison_and_unary_operators_by_occurrence() -> None:
         ("(left, right)", 1),
         ("{value}", 1),
         ("{key: value}", 1),
+        ("{**values}", 1),
+        ("{**load(values), key: values[0]}", 3),
         ("tuple((1, 2))", 2),
         ("list(values)", 1),
     ],
