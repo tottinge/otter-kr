@@ -2304,6 +2304,62 @@ def test_research_tool_preserves_structural_edge_provenance(tmp_path: Path) -> N
     } in data["edges"]
 
 
+def test_behavioral_tool_discovers_the_git_root_from_a_subdirectory(tmp_path: Path) -> None:
+    write_python(tmp_path, "service.py", "amount.validate()\n")
+    write_python(tmp_path, "nested/other.py", "ignored = 0\n")
+    git_repository(tmp_path, "service.py", "nested")
+
+    async def call_behavioral():
+        async with Client(create_server()) as client:
+            return (
+                await client.call_tool(
+                    "python_neighborhood_behavioral",
+                    {"repository_root": str(tmp_path / "nested"), "seed": "amount"},
+                )
+            ).data
+
+    data = assert_ok_report(
+        asyncio.run(call_behavioral()),
+        operation="python.neighborhood.behavioral",
+        repository_root=str(tmp_path / "nested"),
+        term="amount",
+    )
+
+    assert data["files_scanned"] == 2
+    assert {edge["locations"][0]["path"] for edge in data["edges"]} == {"service.py"}
+
+
+@pytest.mark.parametrize(
+    ("directory", "seed", "error_code"),
+    [
+        ("missing", "amount", "not_a_repository"),
+        ("ordinary", "amount", "not_a_repository"),
+        ("repo", "not an identifier", "invalid_query"),
+    ],
+)
+def test_behavioral_request_distinguishes_repository_and_seed_errors(
+    tmp_path: Path, directory: str, seed: str, error_code: str
+) -> None:
+    (tmp_path / "ordinary").mkdir()
+    repo = tmp_path / "repo"
+    write_python(repo, "service.py", "amount.validate()\n")
+    git_repository(repo, "service.py")
+
+    report = asyncio.run(
+        call_research(
+            create_server(),
+            {
+                "repository_root": str(tmp_path / directory),
+                "operation": "python.neighborhood.behavioral",
+                "term": seed,
+            },
+        )
+    )
+
+    assert report["status"] == "rejected"
+    assert report["error"]["code"] == error_code
+
+
 def test_research_tool_preserves_behavioral_field_roles_and_locations(tmp_path: Path) -> None:
     write_python(
         tmp_path,

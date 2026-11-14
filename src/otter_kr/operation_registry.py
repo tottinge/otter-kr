@@ -237,6 +237,7 @@ class OperationSpec:
     term_message: str | None = None
     catches_value_error: bool = True
     echo_unused_query_fields: bool = True
+    requires_git_repository: bool = False
 
     def execute(self, request: ResearchRequest, context: OperationContext) -> object:
         """Run a simple operation using its term and envelope policy."""
@@ -260,6 +261,8 @@ class OperationSpec:
             "term": request.term if self.requires_term else None,
             "catches_value_error": self.catches_value_error,
         }
+        if self.requires_git_repository:
+            arguments["requires_git_repository"] = True
         if self.echo_unused_query_fields:
             return context.query_run(self.analyzer, **arguments)
         return context.run(request.operation, request.repository_root, self.analyzer, **arguments)

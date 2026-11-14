@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import ast
-from collections import Counter
+from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+from typing import Literal, TypedDict
 
-from otter_kr.git_files import GitCliFileSource, TrackedFileSource
+from otter_kr.git_files import GitCliFileSource, GitRepository, TrackedFileSource
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,144 +48,172 @@ class PythonBehavioralNeighborhoodReport:
         }
 
 
+class InvalidBehavioralSeed(ValueError):
+    """The seed is outside the supported Python identifier syntax."""
+
+
+def analyze_behavioral_neighborhood(
+    repository: GitRepository, seed: str
+) -> PythonBehavioralNeighborhoodReport:
+    return _find_behavioral_neighborhood(repository.root, seed, GitCliFileSource())
+
+
 def find_behavioral_neighborhood(
     repository: Path, seed: str, file_source: TrackedFileSource | None = None
 ) -> PythonBehavioralNeighborhoodReport:
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
-    if not seed or not seed.isidentifier():
-        raise ValueError("Seed must be a Python identifier")
-    files = (file_source or GitCliFileSource()).python_files(repository)
-    evidence: Counter[tuple[str, str]] = Counter()
-    locations: dict[tuple[str, str], list[dict[str, object]]] = {}
+    return _find_behavioral_neighborhood(repository, seed, file_source or GitCliFileSource())
+
+
+class BehavioralRelationship(StrEnum):
+    CALL_ARGUMENT = "call argument"
+    PASSED_AS_ARGUMENT = "passed as argument"
+    METHOD_CALL = "method call"
+    FIELD_ACCESS = "field access"
+    COMPARISON = "type/enum comparison"
+
+
+class PositionalArgument(TypedDict):
+    argument_index: int
+
+
+class KeywordArgument(TypedDict):
+    argument: str | None
+
+
+class FieldAccess(TypedDict):
+    access: Literal["read", "write", "delete"]
+
+
+class Comparison(TypedDict):
+    operator: str
+
+
+@dataclass(frozen=True, slots=True)
+class BehavioralObservation:
+    neighbor: str
+    relationship: BehavioralRelationship
+    site: ast.expr
+    detail: PositionalArgument | KeywordArgument | FieldAccess | Comparison | None = None
+
+    def location(self, path: str) -> dict[str, object]:
+        return {
+            "path": path,
+            "line": self.site.lineno,
+            "column": self.site.col_offset,
+            **(self.detail or {}),
+        }
+
+
+def _find_behavioral_neighborhood(
+    repository: Path, seed: str, file_source: TrackedFileSource
+) -> PythonBehavioralNeighborhoodReport:
+    if not seed.isidentifier():
+        raise InvalidBehavioralSeed("Seed must be a Python identifier")
+    files = file_source.python_files(repository)
+    sources = [(path.relative_to(repository).as_posix(), path) for path in files]
+    return _measure_behavioral_neighborhood(seed, sources)
+
+
+def _measure_behavioral_neighborhood(
+    seed: str, sources: Sequence[tuple[str, Path]]
+) -> PythonBehavioralNeighborhoodReport:
+    locations: dict[tuple[str, BehavioralRelationship], list[dict[str, object]]] = defaultdict(list)
     failures: list[dict[str, object]] = []
-    for path in files:
-        relative = path.relative_to(repository).as_posix()
+    for relative, path in sources:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=relative)
         except (SyntaxError, UnicodeError) as error:
             failures.append({"path": relative, "message": str(error)})
-            continue
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == seed
-            ):
-                for argument in node.args:
-                    if isinstance(argument, ast.Name):
-                        _record(
-                            evidence,
-                            locations,
-                            (argument.id, "call argument"),
-                            relative,
-                            argument,
-                        )
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id != seed
-            ):
-                for argument_index, argument in enumerate(node.args):
-                    if isinstance(argument, ast.Name) and argument.id == seed:
-                        _record(
-                            evidence,
-                            locations,
-                            (node.func.id, "passed as argument"),
-                            relative,
-                            node.func,
-                            {"argument_index": argument_index},
-                        )
-                for keyword in node.keywords:
-                    if isinstance(keyword.value, ast.Name) and keyword.value.id == seed:
-                        _record(
-                            evidence,
-                            locations,
-                            (node.func.id, "passed as argument"),
-                            relative,
-                            node.func,
-                            {"argument": keyword.arg},
-                        )
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == seed
-            ):
-                _record(
-                    evidence,
-                    locations,
-                    (node.func.attr, "method call"),
-                    relative,
-                    node.func,
-                )
-            if (
-                isinstance(node, ast.Attribute)
-                and isinstance(node.value, ast.Name)
-                and node.value.id == seed
-            ):
-                access = (
-                    "write"
-                    if isinstance(node.ctx, ast.Store)
-                    else "delete"
-                    if isinstance(node.ctx, ast.Del)
-                    else "read"
-                )
-                _record(
-                    evidence,
-                    locations,
-                    (node.attr, "field access"),
-                    relative,
-                    node,
-                    {"access": access},
-                )
-            if (
-                isinstance(node, ast.Compare)
-                and isinstance(node.left, ast.Name)
-                and node.left.id == seed
-            ):
-                for operator, comparator in zip(node.ops[:1], node.comparators[:1], strict=True):
-                    details = {"operator": _comparison_operator(operator)}
-                    if isinstance(comparator, ast.Name):
-                        _record(
-                            evidence,
-                            locations,
-                            (comparator.id, "type/enum comparison"),
-                            relative,
-                            comparator,
-                            details,
-                        )
-                    elif isinstance(comparator, ast.Attribute) and isinstance(
-                        comparator.value, ast.Name
-                    ):
-                        _record(
-                            evidence,
-                            locations,
-                            (comparator.value.id, "type/enum comparison"),
-                            relative,
-                            comparator,
-                            details,
-                        )
+        else:
+            for node in ast.walk(tree):
+                for observation in _observations(node, seed):
+                    key = (observation.neighbor, observation.relationship)
+                    locations[key].append(observation.location(relative))
     edges = tuple(
-        BehavioralEdge(seed, neighbor, reason, weight, tuple(locations[(neighbor, reason)]))
-        for (neighbor, reason), weight in sorted(evidence.items())
+        BehavioralEdge(seed, neighbor, relationship.value, len(sites), tuple(sites))
+        for (neighbor, relationship), sites in sorted(locations.items())
         if neighbor != seed
     )
-    return PythonBehavioralNeighborhoodReport(seed, len(files), edges, tuple(failures))
+    return PythonBehavioralNeighborhoodReport(seed, len(sources), edges, tuple(failures))
 
 
-def _record(
-    evidence: Counter[tuple[str, str]],
-    locations: dict[tuple[str, str], list[dict[str, object]]],
-    key: tuple[str, str],
-    path: str,
-    node: ast.AST,
-    details: dict[str, object] | None = None,
-) -> None:
-    evidence[key] += 1
-    locations.setdefault(key, []).append(
-        {"path": path, "line": node.lineno, "column": node.col_offset, **(details or {})}
+def _observations(node: ast.AST, seed: str) -> tuple[BehavioralObservation, ...]:
+    if isinstance(node, ast.Call):
+        return _call_observations(node, seed)
+    if isinstance(node, ast.Attribute) and _is_seed(node.value, seed):
+        return (_field_observation(node),)
+    if isinstance(node, ast.Compare) and _is_seed(node.left, seed):
+        return _comparison_observations(node)
+    return ()
+
+
+def _is_seed(expression: ast.expr, seed: str) -> bool:
+    return isinstance(expression, ast.Name) and expression.id == seed
+
+
+def _call_observations(call: ast.Call, seed: str) -> tuple[BehavioralObservation, ...]:
+    callee = call.func
+    if isinstance(callee, ast.Name):
+        if callee.id == seed:
+            return tuple(
+                BehavioralObservation(argument.id, BehavioralRelationship.CALL_ARGUMENT, argument)
+                for argument in call.args
+                if isinstance(argument, ast.Name)
+            )
+        return _arguments_passed_to(callee, call, seed)
+    if isinstance(callee, ast.Attribute) and _is_seed(callee.value, seed):
+        return (BehavioralObservation(callee.attr, BehavioralRelationship.METHOD_CALL, callee),)
+    return ()
+
+
+def _arguments_passed_to(
+    callee: ast.Name, call: ast.Call, seed: str
+) -> tuple[BehavioralObservation, ...]:
+    relationship = BehavioralRelationship.PASSED_AS_ARGUMENT
+    positional = tuple(
+        BehavioralObservation(callee.id, relationship, callee, {"argument_index": index})
+        for index, argument in enumerate(call.args)
+        if _is_seed(argument, seed)
+    )
+    keyword = tuple(
+        BehavioralObservation(callee.id, relationship, callee, {"argument": argument.arg})
+        for argument in call.keywords
+        if _is_seed(argument.value, seed)
+    )
+    return positional + keyword
+
+
+def _field_observation(field: ast.Attribute) -> BehavioralObservation:
+    access: Literal["read", "write", "delete"]
+    if isinstance(field.ctx, ast.Store):
+        access = "write"
+    elif isinstance(field.ctx, ast.Del):
+        access = "delete"
+    else:
+        access = "read"
+    return BehavioralObservation(
+        field.attr, BehavioralRelationship.FIELD_ACCESS, field, {"access": access}
+    )
+
+
+def _comparison_observations(comparison: ast.Compare) -> tuple[BehavioralObservation, ...]:
+    comparator = comparison.comparators[0]
+    if isinstance(comparator, ast.Name):
+        neighbor = comparator.id
+    elif isinstance(comparator, ast.Attribute) and isinstance(comparator.value, ast.Name):
+        neighbor = comparator.value.id
+    else:
+        return ()
+    return (
+        BehavioralObservation(
+            neighbor,
+            BehavioralRelationship.COMPARISON,
+            comparator,
+            {"operator": _comparison_operator(comparison.ops[0])},
+        ),
     )
 
 

@@ -108,3 +108,36 @@ def test_reports_seed_passed_to_named_keyword_argument(tmp_path: Path) -> None:
         "weight": 1,
         "locations": [{"path": "service.py", "line": 2, "column": 4, "argument": "value"}],
     } in report.to_dict()["edges"]
+
+
+def test_calls_preserve_seed_roles_and_count_argument_occurrences(tmp_path: Path) -> None:
+    source = tmp_path / "service.py"
+    source.write_text(
+        "amount(currency, amount, ignored=other)\n"
+        "validate(amount, amount, value=amount, **amount)\n",
+        encoding="utf-8",
+    )
+
+    report = find_behavioral_neighborhood(tmp_path, "amount", FakeFiles([source]))
+
+    assert report.to_dict()["edges"] == [
+        {
+            "seed": "amount",
+            "neighbor": "currency",
+            "reason": "call argument",
+            "weight": 1,
+            "locations": [{"path": "service.py", "line": 1, "column": 7}],
+        },
+        {
+            "seed": "amount",
+            "neighbor": "validate",
+            "reason": "passed as argument",
+            "weight": 4,
+            "locations": [
+                {"path": "service.py", "line": 2, "column": 0, "argument_index": 0},
+                {"path": "service.py", "line": 2, "column": 0, "argument_index": 1},
+                {"path": "service.py", "line": 2, "column": 0, "argument": "value"},
+                {"path": "service.py", "line": 2, "column": 0, "argument": None},
+            ],
+        },
+    ]

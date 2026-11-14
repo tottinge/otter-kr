@@ -14,7 +14,7 @@ from otter_kr.git_branch_growth import collect_branch_additions
 from otter_kr.git_cli_history import GitCliHistory, GitHistoryValidationError
 from otter_kr.git_cochange import collect_global_cochange
 from otter_kr.git_distributions import collect_git_distributions
-from otter_kr.git_files import GitFileSourceError
+from otter_kr.git_files import GitFileSourceError, GitRepository, InvalidGitRepository
 from otter_kr.git_history_context import collect_git_history
 from otter_kr.git_history_snapshot import collect_git_history_snapshot
 from otter_kr.git_hotspots import collect_git_hotspots
@@ -40,7 +40,10 @@ from otter_kr.operation_registry import (
     ReviewPacketFilesOperationSpec,
     VariableClusterOperationSpec,
 )
-from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
+from otter_kr.python_behavioral_neighborhood import (
+    InvalidBehavioralSeed,
+    analyze_behavioral_neighborhood,
+)
 from otter_kr.python_carrier_guards import find_carrier_guards
 from otter_kr.python_class_profile import ClassProfileQuery, profile_python_class
 from otter_kr.python_complexity import analyze_python_complexity
@@ -260,9 +263,11 @@ OPERATION_REGISTRY = OperationRegistry(
             term_message="A seed is required for python.neighborhood.historical.",
         ),
         "python.neighborhood.behavioral": OperationSpec(
-            find_behavioral_neighborhood,
+            analyze_behavioral_neighborhood,
             requires_term=True,
             term_message="A seed is required for python.neighborhood.behavioral.",
+            requires_git_repository=True,
+            catches_value_error=False,
         ),
         "python.seed_evidence": OperationSpec(
             project_python_neighborhood,
@@ -820,6 +825,7 @@ def _run_operation(
     query_detail: str | None = None,
     catches_value_error: bool = True,
     query_object: object | None = None,
+    requires_git_repository: bool = False,
 ) -> dict:
     error_query = {
         "term": term,
@@ -831,9 +837,9 @@ def _run_operation(
         "detail": query_detail,
         **(validation_query or {}),
     }
-    repository = Path(repository_root)
-
     try:
+        path = Path(repository_root)
+        repository = GitRepository(path) if requires_git_repository else path
         if query_object is not None:
             report = analyzer(repository, query_object)
         elif term is not None:
@@ -842,8 +848,10 @@ def _run_operation(
             report = analyzer(repository, since_unix_time=since_unix_time, limit=limit)
         else:
             report = analyzer(repository)
-    except GitHistoryValidationError as error:
+    except (GitHistoryValidationError, InvalidBehavioralSeed) as error:
         return _invalid_query(operation, repository_root, str(error), **error_query)
+    except InvalidGitRepository as error:
+        return _not_a_repository(operation, repository_root, error, **error_query)
     except ValueError as error:
         if catches_value_error:
             return _not_a_repository(operation, repository_root, error, **error_query)
