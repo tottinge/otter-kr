@@ -112,24 +112,44 @@ def _annotation_kind(annotation: ast.expr) -> str | None:
     return "specialized"
 
 
+def _parameter_annotations(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[ast.expr]:
+    arguments = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+    arguments.extend(argument for argument in (node.args.vararg, node.args.kwarg) if argument)
+    return [
+        argument.annotation
+        for argument in arguments
+        if argument.arg not in {"self", "cls"} and argument.annotation
+    ]
+
+
+def _measure_annotations(
+    node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+    name: str,
+    annotations: list[ast.expr],
+) -> PrimitiveDensityNode:
+    return PrimitiveDensityNode(
+        name=name,
+        line=node.lineno,
+        column=node.col_offset,
+        primitive_count=sum(_annotation_kind(item) == "primitive" for item in annotations),
+        specialized_count=sum(_annotation_kind(item) == "specialized" for item in annotations),
+    )
+
+
 class _DensityCollector(ast.NodeVisitor):
     def __init__(self) -> None:
         self.nodes: list[PrimitiveDensityNode] = []
         self._scope: list[str] = []
 
-    def _record(self, node: ast.AST, name: str, annotations: list[ast.expr]) -> None:
-        primitive_count = sum(_annotation_kind(item) == "primitive" for item in annotations)
-        specialized_count = sum(_annotation_kind(item) == "specialized" for item in annotations)
-        if primitive_count or specialized_count:
-            self.nodes.append(
-                PrimitiveDensityNode(
-                    name=name,
-                    line=node.lineno,
-                    column=node.col_offset,
-                    primitive_count=primitive_count,
-                    specialized_count=specialized_count,
-                )
-            )
+    def _record(
+        self,
+        node: ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+        name: str,
+        annotations: list[ast.expr],
+    ) -> None:
+        density = _measure_annotations(node, name, annotations)
+        if density.total_count:
+            self.nodes.append(density)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         annotations = [
@@ -142,15 +162,8 @@ class _DensityCollector(ast.NodeVisitor):
         self._scope.pop()
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        arguments = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
-        arguments.extend(argument for argument in (node.args.vararg, node.args.kwarg) if argument)
-        annotations = [
-            argument.annotation
-            for argument in arguments
-            if argument.arg not in {"self", "cls"} and argument.annotation
-        ]
         name = ".".join([*self._scope, node.name])
-        self._record(node, name, annotations)
+        self._record(node, name, _parameter_annotations(node))
         self._scope.append(node.name)
         self.generic_visit(node)
         self._scope.pop()

@@ -433,6 +433,84 @@ def test_python_structural_complexity_reports_admitted_measure(
     ] == [("example.py", "f", 1, expected_count)]
 
 
+def test_python_function_profile_combines_evidence_for_one_exact_method(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "def choose():\n    pass\n\n"
+        "class Service:\n"
+        "    def choose(self, x: int, order: Order):\n"
+        "        if x:\n"
+        "            return order\n"
+        "        return None\n",
+    )
+    git_repository(tmp_path, "example.py")
+    query = {
+        "repository_root": str(tmp_path),
+        "path": "example.py",
+        "qualified_name": "Service.choose",
+    }
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            return (await client.call_tool("python_function_profile", query)).data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    assert result["query"] == query
+    profile = result["data"]
+    assert profile["match_status"] == "found"
+    assert profile["function"] == {
+        "path": "example.py",
+        "qualified_name": "Service.choose",
+        "kind": "method",
+        "line": 5,
+        "column": 4,
+        "end_line": 8,
+    }
+    assert profile["complexity"]["cyclomatic_count"] == 2
+    assert profile["primitive_density"] == {
+        "primitive_count": 1,
+        "specialized_count": 1,
+        "total_count": 2,
+        "primitive_ratio": 0.5,
+    }
+    assert profile["structural_complexity"] == {
+        "operands": {"count": 4},
+        "operations": {"count": 0},
+        "paths": {"count": 2},
+    }
+
+
+@pytest.mark.parametrize(
+    ("qualified_name", "status"), [("missing", "not_found"), ("choose", "ambiguous")]
+)
+def test_python_function_profile_reports_unresolved_identity(
+    tmp_path: Path, qualified_name: str, status: str
+) -> None:
+    write_python(tmp_path, "example.py", "def choose(): pass\ndef choose(): pass\n")
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profile",
+                {
+                    "repository_root": str(tmp_path),
+                    "path": "example.py",
+                    "qualified_name": qualified_name,
+                },
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    assert result["data"]["match_status"] == status
+    assert "function" not in result["data"]
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

@@ -56,14 +56,31 @@ def _collect_tracked_functions(
     repository: Path,
     file_source: TrackedFileSource | None,
     warnings: list[dict[str, str]],
+    *,
+    target_path: str | None = None,
 ) -> Iterator[_CollectedFunction]:
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
     for path in (file_source or GitCliFileSource()).python_files(repository):
         relative = path.relative_to(repository).as_posix()
+        if target_path is not None and relative != target_path:
+            continue
         try:
+            if target_path is not None and (path.resolve() != path or not path.is_file()):
+                raise OSError("Expected a regular tracked file.")
             text = path.read_text(encoding="utf-8")
+        except OSError:
+            if target_path is None:
+                raise
+            warnings.append(
+                {
+                    "code": "unreadable_file",
+                    "path": relative,
+                    "message": "Could not read tracked file.",
+                }
+            )
+            continue
         except UnicodeError:
             warnings.append(
                 {

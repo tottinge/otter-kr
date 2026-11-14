@@ -46,6 +46,7 @@ from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
 from otter_kr.python_external_field_rules import find_external_field_rules
+from otter_kr.python_function_profile import FunctionTarget, profile_python_function
 from otter_kr.python_graph import build_python_import_graph
 from otter_kr.python_groups import find_repeated_groups
 from otter_kr.python_historical_neighborhood import find_historical_neighborhood
@@ -341,6 +342,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "python_complexity",
         "Analyze Python complexity",
         "Measure cyclomatic complexity in tracked Python files.",
+    ),
+    _TypedToolDescriptor(
+        "python.function_profile",
+        "python_function_profile",
+        "Profile an exact Python function",
+        "Combine complexity and primitive density for one tracked Python function or method.",
     ),
     _TypedToolDescriptor(
         "python.structural_complexity",
@@ -1140,6 +1147,20 @@ def create_server() -> FastMCP:
     def python_complexity(repository_root: str) -> dict:
         """Measure cyclomatic complexity in tracked Python files."""
         return research(repository_root, _typed_tool("python.complexity").operation)
+
+    @read_only_tool(_typed_tool("python.function_profile"))
+    def python_function_profile(repository_root: str, path: str, qualified_name: str) -> dict:
+        """Profile one function by its repository-relative path and qualified name."""
+        operation = _typed_tool("python.function_profile").operation
+        query = {**_query(repository_root), "path": path, "qualified_name": qualified_name}
+        try:
+            target = FunctionTarget(path, qualified_name)
+        except ValueError as error:
+            return {**_invalid_query(operation, repository_root, str(error)), "query": query}
+        result = _run_operation(
+            operation, repository_root, profile_python_function, query_object=target
+        )
+        return {**result, "query": query}
 
     @read_only_tool(_typed_tool("python.structural_complexity"))
     def python_structural_complexity(repository_root: str, measure: str) -> dict:
