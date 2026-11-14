@@ -507,7 +507,6 @@ class VariableClusterOperationSpec:
             request.repository_root,
             partial(self.cluster_analyzer, names=query.terms),
             terms=query.terms,
-            query_terms=query.terms,
             since_unix_time=query.since_unix_time,
             limit=query.limit,
         )
