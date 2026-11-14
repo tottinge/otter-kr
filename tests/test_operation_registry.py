@@ -113,73 +113,41 @@ def test_bounded_operation_spec_owns_its_execution_shape() -> None:
     assert calls == [("git.history", "/repo", analyzer, {"since_unix_time": 1, "limit": 2})]
 
 
-def test_bounded_term_operation_spec_owns_term_admission() -> None:
-    calls: list[tuple[object, ...]] = []
-    analyzer = object()
+def test_bounded_term_operation_spec_binds_term_after_admission() -> None:
+    def analyzer(repository, term, *, since_unix_time, limit):
+        return repository, term, since_unix_time, limit
 
-    def runner(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "ran"
+    def runner(operation, repository_root, analyze, *, query_object, **_):
+        return analyze(repository_root, query_object)
 
-    def reject(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "rejected"
+    def reject(operation, repository_root, message):
+        return message
 
-    request = ResearchRequest.create("/repo", "git.topic_walk", term="HEAD", limit=2)
     context = execution_context(runner, reject=reject)
-    result = BoundedTermOperationSpec(analyzer, "commit required").execute(request, context)
-
-    assert result == "ran"
-    assert calls == [
-        (
-            "git.topic_walk",
-            "/repo",
-            analyzer,
-            {"term": "HEAD", "since_unix_time": None, "limit": 2, "pass_bounds_with_term": True},
-        )
-    ]
-
-    rejected = BoundedTermOperationSpec(analyzer, "commit required").execute(
-        ResearchRequest.create("/repo", "git.topic_walk"), context
+    spec = BoundedTermOperationSpec(analyzer, "commit required")
+    request = ResearchRequest.create(
+        "/repo", "git.topic_walk", term="HEAD", since_unix_time=1, limit=2
     )
 
-    assert rejected == "rejected"
-    assert calls[-1] == ("git.topic_walk", "/repo", "commit required", {})
+    assert spec.execute(request, context) == ("/repo", "HEAD", 1, 2)
+    assert spec.execute(ResearchRequest.create("/repo", "git.topic_walk"), context) == (
+        "commit required"
+    )
 
 
-def test_bounded_path_operation_spec_owns_path_admission() -> None:
-    calls: list[tuple[object, ...]] = []
-    analyzer = object()
+def test_bounded_path_operation_spec_binds_normalized_path() -> None:
+    def analyzer(repository, path, *, since_unix_time, limit):
+        return repository, path, since_unix_time, limit
 
-    def runner(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "ran"
-
-    def reject(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "rejected"
+    def runner(operation, repository_root, analyze, *, query_object, **_):
+        return analyze(repository_root, query_object)
 
     request = ResearchRequest.create(
         "/repo", "git.cochange.file", term="src/a.py", since_unix_time=1, limit=2
     )
-    result = BoundedPathOperationSpec(analyzer, "path required", "path invalid").execute(
-        request, execution_context(runner, reject=reject)
-    )
+    spec = BoundedPathOperationSpec(analyzer, "path required", "path invalid")
 
-    assert result == "ran"
-    assert calls == [
-        (
-            "git.cochange.file",
-            "/repo",
-            analyzer,
-            {
-                "term": "src/a.py",
-                "since_unix_time": 1,
-                "limit": 2,
-                "pass_bounds_with_term": True,
-            },
-        )
-    ]
+    assert spec.execute(request, execution_context(runner)) == ("/repo", "src/a.py", 1, 2)
 
 
 def test_bounded_pair_operation_spec_binds_paths_to_analyzer() -> None:
@@ -229,15 +197,16 @@ def test_line_origins_operation_spec_owns_query_admission() -> None:
 
 def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
     calls: list[tuple[object, ...]] = []
-    analyzer = object()
+
+    def analyzer(repository, carrier, *, since_unix_time=None, limit=None):
+        return repository, carrier, since_unix_time, limit
 
     def runner(*args: object, **kwargs: object) -> str:
         calls.append((*args, kwargs))
         return "ran"
 
-    def bounded_runner(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "bounded"
+    def bounded_runner(operation, repository_root, analyze, *, query_object, **_):
+        return analyze(repository_root, query_object)
 
     def reject(*args: object, **kwargs: object) -> str:
         calls.append((*args, kwargs))
@@ -258,19 +227,7 @@ def test_lifecycle_operation_spec_owns_optional_bounds() -> None:
         execution_context(runner, bounded=bounded_runner, reject=reject),
     )
 
-    assert bounded == "bounded"
-    assert calls[-1] == (
-        "python.object_lifecycle",
-        "/repo",
-        analyzer,
-        {
-            "term": "state",
-            "since_unix_time": 1,
-            "limit": 2,
-            "term_required": True,
-            "pass_bounds_with_term": True,
-        },
-    )
+    assert bounded == ("/repo", "state", 1, 2)
 
 
 def test_carrier_guards_operation_spec_owns_path_scope() -> None:

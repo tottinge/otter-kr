@@ -826,7 +826,6 @@ def _run_operation(
     require_term: bool = False,
     term_message: str | None = None,
     catches_value_error: bool = True,
-    pass_bounds_with_term: bool = False,
     query_object: object | None = None,
 ) -> dict:
     query_term = term if query_term is None else query_term
@@ -855,8 +854,6 @@ def _run_operation(
     try:
         if query_object is not None:
             report = analyzer(repository, query_object)
-        elif term is not None and pass_bounds_with_term:
-            report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:
             report = analyzer(repository, term)
         elif since_unix_time is not None or limit is not None:
@@ -928,9 +925,7 @@ def _run_bounded(
     since_unix_time: int | None,
     limit: int | None,
     term: str | None = None,
-    term_required: bool = False,
-    term_message: str | None = None,
-    pass_bounds_with_term: bool = False,
+    query_object: object | None = None,
 ) -> dict:
     rejection = _validate_history_bounds(
         operation, repository_root, since_unix_time, limit, term=term
@@ -944,9 +939,7 @@ def _run_bounded(
         term=term,
         since_unix_time=since_unix_time,
         limit=limit,
-        require_term=term_required,
-        term_message=term_message,
-        pass_bounds_with_term=pass_bounds_with_term,
+        query_object=query_object,
     )
 
 

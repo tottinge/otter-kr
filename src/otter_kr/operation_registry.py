@@ -273,7 +273,7 @@ class CompactDuplicateOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class BoundedTermOperationSpec:
-    analyzer: object
+    analyzer: Callable[..., object]
     term_message: str
 
     def execute(
@@ -287,11 +287,11 @@ class BoundedTermOperationSpec:
         return context.bounded(
             request.operation,
             request.repository_root,
-            self.analyzer,
+            partial(self.analyzer, since_unix_time=request.since_unix_time, limit=request.limit),
             term=request.term,
             since_unix_time=request.since_unix_time,
             limit=request.limit,
-            pass_bounds_with_term=True,
+            query_object=request.term,
         )
 
 
@@ -348,7 +348,7 @@ class ReviewPacketFilesOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class BoundedPathOperationSpec:
-    analyzer: object
+    analyzer: Callable[..., object]
     term_message: str
     path_message: str
 
@@ -379,11 +379,11 @@ class BoundedPathOperationSpec:
         return context.run(
             request.operation,
             request.repository_root,
-            self.analyzer,
+            partial(self.analyzer, since_unix_time=query.since_unix_time, limit=query.limit),
             term=query.path,
             since_unix_time=query.since_unix_time,
             limit=query.limit,
-            pass_bounds_with_term=True,
+            query_object=query.path,
         )
 
 
@@ -521,7 +521,7 @@ class VariableClusterOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class LifecycleOperationSpec:
-    analyzer: object
+    analyzer: Callable[..., object]
 
     def execute(
         self,
@@ -543,12 +543,11 @@ class LifecycleOperationSpec:
             return context.bounded(
                 request.operation,
                 request.repository_root,
-                self.analyzer,
+                partial(self.analyzer, since_unix_time=query.since_unix_time, limit=query.limit),
                 term=query.carrier,
                 since_unix_time=query.since_unix_time,
                 limit=query.limit,
-                term_required=True,
-                pass_bounds_with_term=True,
+                query_object=query.carrier,
             )
         return context.run(
             request.operation, request.repository_root, self.analyzer, term=query.carrier
