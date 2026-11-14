@@ -27,16 +27,22 @@ boundaries and remaining research work live in `BACKLOG.md`.
 
 ### Python structural complexity
 
-Call `python_structural_complexity` with a `repository_root` and `measure="operands"`.
-The report gives a distinct operand count and source location for each tracked Python
-function and method. It counts declared parameters, body names, full dotted names, and
-typed literal values. A dotted name contributes once regardless of how often it appears.
+Call `python_structural_complexity` with a `repository_root` and a `measure`. The report
+gives a count and source location for each tracked Python function and method.
 Each nested function is measured in its own row. Docstrings, decorators, defaults, and
 signature annotations are outside the measured body.
 
-A function containing a lambda or an attribute chain rooted in an expression such as
-`items[0].name` receives a diagnostic in place of a count. Operations and paths are
-unavailable in this release.
+- `operands` counts distinct declared parameters, body names, full dotted names, and
+  typed literal values. A lambda or a dotted chain rooted in an expression such as
+  `items[0].name` receives a function diagnostic.
+- `operations` counts occurrences of assignments, arithmetic, Boolean and comparison
+  operators, calls, attribute and subscript lookups, and collection displays.
+  Augmented assignment contributes two operations. Each attribute hop contributes
+  one. A collection display and a constructor call each contribute one operation
+  in addition to any operations in their children. Control flow such as `if` and
+  `return` contributes through its expressions and bodies. Loops, comprehensions,
+  exception handling, and other unadmitted syntax produce a function diagnostic.
+- `paths` is still unavailable.
 
 ## Evidence layer for refactoring skills
 

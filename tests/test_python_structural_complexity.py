@@ -7,6 +7,7 @@ from otter_kr.python_structural_complexity import (
     UnsupportedStructuralSyntax,
     analyze_python_structural_complexity,
     count_operands,
+    count_operations,
 )
 from tests.support import git_repository, write_python
 
@@ -21,6 +22,113 @@ def test_counts_distinct_parameters_body_names_and_typed_literals() -> None:
 
     assert isinstance(function, ast.FunctionDef)
     assert count_operands(function) == 7
+
+
+def test_measures_operation_occurrences_in_tracked_functions(tmp_path: Path) -> None:
+    write_python(
+        tmp_path, "app.py", "def inspect(value):\n    result = value + 1\n    return result\n"
+    )
+    git_repository(tmp_path, "app.py")
+
+    report = analyze_python_structural_complexity(tmp_path, "operations")
+
+    assert [(item.qualified_name, item.count) for item in report.functions] == [("inspect", 2)]
+
+
+def test_counts_assignment_variants_arithmetic_and_target_lookups() -> None:
+    function = ast.parse(
+        """def update(value, other, items):
+    value += other
+    value: int
+    value: int = other
+    items[0] = value
+    value = (other := items[1])
+"""
+    ).body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == 8
+
+
+def test_counts_boolean_comparison_and_unary_operators_by_occurrence() -> None:
+    function = ast.parse(
+        """def check(a, b, c, x, y, z):
+    return a and b and c, x < y <= z, -x, not y
+"""
+    ).body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == 7
+
+
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("outer(inner(value))", 2),
+        ("value.first.second", 2),
+        ("values[0]", 1),
+        ("[left, right]", 1),
+        ("(left, right)", 1),
+        ("{value}", 1),
+        ("{key: value}", 1),
+        ("tuple((1, 2))", 2),
+        ("list(values)", 1),
+    ],
+)
+def test_counts_calls_lookup_hops_and_collection_construction(
+    expression: str, expected: int
+) -> None:
+    function = ast.parse(f"def build(values):\n    return {expression}\n").body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == expected
+
+
+def test_destructuring_does_not_count_tuple_construction() -> None:
+    function = ast.parse("def unpack(values):\n    left, right = values\n").body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == 1
+
+
+def test_empty_function_has_zero_operations_and_nested_bodies_are_separate(
+    tmp_path: Path,
+) -> None:
+    write_python(
+        tmp_path,
+        "app.py",
+        'def outer():\n    "outer docs"\n    value = 1\n'
+        "    def inner():\n        value + 2\n"
+        "    class Nested:\n        def method(self):\n            return 3\n"
+        "    return value\n\n"
+        "def empty():\n    pass\n",
+    )
+    git_repository(tmp_path, "app.py")
+
+    report = analyze_python_structural_complexity(tmp_path, "operations")
+
+    assert [(item.qualified_name, item.count) for item in report.functions] == [
+        ("outer", 1),
+        ("outer.inner", 1),
+        ("outer.Nested.method", 0),
+        ("empty", 0),
+    ]
+
+
+def test_unadmitted_comprehension_has_a_per_function_diagnostic(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "app.py",
+        "def supported(value):\n    return value + 1\n\n"
+        "def unsupported(values):\n    return [value for value in values]\n",
+    )
+    git_repository(tmp_path, "app.py")
+
+    report = analyze_python_structural_complexity(tmp_path, "operations")
+
+    assert report.functions[0].count == 1
+    assert report.functions[1].count is None
+    assert "ListComp syntax is unsupported" in report.functions[1].diagnostic
 
 
 def test_counts_maximal_attribute_chains_without_implicit_prefixes() -> None:

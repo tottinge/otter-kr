@@ -372,7 +372,7 @@ def test_python_complexity_tool_has_a_repository_only_contract(tmp_path: Path) -
 
 @pytest.mark.parametrize(
     "measure",
-    ["operations", "paths", "cyclomatic"],
+    ["paths", "cyclomatic"],
 )
 def test_python_structural_complexity_rejects_unadmitted_measure(
     tmp_path: Path, measure: str
@@ -403,15 +403,24 @@ def test_python_structural_complexity_rejects_unadmitted_measure(
     }
 
 
-def test_python_structural_complexity_reports_distinct_operands(tmp_path: Path) -> None:
-    write_python(tmp_path, "example.py", "def f(x):\n    return x + x + 1 + 1\n")
+@pytest.mark.parametrize(
+    ("measure", "body", "expected_count"),
+    [
+        ("operands", "return x + x + 1 + 1", 2),
+        ("operations", "value = x.c.d + x.c.d\n    return value", 6),
+    ],
+)
+def test_python_structural_complexity_reports_admitted_measure(
+    tmp_path: Path, measure: str, body: str, expected_count: int
+) -> None:
+    write_python(tmp_path, "example.py", f"def f(x):\n    {body}\n")
     git_repository(tmp_path, "example.py")
 
     async def call_tool() -> dict:
         async with Client(create_server()) as client:
             result = await client.call_tool(
                 "python_structural_complexity",
-                {"repository_root": str(tmp_path), "measure": "operands"},
+                {"repository_root": str(tmp_path), "measure": measure},
             )
             return result.data
 
@@ -419,12 +428,12 @@ def test_python_structural_complexity_reports_distinct_operands(tmp_path: Path) 
 
     assert result["status"] == "ok", result
     assert result["operation"] == "python.structural_complexity"
-    assert result["query"] == {"repository_root": str(tmp_path), "measure": "operands"}
-    assert result["data"]["measure"] == "operands"
+    assert result["query"] == {"repository_root": str(tmp_path), "measure": measure}
+    assert result["data"]["measure"] == measure
     assert [
         (row["path"], row["qualified_name"], row["line"], row["count"])
         for row in result["data"]["functions"]
-    ] == [("example.py", "f", 1, 2)]
+    ] == [("example.py", "f", 1, expected_count)]
 
 
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
