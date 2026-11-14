@@ -816,22 +816,21 @@ def _run_operation(
     limit: int | None = None,
     left_path: str | None = None,
     right_path: str | None = None,
-    query_term: str | None = None,
-    query_since_unix_time: int | None = None,
-    query_limit: int | None = None,
-    query_left_path: str | None = None,
-    query_right_path: str | None = None,
+    validation_query: dict[str, object] | None = None,
     query_detail: str | None = None,
     catches_value_error: bool = True,
     query_object: object | None = None,
 ) -> dict:
-    query_term = term if query_term is None else query_term
-    query_since_unix_time = (
-        since_unix_time if query_since_unix_time is None else query_since_unix_time
-    )
-    query_limit = limit if query_limit is None else query_limit
-    query_left_path = left_path if query_left_path is None else query_left_path
-    query_right_path = right_path if query_right_path is None else query_right_path
+    error_query = {
+        "term": term,
+        "terms": terms,
+        "since_unix_time": since_unix_time,
+        "limit": limit,
+        "left_path": left_path,
+        "right_path": right_path,
+        "detail": query_detail,
+        **(validation_query or {}),
+    }
     repository = Path(repository_root)
 
     try:
@@ -844,32 +843,10 @@ def _run_operation(
         else:
             report = analyzer(repository)
     except GitHistoryValidationError as error:
-        return _invalid_query(
-            operation,
-            repository_root,
-            str(error),
-            term=query_term,
-            terms=terms,
-            since_unix_time=query_since_unix_time,
-            limit=query_limit,
-            left_path=query_left_path,
-            right_path=query_right_path,
-            detail=query_detail,
-        )
+        return _invalid_query(operation, repository_root, str(error), **error_query)
     except ValueError as error:
         if catches_value_error:
-            return _not_a_repository(
-                operation,
-                repository_root,
-                error,
-                query_term,
-                terms,
-                query_since_unix_time,
-                query_limit,
-                query_left_path,
-                query_right_path,
-                query_detail,
-            )
+            return _not_a_repository(operation, repository_root, error, **error_query)
         raise
     except GitFileSourceError as error:
         return _repository_access_failed(
@@ -1014,29 +991,25 @@ def create_server() -> FastMCP:
             paths=paths,
             detail=detail,
         )
-        repository_root = request.repository_root
-        operation = request.operation
-        term = request.term
-        terms = request.terms
-        since_unix_time = request.since_unix_time
-        limit = request.limit
-        left_path = request.left_path
-        right_path = request.right_path
-        path = request.path
-        lines = request.lines
-        detail = request.detail
+        validation_query = {
+            name: value
+            for name, value in (
+                ("term", request.term),
+                ("since_unix_time", request.since_unix_time),
+                ("limit", request.limit),
+                ("left_path", request.left_path),
+                ("right_path", request.right_path),
+            )
+            if value is not None
+        }
 
         def run(analyzer, **kwargs):
             return _run_operation(
-                operation,
-                repository_root,
+                request.operation,
+                request.repository_root,
                 analyzer,
-                query_term=term,
-                query_since_unix_time=since_unix_time,
-                query_limit=limit,
-                query_left_path=left_path,
-                query_right_path=right_path,
-                query_detail=detail,
+                validation_query=validation_query,
+                query_detail=request.detail,
                 **kwargs,
             )
 
