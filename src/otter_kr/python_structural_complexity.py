@@ -153,6 +153,7 @@ _SUPPORTED_OPERATION_SYNTAX = {
     ast.AugAssign,
     ast.If,
     ast.IfExp,
+    ast.For,
     ast.Try,
     ast.ExceptHandler,
     ast.Pass,

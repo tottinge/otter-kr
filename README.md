@@ -43,7 +43,8 @@ signature annotations are outside the measured body.
   `return` contributes through its expressions and bodies. Ordinary `try` statements
   likewise contribute through their clauses. A `raise` contributes through its exception
   and cause expressions. A comprehension contributes one operation at the enclosing
-  scope. Loops and other unadmitted syntax produce a function diagnostic.
+  scope. A synchronous `for` contributes through its target, iterable, body, and
+  `else` clause once as written. Other unadmitted syntax produces a function diagnostic.
 - `paths` starts at one for straight-line code, ending a route at a return,
   an explicit raise, or fall-through. An `if` has two alternatives even with a compound condition.
   A loop contributes a zero-iteration and a populated alternative. A comprehension

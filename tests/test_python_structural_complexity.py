@@ -178,6 +178,20 @@ def test_counts_calls_lookup_hops_and_collection_construction(
     assert count_operations(function) == expected
 
 
+def test_counts_operations_in_for_loop_parts() -> None:
+    function = ast.parse(
+        """def collect(output):
+    for output.item in load():
+        record(output.item)
+    else:
+        finish()
+"""
+    ).body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == 5
+
+
 def test_counts_operations_inside_try_and_except_clauses() -> None:
     function = ast.parse(
         """def build():
