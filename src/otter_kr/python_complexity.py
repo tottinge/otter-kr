@@ -52,13 +52,13 @@ class _CollectedFunction:
     end_line: int
 
 
-def _collect_tracked_functions(
+def _collect_tracked_python_trees(
     repository: Path,
     file_source: TrackedFileSource | None,
     warnings: list[dict[str, str]],
     *,
     target_paths: set[str] | None = None,
-) -> Iterator[_CollectedFunction]:
+) -> Iterator[tuple[str, ast.Module]]:
     repository = repository.resolve()
     if not repository.is_dir():
         raise ValueError(f"Repository is not a directory: {repository}")
@@ -103,6 +103,19 @@ def _collect_tracked_functions(
                 }
             )
             continue
+        yield relative, tree
+
+
+def _collect_tracked_functions(
+    repository: Path,
+    file_source: TrackedFileSource | None,
+    warnings: list[dict[str, str]],
+    *,
+    target_paths: set[str] | None = None,
+) -> Iterator[_CollectedFunction]:
+    for relative, tree in _collect_tracked_python_trees(
+        repository, file_source, warnings, target_paths=target_paths
+    ):
         collector = _FunctionCollector(relative)
         collector.visit(tree)
         yield from collector.definitions
@@ -141,12 +154,15 @@ class _FunctionCollector(ast.NodeVisitor):
         self.stack: list[str] = []
         self.definitions: list[_CollectedFunction] = []
 
-    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, kind: str) -> None:
+    def qualified_name(self, name: str) -> str:
         components = [
             component[7:-1] if component.startswith("<class:") else component
             for component in self.stack
         ]
-        qualname = ".".join([*components, node.name])
+        return ".".join([*components, name])
+
+    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, kind: str) -> None:
+        qualname = self.qualified_name(node.name)
         definition = _CollectedFunction(
             node=node,
             path=self.relative_path,

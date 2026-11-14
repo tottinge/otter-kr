@@ -546,6 +546,49 @@ def test_python_function_profiles_reports_each_requested_target_in_order(tmp_pat
     assert profiles[3]["function"]["line"] == 1
 
 
+def test_python_class_profile_selects_exact_class_and_bounds_methods(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "class Service: pass\n"
+        "class Outer:\n"
+        "    class Service:\n"
+        "        count: int = 0\n"
+        "        order: Order\n"
+        "        def choose(self, x: int): return x\n"
+        "        async def reset(self): pass\n"
+        "        class Nested:\n"
+        "            def unrelated(self): pass\n",
+    )
+    git_repository(tmp_path, "example.py")
+    query = {
+        "repository_root": str(tmp_path),
+        "path": "example.py",
+        "qualified_name": "Outer.Service",
+        "limit": 1,
+    }
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            return (await client.call_tool("python_class_profile", query)).data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    assert result["query"] == query
+    profile = result["data"]
+    assert profile["class"]["qualified_name"] == "Outer.Service"
+    assert profile["class"]["line"] == 3
+    assert profile["field_density"]["primitive_count"] == 1
+    assert profile["field_density"]["specialized_count"] == 1
+    assert profile["method_count"] == 2
+    assert profile["methods_truncated"] is True
+    assert [method["function"]["qualified_name"] for method in profile["methods"]] == [
+        "Outer.Service.choose"
+    ]
+    assert profile["methods"][0]["primitive_density"]["primitive_count"] == 1
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

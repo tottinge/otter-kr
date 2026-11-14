@@ -42,6 +42,7 @@ from otter_kr.operation_registry import (
 )
 from otter_kr.python_behavioral_neighborhood import find_behavioral_neighborhood
 from otter_kr.python_carrier_guards import find_carrier_guards
+from otter_kr.python_class_profile import ClassProfileQuery, profile_python_class
 from otter_kr.python_complexity import analyze_python_complexity
 from otter_kr.python_discriminations import find_type_discriminations
 from otter_kr.python_duplicates import compact_duplicate_helpers, find_duplicate_helpers
@@ -358,6 +359,12 @@ _TYPED_TOOL_DESCRIPTORS = (
         "python_function_profiles",
         "Profile selected Python functions",
         "Combine evidence for up to 16 exact tracked Python functions or methods.",
+    ),
+    _TypedToolDescriptor(
+        "python.class_profile",
+        "python_class_profile",
+        "Profile an exact Python class",
+        "Report declared-field density and bounded direct method profiles for one tracked class.",
     ),
     _TypedToolDescriptor(
         "python.structural_complexity",
@@ -1185,6 +1192,32 @@ def create_server() -> FastMCP:
         }
         result = _run_operation(
             operation, repository_root, profile_python_functions, query_object=targets
+        )
+        return {**result, "query": query}
+
+    @read_only_tool(_typed_tool("python.class_profile"))
+    def python_class_profile(
+        repository_root: str,
+        path: str,
+        qualified_name: str,
+        limit: Annotated[int, Field(ge=1, le=16)] = 8,
+    ) -> dict:
+        """Profile a class by path and qualified name, showing up to limit direct methods."""
+        operation = _typed_tool("python.class_profile").operation
+        query = {
+            **_query(repository_root, limit=limit),
+            "path": path,
+            "qualified_name": qualified_name,
+        }
+        try:
+            target = FunctionTarget(path, qualified_name)
+        except ValueError as error:
+            return {**_invalid_query(operation, repository_root, str(error)), "query": query}
+        result = _run_operation(
+            operation,
+            repository_root,
+            profile_python_class,
+            query_object=ClassProfileQuery(target, limit),
         )
         return {**result, "query": query}
 
