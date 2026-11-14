@@ -57,6 +57,17 @@ def test_reports_structural_paths_for_tracked_functions(tmp_path: Path) -> None:
         ("raise ValueError()\n    if a:\n        pass", 1),
         ("if a:\n        raise ValueError() from cause()\n    if b:\n        pass", 3),
         ("raise", 1),
+        ("try:\n        load()\n    except Error:\n        recover()", 2),
+        (
+            "try:\n        return load()\n    except Error:\n        raise\n"
+            "    except OtherError:\n        return recover()\n    if a:\n        pass",
+            3,
+        ),
+        (
+            "try:\n        if a:\n            return load()\n    except Error:\n        recover()\n"
+            "    if b:\n        pass",
+            4,
+        ),
     ],
 )
 def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int) -> None:
@@ -74,7 +85,9 @@ def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int
         "for items[0] in xs:\n        pass",
         "for x in xs:\n        pass\n    else:\n        pass",
         "raise Error() from (cause() if a else None)",
-        "try:\n        pass\n    except Exception:\n        pass",
+        "try:\n        pass\n    except Exception:\n        pass\n    else:\n        pass",
+        "try:\n        pass\n    finally:\n        pass",
+        "try:\n        pass\n    except* Exception:\n        pass",
     ],
 )
 def test_paths_report_unmodeled_control_flow(body: str) -> None:

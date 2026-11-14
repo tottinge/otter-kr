@@ -51,8 +51,12 @@ signature annotations are outside the measured body.
   paths, and two nested loops give four. Each reachable sequential region adds
   its alternatives beyond the first, and each loop doubles the count for its body.
   An iterable expression contributes its alternatives before that loop's choice.
-  Unsupported control flow such as loop `else`, conditional expressions outside
-  comprehensions, or exception handling produces a function diagnostic.
+  A `try` with ordinary `except` clauses counts its body and each handler as
+  structural alternatives. A following statement is reachable if any of those
+  clauses can fall through. The measure does not resolve exception types or
+  infer which expressions can raise. Loop `else`, conditional expressions
+  outside comprehensions, `try` with `else` or `finally`, and `except*`
+  produce a function diagnostic.
 
 ### Python function and class profiles
 

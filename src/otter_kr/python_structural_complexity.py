@@ -270,6 +270,19 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
         then = _block_paths(node.body)
         otherwise = _block_paths(node.orelse)
         return _PathSummary(then.count + otherwise.count, then.continues or otherwise.continues)
+    if isinstance(node, ast.Try):
+        if node.orelse or node.finalbody:
+            raise UnsupportedStructuralSyntax(
+                "Try else and finally clauses are unsupported in path measurements."
+            )
+        alternatives = [_block_paths(node.body)]
+        for handler in node.handlers:
+            _expression_paths(handler.type)
+            alternatives.append(_block_paths(handler.body))
+        return _PathSummary(
+            sum(clause.count for clause in alternatives),
+            any(clause.continues for clause in alternatives),
+        )
     if isinstance(node, ast.For | ast.While):
         if node.orelse:
             raise UnsupportedStructuralSyntax(
