@@ -21,6 +21,7 @@ from otter_kr.python_structural_complexity import (
 )
 
 _DECISION_SITE_LIMIT = 16
+_ATTRIBUTE_SITE_LIMIT = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +125,37 @@ def _bounded_decision_sites(
     }
 
 
+def _attribute_operations(access: ast.Attribute, parent: ast.AST) -> list[str]:
+    if isinstance(access.ctx, ast.Load):
+        return ["read"]
+    if isinstance(access.ctx, ast.Store):
+        if isinstance(parent, ast.AugAssign) and parent.target is access:
+            return ["read", "write"]
+        return ["write"]
+    return []
+
+
+def _attribute_accesses(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
+    accesses = []
+    for statement in node.body:
+        for candidate, parent in _body_nodes(statement, node):
+            if isinstance(candidate, ast.Attribute):
+                operations = _attribute_operations(candidate, parent)
+                if operations:
+                    accesses.append(
+                        (candidate.lineno, candidate.col_offset, candidate.attr, operations)
+                    )
+    accesses.sort()
+    return {
+        "site_count": len(accesses),
+        "truncated": len(accesses) > _ATTRIBUTE_SITE_LIMIT,
+        "sites": [
+            {"attribute": attribute, "line": line, "column": column, "operations": operations}
+            for line, column, attribute, operations in accesses[:_ATTRIBUTE_SITE_LIMIT]
+        ],
+    }
+
+
 def _decision_evidence(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
     guards: list[ast.expr] = []
     comparisons: list[ast.expr] = []
@@ -178,6 +210,7 @@ def _profile_matches(
             "primitive_ratio": density.primitive_ratio,
         },
         **_decision_evidence(node),
+        "attribute_accesses": _attribute_accesses(node),
         "structural_complexity": {
             "operands": _structural_measure(lambda: count_operands(node)),
             "operations": _structural_measure(lambda: count_operations(node)),

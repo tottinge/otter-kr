@@ -703,6 +703,44 @@ def test_python_function_profile_reports_bounded_comparisons(tmp_path: Path) -> 
     ]
 
 
+def test_python_function_profile_reports_bounded_attribute_accesses(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "def update(item):\n"
+        "    def nested(): return item.hidden\n"
+        "    item.count += item.step\n"
+        "    item.ready = True\n"
+        "    del item.old\n" + "    item.count\n" * 14,
+    )
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profile",
+                {
+                    "repository_root": str(tmp_path),
+                    "path": "example.py",
+                    "qualified_name": "update",
+                },
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    accesses = result["data"]["attribute_accesses"]
+    assert accesses["site_count"] == 17
+    assert accesses["truncated"] is True
+    assert len(accesses["sites"]) == 16
+    assert accesses["sites"][:3] == [
+        {"attribute": "count", "line": 3, "column": 4, "operations": ["read", "write"]},
+        {"attribute": "step", "line": 3, "column": 18, "operations": ["read"]},
+        {"attribute": "ready", "line": 4, "column": 4, "operations": ["write"]},
+    ]
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

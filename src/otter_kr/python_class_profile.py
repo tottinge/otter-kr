@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.python_complexity import _collect_tracked_python_trees, _FunctionCollector
-from otter_kr.python_function_profile import FunctionTarget, _body_nodes, _profile_matches
+from otter_kr.python_function_profile import (
+    FunctionTarget,
+    _attribute_operations,
+    _body_nodes,
+    _profile_matches,
+)
 from otter_kr.python_primitive_density import _measure_annotations
 
 _FIELD_SITE_LIMIT = 16
@@ -50,17 +55,9 @@ def _method_field_accesses(
                     and access.attr in fields
                 ):
                     continue
-                if isinstance(access.ctx, ast.Load):
-                    operations = ["read"]
-                elif isinstance(access.ctx, ast.Store):
-                    operations = (
-                        ["read", "write"]
-                        if isinstance(parent, ast.AugAssign) and parent.target is access
-                        else ["write"]
-                    )
-                else:
-                    continue
-                sites.append((access.lineno, access.col_offset, access.attr, operations))
+                operations = _attribute_operations(access, parent)
+                if operations:
+                    sites.append((access.lineno, access.col_offset, access.attr, operations))
     sites.sort()
     return {
         "site_count": len(sites),
