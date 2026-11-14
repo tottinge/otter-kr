@@ -40,9 +40,10 @@ signature annotations are outside the measured body.
   Augmented assignment contributes two operations. Each attribute hop contributes
   one. A collection display and a constructor call each contribute one operation
   in addition to any operations in their children. Control flow such as `if` and
-  `return` contributes through its expressions and bodies. A comprehension contributes
-  one operation at the enclosing scope. Loops, exception handling, and other
-  unadmitted syntax produce a function diagnostic.
+  `return` contributes through its expressions and bodies. Ordinary `try` statements
+  likewise contribute through their clauses. A comprehension contributes one operation
+  at the enclosing scope. Loops, `raise`, and other unadmitted syntax produce a
+  function diagnostic.
 - `paths` starts at one for straight-line code, ending a route at a return or
   fall-through. An `if` has two alternatives even with a compound condition.
   A loop contributes a zero-iteration and a populated alternative. A comprehension

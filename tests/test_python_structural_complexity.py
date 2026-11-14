@@ -157,6 +157,24 @@ def test_counts_calls_lookup_hops_and_collection_construction(
     assert count_operations(function) == expected
 
 
+def test_counts_operations_inside_try_and_except_clauses() -> None:
+    function = ast.parse(
+        """def build():
+    try:
+        load()
+    except errors.expected():
+        recover()
+    else:
+        finish()
+    finally:
+        close()
+"""
+    ).body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == 6
+
+
 def test_destructuring_does_not_count_tuple_construction() -> None:
     function = ast.parse("def unpack(values):\n    left, right = values\n").body[0]
 
