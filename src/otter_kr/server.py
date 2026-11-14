@@ -823,8 +823,6 @@ def _run_operation(
     query_left_path: str | None = None,
     query_right_path: str | None = None,
     query_detail: str | None = None,
-    require_term: bool = False,
-    term_message: str | None = None,
     catches_value_error: bool = True,
     query_object: object | None = None,
 ) -> dict:
@@ -835,20 +833,6 @@ def _run_operation(
     query_limit = limit if query_limit is None else query_limit
     query_left_path = left_path if query_left_path is None else query_left_path
     query_right_path = right_path if query_right_path is None else query_right_path
-    if require_term and term is None:
-        return _invalid_query(
-            operation,
-            repository_root,
-            term_message or "A term is required.",
-            term=term,
-            terms=query_terms,
-            since_unix_time=since_unix_time,
-            limit=limit,
-            left_path=left_path,
-            right_path=right_path,
-            detail=query_detail,
-        )
-
     repository = Path(repository_root)
 
     try:

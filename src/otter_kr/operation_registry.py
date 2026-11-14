@@ -240,10 +240,24 @@ class OperationSpec:
 
     def execute(self, request: ResearchRequest, context: OperationContext) -> object:
         """Run a simple operation using its term and envelope policy."""
+        if self.requires_term and request.term is None:
+            query = {}
+            if self.echo_unused_query_fields:
+                query = {
+                    "since_unix_time": request.since_unix_time,
+                    "limit": request.limit,
+                    "left_path": request.left_path,
+                    "right_path": request.right_path,
+                    "detail": request.detail,
+                }
+            return context.reject(
+                request.operation,
+                request.repository_root,
+                self.term_message or "A term is required.",
+                **query,
+            )
         arguments = {
             "term": request.term if self.requires_term else None,
-            "require_term": self.requires_term,
-            "term_message": self.term_message,
             "catches_value_error": self.catches_value_error,
         }
         if self.echo_unused_query_fields:

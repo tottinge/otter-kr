@@ -335,12 +335,39 @@ def test_operation_spec_owns_term_and_envelope_policy() -> None:
             analyzer,
             {
                 "term": "count",
-                "require_term": True,
-                "term_message": "term required",
                 "catches_value_error": True,
             },
         )
     ]
+
+
+def test_operation_spec_rejects_missing_term_using_its_envelope_policy() -> None:
+    def run(*args, **kwargs):
+        raise AssertionError("Execution must follow term admission.")
+
+    def reject(operation, repository_root, message, **query):
+        return (
+            operation,
+            repository_root,
+            message,
+            {key: value for key, value in query.items() if value is not None},
+        )
+
+    request = ResearchRequest.create(
+        "/repo", "python.names", since_unix_time=1, limit=2, left_path="src/a.py", detail="compact"
+    )
+    context = execution_context(run, reject=reject)
+
+    for echo in (True, False):
+        spec = OperationSpec(object(), requires_term=True, echo_unused_query_fields=echo)
+        assert spec.execute(request, context) == (
+            "python.names",
+            "/repo",
+            "A term is required.",
+            {"since_unix_time": 1, "limit": 2, "left_path": "src/a.py", "detail": "compact"}
+            if echo
+            else {},
+        )
 
 
 def test_line_origins_query_develops_its_validation_boundary() -> None:
