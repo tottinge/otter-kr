@@ -54,8 +54,9 @@ signature annotations are outside the measured body.
   A `try` with ordinary `except` clauses counts its body and each handler as
   structural alternatives. A following statement is reachable if any of those
   clauses can fall through. The measure does not resolve exception types or
-  infer which expressions can raise. Loop `else`, conditional expressions
-  outside comprehensions, `try` with `else` or `finally`, and `except*`
+  infer which expressions can raise. A conditional expression outside a comprehension
+  adds two alternatives, with any choices in its condition counted before those alternatives.
+  Loop `else`, `try` with `else` or `finally`, and `except*`
   produce a function diagnostic.
 
 ### Python function and class profiles

@@ -236,7 +236,14 @@ class _PathSummary:
 def _expression_paths(node: ast.AST | None) -> int:
     if node is None:
         return 1
-    if isinstance(node, ast.IfExp | ast.Yield | ast.YieldFrom | ast.Await | ast.Lambda):
+    if isinstance(node, ast.IfExp):
+        return (
+            _expression_paths(node.test)
+            + _expression_paths(node.body)
+            + _expression_paths(node.orelse)
+            - 1
+        )
+    if isinstance(node, ast.Yield | ast.YieldFrom | ast.Await | ast.Lambda):
         raise UnsupportedStructuralSyntax(
             f"{type(node).__name__} syntax is unsupported in path measurements."
         )
@@ -266,10 +273,13 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
     if isinstance(node, ast.Raise):
         return _PathSummary(_expression_paths(node.exc) + _expression_paths(node.cause) - 1, False)
     if isinstance(node, ast.If):
-        _expression_paths(node.test)
+        condition_count = _expression_paths(node.test)
         then = _block_paths(node.body)
         otherwise = _block_paths(node.orelse)
-        return _PathSummary(then.count + otherwise.count, then.continues or otherwise.continues)
+        return _PathSummary(
+            condition_count + then.count + otherwise.count - 1,
+            then.continues or otherwise.continues,
+        )
     if isinstance(node, ast.Try):
         if node.orelse or node.finalbody:
             raise UnsupportedStructuralSyntax(
@@ -277,8 +287,9 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
             )
         alternatives = [_block_paths(node.body)]
         for handler in node.handlers:
-            _expression_paths(handler.type)
-            alternatives.append(_block_paths(handler.body))
+            type_count = _expression_paths(handler.type)
+            body = _block_paths(handler.body)
+            alternatives.append(_PathSummary(type_count + body.count - 1, body.continues))
         return _PathSummary(
             sum(clause.count for clause in alternatives),
             any(clause.continues for clause in alternatives),
