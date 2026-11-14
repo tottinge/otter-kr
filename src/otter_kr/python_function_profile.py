@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from otter_kr.python_behavioral_neighborhood import _comparison_operator
 from otter_kr.python_complexity import (
     _collect_tracked_functions,
     _CollectedFunction,
@@ -19,7 +20,7 @@ from otter_kr.python_structural_complexity import (
     count_paths,
 )
 
-_IF_GUARD_LIMIT = 16
+_DECISION_SITE_LIMIT = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,28 +102,40 @@ def _body_nodes(
         yield from _body_nodes(child, node)
 
 
-def _if_guards(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
-    predicates = sorted(
-        (
-            candidate.test
-            for statement in node.body
-            for candidate, _ in _body_nodes(statement, node)
-            if isinstance(candidate, ast.If)
-        ),
-        key=lambda test: (test.lineno, test.col_offset),
-    )
+def _bounded_decision_sites(
+    expressions: list[ast.expr], *, include_operators: bool = False
+) -> dict[str, object]:
+    expressions.sort(key=lambda expression: (expression.lineno, expression.col_offset))
+    sites = []
+    for expression in expressions[:_DECISION_SITE_LIMIT]:
+        site: dict[str, object] = {
+            "line": expression.lineno,
+            "column": expression.col_offset,
+            "end_line": expression.end_lineno,
+            "end_column": expression.end_col_offset,
+        }
+        if include_operators and isinstance(expression, ast.Compare):
+            site["operators"] = [_comparison_operator(operator) for operator in expression.ops]
+        sites.append(site)
     return {
-        "site_count": len(predicates),
-        "truncated": len(predicates) > _IF_GUARD_LIMIT,
-        "sites": [
-            {
-                "line": test.lineno,
-                "column": test.col_offset,
-                "end_line": test.end_lineno,
-                "end_column": test.end_col_offset,
-            }
-            for test in predicates[:_IF_GUARD_LIMIT]
-        ],
+        "site_count": len(expressions),
+        "truncated": len(expressions) > _DECISION_SITE_LIMIT,
+        "sites": sites,
+    }
+
+
+def _decision_evidence(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
+    guards: list[ast.expr] = []
+    comparisons: list[ast.expr] = []
+    for statement in node.body:
+        for candidate, _ in _body_nodes(statement, node):
+            if isinstance(candidate, ast.If):
+                guards.append(candidate.test)
+            elif isinstance(candidate, ast.Compare):
+                comparisons.append(candidate)
+    return {
+        "if_guards": _bounded_decision_sites(guards),
+        "comparisons": _bounded_decision_sites(comparisons, include_operators=True),
     }
 
 
@@ -164,7 +177,7 @@ def _profile_matches(
             "total_count": density.total_count,
             "primitive_ratio": density.primitive_ratio,
         },
-        "if_guards": _if_guards(node),
+        **_decision_evidence(node),
         "structural_complexity": {
             "operands": _structural_measure(lambda: count_operands(node)),
             "operations": _structural_measure(lambda: count_operations(node)),

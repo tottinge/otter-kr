@@ -665,6 +665,44 @@ def test_python_function_profile_reports_bounded_if_guard_locations(tmp_path: Pa
     assert guards["sites"][0] == {"line": 4, "column": 7, "end_line": 4, "end_column": 13}
 
 
+def test_python_function_profile_reports_bounded_comparisons(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "def check(x):\n"
+        "    def nested(): return x is None\n"
+        "    if 0 < x <= 10: pass\n" + "".join(f"    x != {index}\n" for index in range(16)),
+    )
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profile",
+                {"repository_root": str(tmp_path), "path": "example.py", "qualified_name": "check"},
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    comparisons = result["data"]["comparisons"]
+    assert comparisons["site_count"] == 17
+    assert comparisons["truncated"] is True
+    assert [site["line"] for site in comparisons["sites"]] == list(range(3, 19))
+    assert comparisons["sites"][0] == {
+        "line": 3,
+        "column": 7,
+        "end_line": 3,
+        "end_column": 18,
+        "operators": ["lt", "lt_eq"],
+    }
+    assert comparisons["sites"][1]["operators"] == ["not_eq"]
+    assert result["data"]["if_guards"]["sites"] == [
+        {"line": 3, "column": 7, "end_line": 3, "end_column": 18}
+    ]
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:
