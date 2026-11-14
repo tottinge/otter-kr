@@ -44,12 +44,15 @@ def test_reports_structural_paths_for_tracked_functions(tmp_path: Path) -> None:
         ("for x in xs:\n        return x\n    if a:\n        pass", 3),
         ("for x in xs:\n        if a:\n            pass", 4),
         ("while a:\n        pass", 2),
-        ("for x in [y for y in ys]:\n        pass", 3),
+        ("for x in [y for y in ys]:\n        pass", 2),
         ("for x in xs:\n        for y in ys:\n            for z in zs:\n                pass", 8),
-        ("first = [x for x in xs]\n    second = [y for y in ys]", 3),
-        ("return [y for x in xs for y in ys]", 4),
-        ("return [[y for y in ys] for x in xs]", 4),
-        ("return build(items=[x for x in xs])", 2),
+        ("first = [x for x in xs]\n    second = [y for y in ys]", 1),
+        ("return [y for x in xs for y in ys]", 1),
+        ("return [[y for y in ys] for x in xs]", 1),
+        ("return build(items=[x for x in xs])", 1),
+        ("return {x: x if a else 0 for x in xs if x}", 1),
+        ("if [x for x in xs if x]:\n        return 1\n    return 0", 2),
+        ("while [x for x in xs]:\n        pass", 2),
         ("if a and b or c:\n        return 1\n    return 0", 2),
     ],
 )
@@ -64,12 +67,8 @@ def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int
     [
         "return 1 if a else 0",
         "return build(item=1 if a else 0)",
-        "return [x for x in xs if x]",
-        "return [x async for x in xs]",
         "for x in xs:\n        break",
         "for items[0] in xs:\n        pass",
-        "return [x for items[0] in xs]",
-        "while [x for x in xs]:\n        pass",
         "for x in xs:\n        pass\n    else:\n        pass",
         "raise ValueError()",
         "try:\n        pass\n    except Exception:\n        pass",
@@ -185,20 +184,22 @@ def test_empty_function_has_zero_operations_and_nested_bodies_are_separate(
     ]
 
 
-def test_unadmitted_comprehension_has_a_per_function_diagnostic(tmp_path: Path) -> None:
-    write_python(
-        tmp_path,
-        "app.py",
-        "def supported(value):\n    return value + 1\n\n"
-        "def unsupported(values):\n    return [value for value in values]\n",
-    )
-    git_repository(tmp_path, "app.py")
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "[transform(value) for value in values if value]",
+        "{value for value in values}",
+        "{value: value if flag else 0 for value in values}",
+        "(value for value in values)",
+        "[value async for value in values if value]",
+    ],
+)
+def test_counts_comprehension_as_one_operation_and_continuation(expression: str) -> None:
+    function = ast.parse(f"async def inspect(values, flag):\n    result = {expression}\n").body[0]
 
-    report = analyze_python_structural_complexity(tmp_path, "operations")
-
-    assert report.functions[0].count == 1
-    assert report.functions[1].count is None
-    assert "ListComp syntax is unsupported" in report.functions[1].diagnostic
+    assert isinstance(function, ast.AsyncFunctionDef)
+    assert count_operations(function) == 2
+    assert count_paths(function) == 1
 
 
 def test_counts_maximal_attribute_chains_without_implicit_prefixes() -> None:

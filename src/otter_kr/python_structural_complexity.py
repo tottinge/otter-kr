@@ -9,6 +9,8 @@ from pathlib import Path
 from otter_kr.git_files import TrackedFileSource
 from otter_kr.python_complexity import _collect_tracked_functions
 
+COMPREHENSION_NODES = ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp
+
 
 class UnsupportedStructuralSyntax(Exception):
     """The function contains syntax outside the requested measure’s counting rules."""
@@ -187,6 +189,9 @@ class _OperationCounter(ast.NodeVisitor):
             ast.operator | ast.unaryop | ast.boolop | ast.cmpop | ast.expr_context,
         ):
             return
+        if isinstance(node, COMPREHENSION_NODES):
+            self.count += 1
+            return
         if type(node) not in _SUPPORTED_OPERATION_SYNTAX:
             raise UnsupportedStructuralSyntax(
                 f"{type(node).__name__} syntax is unsupported in operation measurements."
@@ -243,21 +248,8 @@ def _expression_paths(node: ast.AST | None) -> int:
         raise UnsupportedStructuralSyntax(
             f"{type(node).__name__} syntax is unsupported in path measurements."
         )
-    if isinstance(node, ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp):
-        if isinstance(node, ast.DictComp):
-            element_paths = _expression_paths(node.key) + _expression_paths(node.value) - 1
-        else:
-            element_paths = _expression_paths(node.elt)
-        for generator in reversed(node.generators):
-            if generator.ifs or generator.is_async:
-                raise UnsupportedStructuralSyntax(
-                    "Comprehension filters and async generators are unsupported "
-                    "in path measurements."
-                )
-            _check_loop_target(generator.target)
-            # The iterable is evaluated before this generator's zero/populated choice.
-            element_paths = _expression_paths(generator.iter) + 2 * element_paths - 1
-        return element_paths
+    if isinstance(node, COMPREHENSION_NODES):
+        return 1
     count = 1
     for child in ast.iter_child_nodes(node):
         count += _expression_paths(child) - 1
@@ -280,10 +272,7 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
     if isinstance(node, ast.Return):
         return _PathSummary(_expression_paths(node.value), False)
     if isinstance(node, ast.If):
-        if _expression_paths(node.test) != 1:
-            raise UnsupportedStructuralSyntax(
-                "Comprehensions in branch conditions are unsupported in path measurements."
-            )
+        _expression_paths(node.test)
         then = _block_paths(node.body)
         otherwise = _block_paths(node.orelse)
         return _PathSummary(then.count + otherwise.count, then.continues or otherwise.continues)
@@ -296,10 +285,6 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
         if isinstance(node, ast.For):
             _check_loop_target(node.target)
         header_paths = _expression_paths(iterable)
-        if isinstance(node, ast.While) and header_paths != 1:
-            raise UnsupportedStructuralSyntax(
-                "Comprehensions in loop conditions are unsupported in path measurements."
-            )
         body = _block_paths(node.body)
         return _PathSummary(header_paths + 2 * body.count - 1, True)
     if isinstance(node, ast.Assign | ast.AnnAssign | ast.AugAssign | ast.Expr):

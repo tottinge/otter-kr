@@ -40,17 +40,18 @@ signature annotations are outside the measured body.
   Augmented assignment contributes two operations. Each attribute hop contributes
   one. A collection display and a constructor call each contribute one operation
   in addition to any operations in their children. Control flow such as `if` and
-  `return` contributes through its expressions and bodies. Loops, comprehensions,
-  exception handling, and other unadmitted syntax produce a function diagnostic.
+  `return` contributes through its expressions and bodies. A comprehension contributes
+  one operation at the enclosing scope. Loops, exception handling, and other
+  unadmitted syntax produce a function diagnostic.
 - `paths` starts at one for straight-line code, ending a route at a return or
   fall-through. An `if` has two alternatives even with a compound condition.
-  A loop or filter-free comprehension contributes a zero-iteration and a
-  populated alternative. Two successive simple loops give three structural
+  A loop contributes a zero-iteration and a populated alternative. A comprehension
+  contributes one continuation at the enclosing scope. Two successive simple loops give three structural
   paths, and two nested loops give four. Each reachable sequential region adds
   its alternatives beyond the first, and each loop doubles the count for its body.
   An iterable expression contributes its alternatives before that loop's choice.
-  Unsupported control flow such as loop `else`, filtered or async comprehensions,
-  conditional expressions, or exception handling produces a function diagnostic.
+  Unsupported control flow such as loop `else`, conditional expressions outside
+  comprehensions, or exception handling produces a function diagnostic.
 
 ### Python function and class profiles
 
@@ -94,7 +95,10 @@ nested definitions. These examples use the otter-kr checkout as the target repos
   from parameter annotations, and structural measures for operands, operations, and paths.
   It also reports locations for explicit `if` predicates, comparisons, and attribute reads
   and writes in the function body. Each site list shows up to 16 entries, with a total
-  count and a truncation flag.
+  count and a truncation flag. Comprehension sites include source spans, counts of
+  generators and filters, and flags for conditional results and nested comprehensions.
+  These observations describe the comprehension's internal structure alongside the
+  enclosing operation and path counts.
 - A batch accepts 1–16 targets, parses each selected file once, and returns one profile per
   target in request order. Check each profile's `match_status` for missing, ambiguous,
   or unavailable definitions.

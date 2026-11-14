@@ -741,6 +741,49 @@ def test_python_function_profile_reports_bounded_attribute_accesses(tmp_path: Pa
     ]
 
 
+def test_python_function_profile_reports_comprehension_structure(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "def collect(rows):\n"
+        "    def nested(): return {x for x in rows}\n"
+        "    return [[x if x else 0 for x in row if x] for row in rows for _ in row if row]\n",
+    )
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profile",
+                {
+                    "repository_root": str(tmp_path),
+                    "path": "example.py",
+                    "qualified_name": "collect",
+                },
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    profile = result["data"]
+    assert profile["structural_complexity"]["operations"] == {"count": 1}
+    assert profile["structural_complexity"]["paths"] == {"count": 1}
+    evidence = profile["comprehensions"]
+    assert evidence["site_count"] == 2
+    assert evidence["truncated"] is False
+    assert evidence["sites"][0]["line"] == evidence["sites"][1]["line"] == 3
+    assert [
+        (
+            site["generator_count"],
+            site["filter_count"],
+            site["conditional_result"],
+            site["nested_comprehension"],
+        )
+        for site in evidence["sites"]
+    ] == [(2, 1, False, True), (1, 1, True, False)]
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

@@ -14,6 +14,7 @@ from otter_kr.python_complexity import (
 )
 from otter_kr.python_primitive_density import _measure_annotations, _parameter_annotations
 from otter_kr.python_structural_complexity import (
+    COMPREHENSION_NODES,
     UnsupportedStructuralSyntax,
     count_operands,
     count_operations,
@@ -22,6 +23,7 @@ from otter_kr.python_structural_complexity import (
 
 _DECISION_SITE_LIMIT = 16
 _ATTRIBUTE_SITE_LIMIT = 16
+_COMPREHENSION_SITE_LIMIT = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +173,53 @@ def _decision_evidence(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str
     }
 
 
+def _contains_result_condition(node: ast.AST) -> bool:
+    if isinstance(node, COMPREHENSION_NODES | ast.Lambda):
+        return False
+    return isinstance(node, ast.IfExp) or any(
+        _contains_result_condition(child) for child in ast.iter_child_nodes(node)
+    )
+
+
+def _comprehension_evidence(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
+    expressions = sorted(
+        (
+            candidate
+            for statement in node.body
+            for candidate, _ in _body_nodes(statement, node)
+            if isinstance(candidate, COMPREHENSION_NODES)
+        ),
+        key=lambda expression: (expression.lineno, expression.col_offset),
+    )
+    sites = []
+    for expression in expressions[:_COMPREHENSION_SITE_LIMIT]:
+        result = (
+            (expression.key, expression.value)
+            if isinstance(expression, ast.DictComp)
+            else (expression.elt,)
+        )
+        sites.append(
+            {
+                "line": expression.lineno,
+                "column": expression.col_offset,
+                "end_line": expression.end_lineno,
+                "end_column": expression.end_col_offset,
+                "generator_count": len(expression.generators),
+                "filter_count": sum(len(generator.ifs) for generator in expression.generators),
+                "conditional_result": any(_contains_result_condition(part) for part in result),
+                "nested_comprehension": any(
+                    isinstance(candidate, COMPREHENSION_NODES) and candidate is not expression
+                    for candidate, _ in _body_nodes(expression, node)
+                ),
+            }
+        )
+    return {
+        "site_count": len(expressions),
+        "truncated": len(expressions) > _COMPREHENSION_SITE_LIMIT,
+        "sites": sites,
+    }
+
+
 def _profile_matches(
     matches: list[_CollectedFunction], warnings: list[dict[str, str]]
 ) -> dict[str, object]:
@@ -211,6 +260,7 @@ def _profile_matches(
         },
         **_decision_evidence(node),
         "attribute_accesses": _attribute_accesses(node),
+        "comprehensions": _comprehension_evidence(node),
         "structural_complexity": {
             "operands": _structural_measure(lambda: count_operands(node)),
             "operations": _structural_measure(lambda: count_operations(node)),
