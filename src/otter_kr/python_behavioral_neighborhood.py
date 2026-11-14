@@ -87,6 +87,13 @@ class FieldAccess(TypedDict):
     access: Literal["read", "write", "delete"]
 
 
+_ATTRIBUTE_ACCESS_BY_CONTEXT: dict[type[ast.expr_context], Literal["read", "write", "delete"]] = {
+    ast.Load: "read",
+    ast.Store: "write",
+    ast.Del: "delete",
+}
+
+
 class Comparison(TypedDict):
     operator: str
 
@@ -187,13 +194,7 @@ def _arguments_passed_to(
 
 
 def _field_observation(field: ast.Attribute) -> BehavioralObservation:
-    access: Literal["read", "write", "delete"]
-    if isinstance(field.ctx, ast.Store):
-        access = "write"
-    elif isinstance(field.ctx, ast.Del):
-        access = "delete"
-    else:
-        access = "read"
+    access = _ATTRIBUTE_ACCESS_BY_CONTEXT[type(field.ctx)]
     return BehavioralObservation(
         field.attr, BehavioralRelationship.FIELD_ACCESS, field, {"access": access}
     )
