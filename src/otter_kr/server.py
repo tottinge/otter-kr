@@ -346,7 +346,7 @@ _TYPED_TOOL_DESCRIPTORS = (
         "python.structural_complexity",
         "python_structural_complexity",
         "Measure Python structural complexity",
-        "Measure distinct operands or operation occurrences in tracked Python functions.",
+        "Count operands, operations, or structural paths in tracked Python functions.",
     ),
     _TypedToolDescriptor(
         "python.literals",
@@ -1152,7 +1152,7 @@ def create_server() -> FastMCP:
 
     @read_only_tool(_typed_tool("python.structural_complexity"))
     def python_structural_complexity(repository_root: str, measure: str) -> dict:
-        """Count distinct operands or operation occurrences in tracked Python functions."""
+        """Count operands, operations, or structural paths in tracked Python functions."""
         operation = _typed_tool("python.structural_complexity").operation
         query = {**_query(repository_root), "measure": measure}
         if supports_structural_measure(measure):

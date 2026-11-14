@@ -370,13 +370,9 @@ def test_python_complexity_tool_has_a_repository_only_contract(tmp_path: Path) -
     assert result["operation"] == "python.complexity"
 
 
-@pytest.mark.parametrize(
-    "measure",
-    ["paths", "cyclomatic"],
-)
-def test_python_structural_complexity_rejects_unadmitted_measure(
-    tmp_path: Path, measure: str
-) -> None:
+def test_python_structural_complexity_rejects_unadmitted_measure(tmp_path: Path) -> None:
+    measure = "cyclomatic"
+
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:
             tools = await client.list_tools()
@@ -408,6 +404,7 @@ def test_python_structural_complexity_rejects_unadmitted_measure(
     [
         ("operands", "return x + x + 1 + 1", 2),
         ("operations", "value = x.c.d + x.c.d\n    return value", 6),
+        ("paths", "for a in x:\n        for b in a:\n            pass", 4),
     ],
 )
 def test_python_structural_complexity_reports_admitted_measure(

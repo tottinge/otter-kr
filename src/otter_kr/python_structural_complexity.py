@@ -230,9 +230,114 @@ def count_operations(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
     return counter.count
 
 
+@dataclass(frozen=True, slots=True)
+class _PathSummary:
+    count: int
+    continues: bool
+
+
+def _expression_paths(node: ast.AST | None) -> int:
+    if node is None:
+        return 1
+    if isinstance(node, ast.IfExp | ast.Yield | ast.YieldFrom | ast.Await | ast.Lambda):
+        raise UnsupportedStructuralSyntax(
+            f"{type(node).__name__} syntax is unsupported in path measurements."
+        )
+    if isinstance(node, ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp):
+        if isinstance(node, ast.DictComp):
+            element_paths = _expression_paths(node.key) + _expression_paths(node.value) - 1
+        else:
+            element_paths = _expression_paths(node.elt)
+        for generator in reversed(node.generators):
+            if generator.ifs or generator.is_async:
+                raise UnsupportedStructuralSyntax(
+                    "Comprehension filters and async generators are unsupported "
+                    "in path measurements."
+                )
+            _check_loop_target(generator.target)
+            # The iterable is evaluated before this generator's zero/populated choice.
+            element_paths = _expression_paths(generator.iter) + 2 * element_paths - 1
+        return element_paths
+    count = 1
+    for child in ast.iter_child_nodes(node):
+        count += _expression_paths(child) - 1
+    return count
+
+
+def _check_loop_target(node: ast.expr) -> None:
+    if isinstance(node, ast.Name):
+        return
+    if isinstance(node, ast.Tuple | ast.List):
+        for element in node.elts:
+            _check_loop_target(element)
+        return
+    raise UnsupportedStructuralSyntax("Complex loop targets are unsupported in path measurements.")
+
+
+def _statement_paths(node: ast.stmt) -> _PathSummary:
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        return _PathSummary(1, True)
+    if isinstance(node, ast.Return):
+        return _PathSummary(_expression_paths(node.value), False)
+    if isinstance(node, ast.If):
+        if _expression_paths(node.test) != 1:
+            raise UnsupportedStructuralSyntax(
+                "Comprehensions in branch conditions are unsupported in path measurements."
+            )
+        then = _block_paths(node.body)
+        otherwise = _block_paths(node.orelse)
+        return _PathSummary(then.count + otherwise.count, then.continues or otherwise.continues)
+    if isinstance(node, ast.For | ast.While):
+        if node.orelse:
+            raise UnsupportedStructuralSyntax(
+                "Loop else clauses are unsupported in path measurements."
+            )
+        iterable = node.iter if isinstance(node, ast.For) else node.test
+        if isinstance(node, ast.For):
+            _check_loop_target(node.target)
+        header_paths = _expression_paths(iterable)
+        if isinstance(node, ast.While) and header_paths != 1:
+            raise UnsupportedStructuralSyntax(
+                "Comprehensions in loop conditions are unsupported in path measurements."
+            )
+        body = _block_paths(node.body)
+        return _PathSummary(header_paths + 2 * body.count - 1, True)
+    if isinstance(node, ast.Assign | ast.AnnAssign | ast.AugAssign | ast.Expr):
+        count = 1
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.expr) and not (
+                isinstance(node, ast.AnnAssign) and child is node.annotation
+            ):
+                count += _expression_paths(child) - 1
+        return _PathSummary(count, True)
+    if isinstance(node, ast.Pass | ast.Import | ast.ImportFrom | ast.Global | ast.Nonlocal):
+        return _PathSummary(1, True)
+    raise UnsupportedStructuralSyntax(
+        f"{type(node).__name__} syntax is unsupported in path measurements."
+    )
+
+
+def _block_paths(statements: list[ast.stmt]) -> _PathSummary:
+    count = 1
+    continues = True
+    for statement in statements:
+        if not continues:
+            break
+        summary = _statement_paths(statement)
+        count += summary.count - 1
+        continues = summary.continues
+    return _PathSummary(count, continues)
+
+
+def count_paths(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    """Count structural routes, merging reachable paths between sequential statements."""
+    return _block_paths(_measured_body(node)).count
+
+
 _MEASURE_COUNTERS = {
     "operands": count_operands,
     "operations": count_operations,
+    "paths": count_paths,
 }
 
 

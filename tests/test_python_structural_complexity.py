@@ -8,8 +8,78 @@ from otter_kr.python_structural_complexity import (
     analyze_python_structural_complexity,
     count_operands,
     count_operations,
+    count_paths,
 )
 from tests.support import git_repository, write_python
+
+
+def test_reports_structural_paths_for_tracked_functions(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "paths.py",
+        "def direct():\n    return 1\n\n"
+        "def choose(flag):\n    if flag:\n        return 1\n    return 0\n\n"
+        "def sequential(xs, ys):\n    for x in xs:\n        pass\n"
+        "    for y in ys:\n        pass\n\n"
+        "def nested(rows):\n    for row in rows:\n        for value in row:\n            pass\n",
+    )
+    git_repository(tmp_path, "paths.py")
+
+    report = analyze_python_structural_complexity(tmp_path, "paths")
+
+    assert [(row.qualified_name, row.count) for row in report.functions] == [
+        ("direct", 1),
+        ("choose", 2),
+        ("sequential", 3),
+        ("nested", 4),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("if a:\n        pass\n    if b:\n        pass", 3),
+        ("if a:\n        return 1\n    for x in xs:\n        pass", 3),
+        ("if a:\n        return 1\n    else:\n        return 2\n    for x in xs:\n        pass", 2),
+        ("for x in xs:\n        return x\n    if a:\n        pass", 3),
+        ("for x in xs:\n        if a:\n            pass", 4),
+        ("while a:\n        pass", 2),
+        ("for x in [y for y in ys]:\n        pass", 3),
+        ("for x in xs:\n        for y in ys:\n            for z in zs:\n                pass", 8),
+        ("first = [x for x in xs]\n    second = [y for y in ys]", 3),
+        ("return [y for x in xs for y in ys]", 4),
+        ("return [[y for y in ys] for x in xs]", 4),
+        ("return build(items=[x for x in xs])", 2),
+        ("if a and b or c:\n        return 1\n    return 0", 2),
+    ],
+)
+def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int) -> None:
+    function = ast.parse(f"def inspect(a, b, c, xs, ys, zs):\n    {body}\n").body[0]
+    assert isinstance(function, ast.FunctionDef)
+    assert count_paths(function) == expected
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "return 1 if a else 0",
+        "return build(item=1 if a else 0)",
+        "return [x for x in xs if x]",
+        "return [x async for x in xs]",
+        "for x in xs:\n        break",
+        "for items[0] in xs:\n        pass",
+        "return [x for items[0] in xs]",
+        "while [x for x in xs]:\n        pass",
+        "for x in xs:\n        pass\n    else:\n        pass",
+        "raise ValueError()",
+        "try:\n        pass\n    except Exception:\n        pass",
+    ],
+)
+def test_paths_report_unmodeled_control_flow(body: str) -> None:
+    function = ast.parse(f"def inspect(a, xs):\n    {body}\n").body[0]
+    assert isinstance(function, ast.FunctionDef)
+    with pytest.raises(UnsupportedStructuralSyntax):
+        count_paths(function)
 
 
 def test_counts_distinct_parameters_body_names_and_typed_literals() -> None:

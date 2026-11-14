@@ -42,7 +42,15 @@ signature annotations are outside the measured body.
   in addition to any operations in their children. Control flow such as `if` and
   `return` contributes through its expressions and bodies. Loops, comprehensions,
   exception handling, and other unadmitted syntax produce a function diagnostic.
-- `paths` is still unavailable.
+- `paths` starts at one for straight-line code, ending a route at a return or
+  fall-through. An `if` has two alternatives even with a compound condition.
+  A loop or filter-free comprehension contributes a zero-iteration and a
+  populated alternative. Two successive simple loops give three structural
+  paths, and two nested loops give four. Each reachable sequential region adds
+  its alternatives beyond the first, and each loop doubles the count for its body.
+  An iterable expression contributes its alternatives before that loop's choice.
+  Unsupported control flow such as loop `else`, filtered or async comprehensions,
+  conditional expressions, or exception handling produces a function diagnostic.
 
 ## Evidence layer for refactoring skills
 
