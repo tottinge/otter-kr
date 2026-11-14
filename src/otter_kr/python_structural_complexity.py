@@ -210,13 +210,6 @@ class _OperationCounter(ast.NodeVisitor):
             self.count += 1
         super().visit(node)
 
-    def generic_visit(self, node: ast.AST) -> None:
-        if isinstance(node, ast.Call) and any(keyword.arg is None for keyword in node.keywords):
-            raise UnsupportedStructuralSyntax(
-                "Keyword unpacking is unsupported in operation measurements."
-            )
-        super().generic_visit(node)
-
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         self.visit(node.target)
         if node.value is not None:

@@ -134,6 +134,8 @@ def test_counts_boolean_comparison_and_unary_operators_by_occurrence() -> None:
     ("expression", "expected"),
     [
         ("outer(inner(value))", 2),
+        ("build(**values)", 1),
+        ("build(**load(values))", 2),
         ("value.first.second", 2),
         ("values[0]", 1),
         ("[left, right]", 1),
