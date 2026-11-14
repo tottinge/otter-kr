@@ -51,18 +51,13 @@ class EvidenceGraph:
         bridge_edge_count = sum(1 for _ in nx.bridges(graph))
         total_weight = sum(data["weight"] for _, _, data in graph.edges(data=True))
         edge_betweenness = nx.edge_betweenness_centrality(graph, normalized=True)
+        incident_betweenness = dict.fromkeys(graph, 0.0)
+        for (source, target), score in edge_betweenness.items():
+            incident_betweenness[source] += score
+            if source != target:
+                incident_betweenness[target] += score
         bridge_scores = {
-            node: round(
-                sum(
-                    edge_betweenness.get(tuple(sorted((edge.source, edge.target))), 0.0)
-                    for source, target in graph.edges
-                    if node in (source, target)
-                )
-                / degrees[node],
-                2,
-            )
-            if degrees[node]
-            else 0.0
+            node: round(incident_betweenness[node] / degrees[node], 2) if degrees[node] else 0.0
             for node in sorted(graph)
         }
         return {

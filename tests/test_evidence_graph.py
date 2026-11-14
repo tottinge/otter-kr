@@ -1,3 +1,5 @@
+import pytest
+
 from otter_kr.evidence_graph import EvidenceEdge, EvidenceGraph, build_evidence_graph
 
 
@@ -73,3 +75,30 @@ def test_topology_aggregates_parallel_evidence_weights_before_averaging() -> Non
     assert topology["total_edge_weight"] == 3.0
     assert topology["average_edge_weight"] == 3.0
     assert topology["bridge_scores"] == {"a": 1.0, "b": 1.0}
+
+
+@pytest.mark.parametrize(
+    "endpoints",
+    [
+        (("a", "b"), ("b", "c"), ("c", "d")),
+        (("a", "b"), ("c", "d"), ("b", "c")),
+        (("d", "c"), ("c", "b"), ("b", "a")),
+    ],
+    ids=["left-to-right", "middle-edge-last", "reversed-endpoints"],
+)
+def test_bridge_scores_use_each_incident_edge(
+    endpoints: tuple[tuple[str, str], ...],
+) -> None:
+    edges = tuple(EvidenceEdge(source, target, 1.0, "structural") for source, target in endpoints)
+    topology = EvidenceGraph(
+        nodes=("d", "c", "b", "a", "isolated"),
+        edges=edges,
+    ).topology()
+
+    assert topology["bridge_scores"] == {
+        "a": 0.3,
+        "b": 0.35,
+        "c": 0.35,
+        "d": 0.3,
+        "isolated": 0.0,
+    }
