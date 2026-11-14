@@ -1,7 +1,8 @@
 """Compose existing Python measurements for an exact tracked function."""
 
+import ast
 from collections import defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from otter_kr.python_structural_complexity import (
     count_operations,
     count_paths,
 )
+
+_IF_GUARD_LIMIT = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +90,42 @@ def _profiles_for_targets(
     return [profiles[target] for target in targets]
 
 
+def _body_nodes(
+    node: ast.AST,
+    parent: ast.AST,
+) -> Iterator[tuple[ast.AST, ast.AST]]:
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
+        return
+    yield node, parent
+    for child in ast.iter_child_nodes(node):
+        yield from _body_nodes(child, node)
+
+
+def _if_guards(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, object]:
+    predicates = sorted(
+        (
+            candidate.test
+            for statement in node.body
+            for candidate, _ in _body_nodes(statement, node)
+            if isinstance(candidate, ast.If)
+        ),
+        key=lambda test: (test.lineno, test.col_offset),
+    )
+    return {
+        "site_count": len(predicates),
+        "truncated": len(predicates) > _IF_GUARD_LIMIT,
+        "sites": [
+            {
+                "line": test.lineno,
+                "column": test.col_offset,
+                "end_line": test.end_lineno,
+                "end_column": test.end_col_offset,
+            }
+            for test in predicates[:_IF_GUARD_LIMIT]
+        ],
+    }
+
+
 def _profile_matches(
     matches: list[_CollectedFunction], warnings: list[dict[str, str]]
 ) -> dict[str, object]:
@@ -125,6 +164,7 @@ def _profile_matches(
             "total_count": density.total_count,
             "primitive_ratio": density.primitive_ratio,
         },
+        "if_guards": _if_guards(node),
         "structural_complexity": {
             "operands": _structural_measure(lambda: count_operands(node)),
             "operations": _structural_measure(lambda: count_operations(node)),

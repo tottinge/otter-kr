@@ -633,6 +633,38 @@ def test_python_class_profile_reports_direct_field_reads_and_writes(tmp_path: Pa
     assert unrelated["field_accesses"]["sites"] == []
 
 
+def test_python_function_profile_reports_bounded_if_guard_locations(tmp_path: Path) -> None:
+    write_python(
+        tmp_path,
+        "example.py",
+        "def choose(x):\n"
+        "    def nested():\n"
+        "        if x: pass\n" + "".join(f"    if x == {index}: pass\n" for index in range(17)),
+    )
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_function_profile",
+                {
+                    "repository_root": str(tmp_path),
+                    "path": "example.py",
+                    "qualified_name": "choose",
+                },
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    guards = result["data"]["if_guards"]
+    assert guards["site_count"] == 17
+    assert guards["truncated"] is True
+    assert [site["line"] for site in guards["sites"]] == list(range(4, 20))
+    assert guards["sites"][0] == {"line": 4, "column": 7, "end_line": 4, "end_column": 13}
+
+
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
     async def inspect_and_call() -> tuple[object, dict]:
         async with Client(create_server()) as client:

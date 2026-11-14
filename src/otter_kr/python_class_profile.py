@@ -1,12 +1,11 @@
 """Compose declared-field and method evidence for an exact tracked Python class."""
 
 import ast
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 from otter_kr.python_complexity import _collect_tracked_python_trees, _FunctionCollector
-from otter_kr.python_function_profile import FunctionTarget, _profile_matches
+from otter_kr.python_function_profile import FunctionTarget, _body_nodes, _profile_matches
 from otter_kr.python_primitive_density import _measure_annotations
 
 _FIELD_SITE_LIMIT = 16
@@ -30,16 +29,6 @@ class _ClassCollector(_FunctionCollector):
         super().visit_ClassDef(node)
 
 
-def _method_body_nodes(
-    node: ast.AST,
-) -> Iterator[tuple[ast.AST, ast.AST]]:
-    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda):
-        return
-    for child in ast.iter_child_nodes(node):
-        yield child, node
-        yield from _method_body_nodes(child)
-
-
 def _method_field_accesses(
     node: ast.FunctionDef | ast.AsyncFunctionDef, fields: set[str]
 ) -> dict[str, object]:
@@ -53,7 +42,7 @@ def _method_field_accesses(
     if positional and fields and not static:
         receiver = positional[0].arg
         for statement in node.body:
-            for access, parent in _method_body_nodes(statement):
+            for access, parent in _body_nodes(statement, node):
                 if not (
                     isinstance(access, ast.Attribute)
                     and isinstance(access.value, ast.Name)
