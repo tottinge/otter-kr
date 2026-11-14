@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from otter_kr.git_cli_history import GitCliHistory
 from otter_kr.git_hunk_matches import HunkMatch, match_hunks
-from otter_kr.git_hunks import TopicHunk, collect_topic_hunks
+from otter_kr.git_hunks import TopicHunk, collect_topic_hunks, extract_hunks
 from otter_kr.git_ports import CommitHistoryQuery, CommitPatchRequest
 from otter_kr.git_topic_walk import walk_topic_history
 
@@ -142,7 +142,7 @@ def expand_family(
     limit: int,
     topic_sha: str = "topic",
 ) -> FamilyReport:
-    active_sources = {_hunk_id(hunk): topic_sha for hunk in topic}
+    active_commit_sha = topic_sha
     active = topic
     members: list[FamilyMember] = []
     matches: list[HunkMatch] = []
@@ -159,42 +159,34 @@ def expand_family(
             prior_commit_sha=commit_sha,
             prior_distance=depth,
         )
+        prior_by_id = {hunk.hunk_id: hunk for hunk in hunks}
         next_active: dict[str, TopicHunk] = {}
         for match in found:
-            key = (commit_sha, match.prior_fingerprint)
+            prior_id = match.prior_hunk_id
+            key = (commit_sha, prior_id)
             if key in seen:
                 continue
-            seen.add(key)
-            members.append(FamilyMember(commit_sha, depth, match.prior_fingerprint))
+            if prior_id not in next_active:
+                next_active[prior_id] = prior_by_id[prior_id]
+                members.append(FamilyMember(commit_sha, depth, match.prior_fingerprint))
             matches.append(match)
-            parent_hunk_id = _hunk_id_for_fingerprint(active, match.topic_fingerprint)
             ancestry_edges.append(
                 FamilyAncestryEdge(
-                    active_sources.get(match.topic_hunk_id, topic_sha),
+                    active_commit_sha,
                     commit_sha,
-                    parent_hunk_id,
-                    match.prior_hunk_id,
+                    match.topic_hunk_id,
+                    prior_id,
                     depth,
                     match.method,
                 )
             )
-            next_active[match.prior_fingerprint] = next(
-                hunk for hunk in hunks if hunk.fingerprint == match.prior_fingerprint
-            )
         if next_active:
+            seen.update((commit_sha, hunk_id) for hunk_id in next_active)
             active = tuple(next_active.values())
-            active_sources = {_hunk_id(hunk): commit_sha for hunk in next_active.values()}
+            active_commit_sha = commit_sha
     return FamilyReport(
         tuple(members), tuple(matches), "exhausted", ancestry_edges=tuple(ancestry_edges)
     )
-
-
-def _hunk_id(hunk: TopicHunk) -> str:
-    return f"{hunk.path}:{hunk.new_start}:{hunk.fingerprint[:12]}"
-
-
-def _hunk_id_for_fingerprint(hunks: tuple[TopicHunk, ...], fingerprint: str) -> str:
-    return next((_hunk_id(hunk) for hunk in hunks if hunk.fingerprint == fingerprint), fingerprint)
 
 
 def collect_topic_family(
@@ -231,14 +223,16 @@ def collect_topic_family(
         patch = source.commit_patch(
             repository, CommitPatchRequest(commit, candidate_metadata[0].parent_shas[0])
         )
-        from otter_kr.git_hunks import extract_hunks
-
         candidates.append((commit, extract_hunks(patch.patch)))
     report = expand_family(topic, tuple(candidates), limit, topic_sha=canonical_topic_sha)
     member_commits = {member.commit_sha for member in report.members}
     path_transitions = _family_path_transitions(path_transitions, member_commits)
-    matched_topics = {match.topic_fingerprint for match in report.matches}
-    unmatched = tuple(hunk for hunk in topic if hunk.fingerprint not in matched_topics)
+    matched_topics = {
+        edge.parent_hunk_id
+        for edge in report.ancestry_edges
+        if edge.parent_commit_sha == canonical_topic_sha
+    }
+    unmatched = tuple(hunk for hunk in topic if hunk.hunk_id not in matched_topics)
     skipped = tuple(item for item in walk.commits if item.get("skipped") is not None)
     return FamilyReport.with_history_evidence(
         report,

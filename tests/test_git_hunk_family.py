@@ -24,6 +24,25 @@ def test_expands_matching_prior_hunks_and_honors_limit() -> None:
     assert report.ancestry_edges[0].method == "exact_normalized_body"
 
 
+def test_family_follows_both_prior_occurrences_with_the_same_body() -> None:
+    topic = extract_hunks(b"+++ b/a.py\n@@ -1 +1 @@\n-old\n+new\n")
+    prior = extract_hunks(b"+++ b/a.py\n@@ -3 +3 @@\n-old\n+new\n@@ -12 +12 @@\n-old\n+new\n")
+    older = extract_hunks(b"+++ b/a.py\n@@ -12 +12 @@\n-other\n+earlier\n")
+
+    report = expand_family(topic, (("prior", prior), ("older", older)), limit=5)
+
+    assert [member.commit_sha for member in report.members] == ["prior", "prior", "older"]
+    fingerprint = prior[0].fingerprint[:12]
+    assert [edge.child_hunk_id for edge in report.ancestry_edges[:2]] == [
+        f"a.py:3:{fingerprint}",
+        f"a.py:12:{fingerprint}",
+    ]
+    older_edge = report.ancestry_edges[2]
+    assert older_edge.parent_commit_sha == "prior"
+    assert older_edge.parent_hunk_id == f"a.py:12:{fingerprint}"
+    assert older_edge.method == "range_overlap"
+
+
 def test_path_transition_is_citeable_and_serializable() -> None:
     transition = PathTransition("rename-sha", 2, "rename", "pkg/new.py", "pkg/old.py")
 

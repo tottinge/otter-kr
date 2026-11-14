@@ -99,7 +99,7 @@ def match_hunks(
                     "",
                     topic_hunk.path,
                     "",
-                    topic_hunk_id=_hunk_id(topic_hunk),
+                    topic_hunk_id=topic_hunk.hunk_id,
                     topic_range=_range(topic_hunk),
                     topic_commit_sha=topic_commit_sha,
                     prior_commit_sha=prior_commit_sha,
@@ -138,8 +138,8 @@ def _matched_record(
         prior.path,
         method=method,
         overlap_count=overlap,
-        topic_hunk_id=_hunk_id(topic),
-        prior_hunk_id=_hunk_id(prior),
+        topic_hunk_id=topic.hunk_id,
+        prior_hunk_id=prior.hunk_id,
         topic_range=_range(topic),
         prior_range=_range(prior),
         shared_context=shared_context,
@@ -147,10 +147,6 @@ def _matched_record(
         prior_commit_sha=prior_commit_sha,
         prior_distance=prior_distance,
     )
-
-
-def _hunk_id(hunk: TopicHunk) -> str:
-    return f"{hunk.path}:{hunk.new_start}:{hunk.fingerprint[:12]}"
 
 
 def _range(hunk: TopicHunk) -> tuple[int, int, int, int]:

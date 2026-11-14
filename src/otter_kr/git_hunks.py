@@ -29,6 +29,10 @@ class TopicHunk:
     normalized_body: str
     fingerprint: str
 
+    @property
+    def hunk_id(self) -> str:
+        return f"{self.path}:{self.new_start}:{self.fingerprint[:12]}"
+
     def to_dict(self) -> dict[str, object]:
         return {
             "path": self.path,
