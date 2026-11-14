@@ -182,17 +182,12 @@ def test_bounded_path_operation_spec_owns_path_admission() -> None:
     ]
 
 
-def test_bounded_pair_operation_spec_owns_pair_admission() -> None:
-    calls: list[tuple[object, ...]] = []
-    analyzer = object()
+def test_bounded_pair_operation_spec_binds_paths_to_analyzer() -> None:
+    def analyzer(repository, *, left_path, right_path, since_unix_time, limit):
+        return repository, left_path, right_path, since_unix_time, limit
 
-    def runner(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "ran"
-
-    def reject(*args: object, **kwargs: object) -> str:
-        calls.append((*args, kwargs))
-        return "rejected"
+    def run(operation, repository_root, analyze, *, since_unix_time, limit, **_):
+        return analyze(repository_root, since_unix_time=since_unix_time, limit=limit)
 
     request = ResearchRequest.create(
         "/repo",
@@ -202,25 +197,9 @@ def test_bounded_pair_operation_spec_owns_pair_admission() -> None:
         since_unix_time=1,
         limit=2,
     )
-    result = BoundedPairOperationSpec(analyzer).execute(
-        request, execution_context(runner, reject=reject)
-    )
+    result = BoundedPairOperationSpec(analyzer).execute(request, execution_context(run))
 
-    assert result == "ran"
-    assert calls == [
-        (
-            "git.cochange.pair",
-            "/repo",
-            analyzer,
-            {
-                "since_unix_time": 1,
-                "limit": 2,
-                "left_path": "src/a.py",
-                "right_path": "src/b.py",
-                "pass_pair_paths": True,
-            },
-        )
-    ]
+    assert result == ("/repo", "src/a.py", "src/b.py", 1, 2)
 
 
 def test_line_origins_operation_spec_owns_query_admission() -> None:

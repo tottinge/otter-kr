@@ -804,7 +804,6 @@ def _run_operation(
     catches_value_error: bool = True,
     pass_bounds_with_term: bool = False,
     pass_bounds_with_terms: bool = False,
-    pass_pair_paths: bool = False,
     query_object: object | None = None,
 ) -> dict:
     query_term = term if query_term is None else query_term
@@ -847,14 +846,6 @@ def _run_operation(
             report = analyzer(repository, term, since_unix_time=since_unix_time, limit=limit)
         elif term is not None:
             report = analyzer(repository, term)
-        elif pass_pair_paths:
-            report = analyzer(
-                repository,
-                left_path=left_path,
-                right_path=right_path,
-                since_unix_time=since_unix_time,
-                limit=limit,
-            )
         elif since_unix_time is not None or limit is not None:
             report = analyzer(repository, since_unix_time=since_unix_time, limit=limit)
         else:

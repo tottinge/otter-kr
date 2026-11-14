@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from types import MappingProxyType
 
@@ -388,7 +389,7 @@ class BoundedPathOperationSpec:
 
 @dataclass(frozen=True, slots=True)
 class BoundedPairOperationSpec:
-    analyzer: object
+    analyzer: Callable[..., object]
 
     def execute(
         self,
@@ -416,12 +417,11 @@ class BoundedPairOperationSpec:
         return context.run(
             request.operation,
             request.repository_root,
-            self.analyzer,
+            partial(self.analyzer, left_path=query.left_path, right_path=query.right_path),
             since_unix_time=query.since_unix_time,
             limit=query.limit,
             left_path=query.left_path,
             right_path=query.right_path,
-            pass_pair_paths=True,
         )
 
 
