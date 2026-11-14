@@ -44,8 +44,8 @@ signature annotations are outside the measured body.
   likewise contribute through their clauses. A `raise` contributes through its exception
   and cause expressions. A comprehension contributes one operation at the enclosing
   scope. Loops and other unadmitted syntax produce a function diagnostic.
-- `paths` starts at one for straight-line code, ending a route at a return or
-  fall-through. An `if` has two alternatives even with a compound condition.
+- `paths` starts at one for straight-line code, ending a route at a return,
+  an explicit raise, or fall-through. An `if` has two alternatives even with a compound condition.
   A loop contributes a zero-iteration and a populated alternative. A comprehension
   contributes one continuation at the enclosing scope. Two successive simple loops give three structural
   paths, and two nested loops give four. Each reachable sequential region adds

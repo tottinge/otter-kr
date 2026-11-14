@@ -54,6 +54,9 @@ def test_reports_structural_paths_for_tracked_functions(tmp_path: Path) -> None:
         ("if [x for x in xs if x]:\n        return 1\n    return 0", 2),
         ("while [x for x in xs]:\n        pass", 2),
         ("if a and b or c:\n        return 1\n    return 0", 2),
+        ("raise ValueError()\n    if a:\n        pass", 1),
+        ("if a:\n        raise ValueError() from cause()\n    if b:\n        pass", 3),
+        ("raise", 1),
     ],
 )
 def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int) -> None:
@@ -70,7 +73,7 @@ def test_paths_compose_choices_loops_and_comprehensions(body: str, expected: int
         "for x in xs:\n        break",
         "for items[0] in xs:\n        pass",
         "for x in xs:\n        pass\n    else:\n        pass",
-        "raise ValueError()",
+        "raise Error() from (cause() if a else None)",
         "try:\n        pass\n    except Exception:\n        pass",
     ],
 )

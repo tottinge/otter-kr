@@ -263,6 +263,8 @@ def _statement_paths(node: ast.stmt) -> _PathSummary:
         return _PathSummary(1, True)
     if isinstance(node, ast.Return):
         return _PathSummary(_expression_paths(node.value), False)
+    if isinstance(node, ast.Raise):
+        return _PathSummary(_expression_paths(node.exc) + _expression_paths(node.cause) - 1, False)
     if isinstance(node, ast.If):
         _expression_paths(node.test)
         then = _block_paths(node.body)
