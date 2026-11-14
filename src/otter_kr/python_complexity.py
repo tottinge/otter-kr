@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from otter_kr.git_files import GitCliFileSource, TrackedFileSource
-from otter_kr.python_identity import module_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +41,56 @@ class ComplexityReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _CollectedFunction:
+    node: ast.FunctionDef | ast.AsyncFunctionDef
+    path: str
+    qualified_name: str
+    kind: str
+    line: int
+    column: int
+    end_line: int
+
+
+def _collect_tracked_functions(
+    repository: Path,
+    file_source: TrackedFileSource | None,
+    warnings: list[dict[str, str]],
+) -> Iterator[_CollectedFunction]:
+    repository = repository.resolve()
+    if not repository.is_dir():
+        raise ValueError(f"Repository is not a directory: {repository}")
+    for path in (file_source or GitCliFileSource()).python_files(repository):
+        relative = path.relative_to(repository).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeError:
+            warnings.append(
+                {
+                    "code": "unreadable_file",
+                    "path": relative,
+                    "message": "File could not be decoded as UTF-8.",
+                }
+            )
+            continue
+        try:
+            tree = ast.parse(text, filename=relative)
+        except SyntaxError as error:
+            warnings.append(
+                {
+                    "code": "invalid_python",
+                    "path": relative,
+                    "message": (
+                        f"Syntax error at line {error.lineno}, column {error.offset}: {error.msg}"
+                    ),
+                }
+            )
+            continue
+        collector = _FunctionCollector(relative)
+        collector.visit(tree)
+        yield from collector.definitions
+
+
 def _function_metrics(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[int, int, int]:
     branches = 0
     cyclomatic = 1
@@ -69,11 +119,10 @@ def _function_metrics(node: ast.FunctionDef | ast.AsyncFunctionDef) -> tuple[int
 
 
 class _FunctionCollector(ast.NodeVisitor):
-    def __init__(self, relative_path: str, module: str) -> None:
+    def __init__(self, relative_path: str) -> None:
         self.relative_path = relative_path
-        self.module = module
         self.stack: list[str] = []
-        self.functions: list[FunctionComplexity] = []
+        self.definitions: list[_CollectedFunction] = []
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef, kind: str) -> None:
         components = [
@@ -81,21 +130,16 @@ class _FunctionCollector(ast.NodeVisitor):
             for component in self.stack
         ]
         qualname = ".".join([*components, node.name])
-        branches, cyclomatic, max_nesting = _function_metrics(node)
-        self.functions.append(
-            FunctionComplexity(
-                path=self.relative_path,
-                qualified_name=qualname,
-                kind=kind,
-                line=node.lineno,
-                column=node.col_offset,
-                end_line=node.end_lineno or node.lineno,
-                max_nesting_depth=max_nesting,
-                branch_count=branches,
-                line_count=(node.end_lineno or node.lineno) - node.lineno + 1,
-                cyclomatic_count=cyclomatic,
-            )
+        definition = _CollectedFunction(
+            node=node,
+            path=self.relative_path,
+            qualified_name=qualname,
+            kind=kind,
+            line=node.lineno,
+            column=node.col_offset,
+            end_line=node.end_lineno or node.lineno,
         )
+        self.definitions.append(definition)
         self.stack.append(node.name)
         self.generic_visit(node)
         self.stack.pop()
@@ -120,42 +164,24 @@ def analyze_python_complexity(
     repository: Path, file_source: TrackedFileSource | None = None
 ) -> ComplexityReport:
     """Report deterministic AST complexity measurements for tracked Python files."""
-    repository = repository.resolve()
-    if not repository.is_dir():
-        raise ValueError(f"Repository is not a directory: {repository}")
-
-    functions: list[FunctionComplexity] = []
     warnings: list[dict[str, str]] = []
-    for path in (file_source or GitCliFileSource()).python_files(repository):
-        relative = path.relative_to(repository)
-        relative_path = relative.as_posix()
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeError:
-            warnings.append(
-                {
-                    "code": "unreadable_file",
-                    "path": relative_path,
-                    "message": "File could not be decoded as UTF-8.",
-                }
+    functions: list[FunctionComplexity] = []
+    for definition in _collect_tracked_functions(repository, file_source, warnings):
+        branches, cyclomatic, max_nesting = _function_metrics(definition.node)
+        functions.append(
+            FunctionComplexity(
+                path=definition.path,
+                qualified_name=definition.qualified_name,
+                kind=definition.kind,
+                line=definition.line,
+                column=definition.column,
+                end_line=definition.end_line,
+                max_nesting_depth=max_nesting,
+                branch_count=branches,
+                line_count=definition.end_line - definition.line + 1,
+                cyclomatic_count=cyclomatic,
             )
-            continue
-        try:
-            tree = ast.parse(text, filename=relative_path)
-        except SyntaxError as error:
-            warnings.append(
-                {
-                    "code": "invalid_python",
-                    "path": relative_path,
-                    "message": (
-                        f"Syntax error at line {error.lineno}, column {error.offset}: {error.msg}"
-                    ),
-                }
-            )
-            continue
-        collector = _FunctionCollector(relative_path, module_name(relative))
-        collector.visit(tree)
-        functions.extend(collector.functions)
+        )
 
     return ComplexityReport(
         language="python",

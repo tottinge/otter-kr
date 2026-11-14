@@ -56,6 +56,10 @@ from otter_kr.python_names import find_names
 from otter_kr.python_neighborhood import find_python_neighborhood
 from otter_kr.python_object_lifecycle import find_object_lifecycle
 from otter_kr.python_primitive_density import analyze_primitive_density
+from otter_kr.python_structural_complexity import (
+    analyze_python_structural_complexity,
+    supports_structural_measure,
+)
 from otter_kr.python_structural_neighborhood import find_structural_neighborhood
 from otter_kr.python_tests import find_tests_for_symbol
 from otter_kr.python_variable_cluster import find_variable_cluster, find_variable_occurrences
@@ -342,7 +346,7 @@ _TYPED_TOOL_DESCRIPTORS = (
         "python.structural_complexity",
         "python_structural_complexity",
         "Measure Python structural complexity",
-        "Measure operands, operations, or paths in tracked Python files.",
+        "Measure distinct operands in tracked Python functions and methods.",
     ),
     _TypedToolDescriptor(
         "python.literals",
@@ -1148,13 +1152,22 @@ def create_server() -> FastMCP:
 
     @read_only_tool(_typed_tool("python.structural_complexity"))
     def python_structural_complexity(repository_root: str, measure: str) -> dict:
-        """Reject structural complexity measures until one is admitted."""
+        """Count distinct operands in tracked Python functions and methods."""
         operation = _typed_tool("python.structural_complexity").operation
+        query = {**_query(repository_root), "measure": measure}
+        if supports_structural_measure(measure):
+            result = _run_operation(
+                operation,
+                repository_root,
+                analyze_python_structural_complexity,
+                query_object=measure,
+            )
+            return {**result, "query": query}
         return {
             "schema_version": "1",
             "status": "rejected",
             "operation": operation,
-            "query": {**_query(repository_root), "measure": measure},
+            "query": query,
             "error": {
                 "code": "unsupported_measure",
                 "message": f"Structural complexity measure '{measure}' is not admitted yet.",

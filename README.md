@@ -25,6 +25,19 @@ The product remains Python-only and evidence-only: it does not import or execute
 infer semantic concepts, assign quality scores, or recommend refactorings. The detailed admission
 boundaries and remaining research work live in `BACKLOG.md`.
 
+### Python structural complexity
+
+Call `python_structural_complexity` with a `repository_root` and `measure="operands"`.
+The report gives a distinct operand count and source location for each tracked Python
+function and method. It counts declared parameters, body names, full dotted names, and
+typed literal values. A dotted name contributes once regardless of how often it appears.
+Each nested function is measured in its own row. Docstrings, decorators, defaults, and
+signature annotations are outside the measured body.
+
+A function containing a lambda or an attribute chain rooted in an expression such as
+`items[0].name` receives a diagnostic in place of a count. Operations and paths are
+unavailable in this release.
+
 ## Evidence layer for refactoring skills
 
 otter-kr is intended to provide citeable, deterministic evidence for

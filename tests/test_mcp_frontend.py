@@ -372,7 +372,7 @@ def test_python_complexity_tool_has_a_repository_only_contract(tmp_path: Path) -
 
 @pytest.mark.parametrize(
     "measure",
-    ["operands", "operations", "paths", "cyclomatic"],
+    ["operations", "paths", "cyclomatic"],
 )
 def test_python_structural_complexity_rejects_unadmitted_measure(
     tmp_path: Path, measure: str
@@ -401,6 +401,30 @@ def test_python_structural_complexity_rejects_unadmitted_measure(
             "message": f"Structural complexity measure '{measure}' is not admitted yet.",
         },
     }
+
+
+def test_python_structural_complexity_reports_distinct_operands(tmp_path: Path) -> None:
+    write_python(tmp_path, "example.py", "def f(x):\n    return x + x + 1 + 1\n")
+    git_repository(tmp_path, "example.py")
+
+    async def call_tool() -> dict:
+        async with Client(create_server()) as client:
+            result = await client.call_tool(
+                "python_structural_complexity",
+                {"repository_root": str(tmp_path), "measure": "operands"},
+            )
+            return result.data
+
+    result = asyncio.run(call_tool())
+
+    assert result["status"] == "ok", result
+    assert result["operation"] == "python.structural_complexity"
+    assert result["query"] == {"repository_root": str(tmp_path), "measure": "operands"}
+    assert result["data"]["measure"] == "operands"
+    assert [
+        (row["path"], row["qualified_name"], row["line"], row["count"])
+        for row in result["data"]["functions"]
+    ] == [("example.py", "f", 1, 2)]
 
 
 def test_python_literals_tool_has_a_repository_only_contract(tmp_path: Path) -> None:
