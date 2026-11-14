@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from otter_kr.git_hunks import collect_topic_hunks
+from otter_kr.git_hunks import collect_topic_hunks, extract_hunks
 from otter_kr.git_ports import CommitMetadata, CommitPatchRequest, RawCommitPatch
 
 
@@ -61,3 +61,26 @@ def test_reports_duplicate_hunk_fingerprints_as_ambiguous(tmp_path: Path) -> Non
 
     assert report.status == "ambiguous"
     assert report.to_dict()["uncertainties"] == ["duplicate_fingerprints"]
+
+
+def test_extract_hunks_keeps_each_file_path_and_body() -> None:
+    patch = (
+        b"diff --git a/a.py b/a.py\n"
+        b"--- a/a.py\n"
+        b"+++ b/a.py\n"
+        b"@@ -1 +1 @@\n"
+        b"-before\n"
+        b"+after\n"
+        b"diff --git a/b.py b/b.py\n"
+        b"--- a/b.py\n"
+        b"+++ b/b.py\n"
+        b"@@ -3 +3 @@\n"
+        b"-before\n"
+        b"+after\n"
+    )
+
+    first, second = extract_hunks(patch)
+
+    assert (first.path, first.new_start, first.lines) == ("a.py", 1, ("-before", "+after"))
+    assert (second.path, second.new_start, second.lines) == ("b.py", 3, ("-before", "+after"))
+    assert first.fingerprint == second.fingerprint

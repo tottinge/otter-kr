@@ -63,10 +63,13 @@ def extract_hunks(patch: bytes) -> tuple[TopicHunk, ...]:
     hunks: list[TopicHunk] = []
     current: tuple[int, int, int, int, list[str]] | None = None
     for line in patch.decode("utf-8", errors="replace").splitlines():
-        if line.startswith("+++ b/"):
-            path = line[6:]
         match = _HEADER.match(line)
-        if match:
+        if line.startswith("diff --git "):
+            if current is not None:
+                hunks.append(_finish(path, current))
+            current = None
+            path = ""
+        elif match:
             if current is not None:
                 hunks.append(_finish(path, current))
             current = (
@@ -76,9 +79,10 @@ def extract_hunks(patch: bytes) -> tuple[TopicHunk, ...]:
                 int(match.group(4) or 1),
                 [],
             )
-        elif current is not None and (
-            line.startswith(("+", "-", " ")) or line == "\\ No newline at end of file"
-        ):
+        elif current is None:
+            if line.startswith("+++ b/"):
+                path = line[6:]
+        elif line.startswith(("+", "-", " ")) or line == "\\ No newline at end of file":
             current[4].append(line)
     if current is not None:
         hunks.append(_finish(path, current))
