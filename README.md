@@ -41,9 +41,9 @@ signature annotations are outside the measured body.
   one. A collection display and a constructor call each contribute one operation
   in addition to any operations in their children. Control flow such as `if` and
   `return` contributes through its expressions and bodies. Ordinary `try` statements
-  likewise contribute through their clauses. A comprehension contributes one operation
-  at the enclosing scope. Loops, `raise`, and other unadmitted syntax produce a
-  function diagnostic.
+  likewise contribute through their clauses. A `raise` contributes through its exception
+  and cause expressions. A comprehension contributes one operation at the enclosing
+  scope. Loops and other unadmitted syntax produce a function diagnostic.
 - `paths` starts at one for straight-line code, ending a route at a return or
   fall-through. An `if` has two alternatives even with a compound condition.
   A loop contributes a zero-iteration and a populated alternative. A comprehension

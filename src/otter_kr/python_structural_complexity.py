@@ -148,6 +148,7 @@ def count_operands(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 _SUPPORTED_OPERATION_SYNTAX = {
     ast.Expr,
     ast.Return,
+    ast.Raise,
     ast.AnnAssign,
     ast.AugAssign,
     ast.If,

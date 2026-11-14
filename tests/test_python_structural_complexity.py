@@ -175,6 +175,17 @@ def test_counts_operations_inside_try_and_except_clauses() -> None:
     assert count_operations(function) == 6
 
 
+@pytest.mark.parametrize(
+    ("statement", "expected"),
+    [("raise", 0), ("raise Error()", 1), ("raise Error() from cause()", 2)],
+)
+def test_counts_operations_in_raise_expressions(statement: str, expected: int) -> None:
+    function = ast.parse(f"def fail():\n    {statement}\n").body[0]
+
+    assert isinstance(function, ast.FunctionDef)
+    assert count_operations(function) == expected
+
+
 def test_destructuring_does_not_count_tuple_construction() -> None:
     function = ast.parse("def unpack(values):\n    left, right = values\n").body[0]
 
