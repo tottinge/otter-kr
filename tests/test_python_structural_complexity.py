@@ -327,12 +327,22 @@ def test_import_and_pattern_bindings_are_names() -> None:
     assert count_operands(function) == 5
 
 
-def test_dynamic_attribute_chain_is_explicitly_unsupported() -> None:
-    function = ast.parse("def read(values):\n    return values[0].field\n").body[0]
+@pytest.mark.parametrize(
+    ("expression", "expected"),
+    [
+        ("values[0].field.child", 3),
+        ("values[0].field, values[ 0 ].field", 3),
+        ("values[0].field, values[1].field", 5),
+        ("load(values).field, other(values).field", 5),
+    ],
+)
+def test_counts_dynamic_attribute_chains_and_receiver_inputs(
+    expression: str, expected: int
+) -> None:
+    function = ast.parse(f"def read(values):\n    return {expression}\n").body[0]
 
     assert isinstance(function, ast.FunctionDef)
-    with pytest.raises(UnsupportedStructuralSyntax, match="Dynamic attribute chains"):
-        count_operands(function)
+    assert count_operands(function) == expected
 
 
 def test_report_omits_counts_for_unsupported_functions_and_retains_other_rows(

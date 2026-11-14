@@ -32,9 +32,9 @@ gives a count and source location for each tracked Python function and method.
 Each nested function is measured in its own row. Docstrings, decorators, defaults, and
 signature annotations are outside the measured body.
 
-- `operands` counts distinct declared parameters, body names, full dotted names, and
-  typed literal values. A lambda or a dotted chain rooted in an expression such as
-  `items[0].name` receives a function diagnostic.
+- `operands` counts distinct declared parameters, body names, maximal attribute chains, and
+  typed literal values. An expression-rooted chain such as `items[0].name` contributes
+  the chain and its receiver inputs, `items` and `0`. A lambda receives a function diagnostic.
 - `operations` counts occurrences of assignments, arithmetic, Boolean and comparison
   operators, calls, attribute and subscript lookups, and collection displays.
   Augmented assignment contributes two operations. Each attribute hop contributes

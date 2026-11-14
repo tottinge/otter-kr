@@ -84,7 +84,11 @@ class _OperandCounter(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:
         dotted = _dotted_name(node)
         if dotted is None:
-            raise UnsupportedStructuralSyntax("Dynamic attribute chains are unsupported.")
+            dotted = ast.unparse(node)
+            receiver = node.value
+            while isinstance(receiver, ast.Attribute):
+                receiver = receiver.value
+            self.visit(receiver)
         # Only a maximal attribute chain contributes; its prefixes are implicit.
         self.names.add(dotted)
 
